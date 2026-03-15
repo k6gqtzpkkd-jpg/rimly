@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rimly – Basketball Score Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ================================================================ PASSWORD SCREEN -->
+<div id="password-screen" class="screen active">
+  <div class="pw-bg-anim"></div>
+  <div class="pw-container">
+    <div class="pw-logo">
+      <canvas id="rimly-canvas"></canvas>
+      <div class="pw-subtitle">Professional Score Manager</div>
+    </div>
+    <div class="pw-dots">
+      <div class="dot" id="dot-0"></div><div class="dot" id="dot-1"></div><div class="dot" id="dot-2"></div>
+      <div class="dot" id="dot-3"></div><div class="dot" id="dot-4"></div><div class="dot" id="dot-5"></div>
+    </div>
+    <div class="pw-error" id="pw-error"></div>
+    <div class="pw-numpad">
+      <button class="num-btn" data-n="1">1</button><button class="num-btn" data-n="2">2</button><button class="num-btn" data-n="3">3</button>
+      <button class="num-btn" data-n="4">4</button><button class="num-btn" data-n="5">5</button><button class="num-btn" data-n="6">6</button>
+      <button class="num-btn" data-n="7">7</button><button class="num-btn" data-n="8">8</button><button class="num-btn" data-n="9">9</button>
+      <div></div><button class="num-btn" data-n="0">0</button><button class="num-btn num-clear" id="pw-clear">C</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ APP SCREEN -->
+<div id="app-screen" class="screen">
+  <!-- Top Navigation -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-logo-img"></div>
+      <span style="font-family:'Bebas Neue', cursive; font-size:24px; color:var(--text-primary); letter-spacing:1px; margin-left:10px;">RIMLY</span>
+    </div>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="setup">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.73 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <span>セットアップ</span>
+      </button>
+      <button class="tab-btn" data-tab="score">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        <span>スコアボード</span>
+      </button>
+      <button class="tab-btn" data-tab="plays">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <span>得点ログ</span>
+      </button>
+      <button class="tab-btn" data-tab="fouls">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <span>ファウル</span>
+      </button>
+      <button class="tab-btn" data-tab="teams">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span>チーム登録</span>
+      </button>
+      <button class="tab-btn" data-tab="history">
+        <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        <span>履歴/AI</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- ========================================================= TABS -->
+    <!-- 1) SETUP TAB -->
+    <div id="tab-content-setup" class="tab-content active">
+      <div class="setup-container">
+        <div class="setup-header-text">
+          <h1 class="glow-title">NEW MATCH SETUP</h1>
+          <p class="text-secondary">チーム名と選手情報を設定し、新しい試合を開始します。</p>
+        </div>
+        
+        <div class="team-setup-panels">
+          <!-- HOME -->
+          <div class="team-setup-card border-orange">
+            <h2 class="card-glow-title text-orange">HOME TEAM</h2>
+            <div class="setup-form-group">
+              <label>チーム名（学校名）</label>
+              <input type="text" id="setup-home-name" class="glow-input" placeholder="HOME TEAM" value="" />
+            </div>
+            <div class="setup-form-group">
+              <label>ユニフォーム</label>
+              <div class="toggle-switch" id="setup-home-color">
+                <button class="ts-btn active ts-orange" data-val="dark">濃</button>
+                <button class="ts-btn" data-val="light">淡</button>
+              </div>
+            </div>
+            <div class="setup-actions">
+              <button class="btn-outline-glow" onclick="openTeamLoadModal('home')">💾 登録チームから読込</button>
+            </div>
+          </div>
+          
+          <!-- AWAY -->
+          <div class="team-setup-card border-blue">
+            <h2 class="card-glow-title text-blue">AWAY TEAM</h2>
+            <div class="setup-form-group">
+              <label>チーム名（学校名）</label>
+              <input type="text" id="setup-away-name" class="glow-input" placeholder="AWAY TEAM" value="" />
+            </div>
+            <div class="setup-form-group">
+              <label>ユニフォーム</label>
+              <div class="toggle-switch" id="setup-away-color">
+                <button class="ts-btn" data-val="dark">濃</button>
+                <button class="ts-btn active ts-blue" data-val="light">淡</button>
+              </div>
+            </div>
+            <div class="setup-actions">
+              <button class="btn-outline-glow" onclick="openTeamLoadModal('away')">💾 登録チームから読込</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="start-game-area">
+          <button class="btn-mega-glow" id="btn-start-match">START MATCH 🏀</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2) SCOREBOARD TAB -->
+    <div id="tab-content-score" class="tab-content">
+      <div class="score-main">
+        <!-- Quarter Bar -->
+        <div class="quarter-bar glass-panel">
+          <button class="q-btn" id="q-prev">◀</button>
+          <div class="quarter-center">
+            <div class="period-badge" id="period-info">1st QUARTER</div>
+            <div class="quarter-label" id="quarter-label">Q1</div>
+          </div>
+          <button class="q-btn" id="q-next">▶</button>
+          
+          <div class="qbar-actions">
+            <button class="ctrl-btn btn-danger" id="btn-end-match">試合終了 / 保存</button>
+          </div>
+        </div>
+
+        <!-- Big Score Display -->
+        <div class="score-display">
+          <div class="team-score-block" id="home-block">
+            <div class="team-label-row">
+              <span class="team-side-tag">HOME</span>
+              <div class="team-name-disp text-orange" id="disp-home-name">HOME TEAM</div>
+            </div>
+            <div class="score-num" id="home-score">0</div>
+          </div>
+          <div class="vs-center">
+            <div class="vs-text">VS</div>
+          </div>
+          <div class="team-score-block" id="away-block">
+            <div class="team-label-row">
+              <span class="team-side-tag away-tag">AWAY</span>
+              <div class="team-name-disp text-blue" id="disp-away-name">AWAY TEAM</div>
+            </div>
+            <div class="score-num" id="away-score">0</div>
+          </div>
+        </div>
+
+        <!-- Team Fouls & Timeouts -->
+        <div class="foul-timeout-row">
+          <!-- HOME -->
+          <div class="stat-panel glass-panel border-left-orange">
+            <div class="split-stats">
+              <div class="stat-col">
+                <div class="stat-label">TEAM FOUL</div>
+                <div class="tfoul-num" id="tf-home-val">0</div>
+                <div class="tfoul-pips" id="tf-home-pips"></div>
+              </div>
+              <div class="stat-col">
+                <div class="stat-label" id="to-home-label">TIMEOUT (前半)</div>
+                <div class="to-rem-val" id="to-home-rem">2</div>
+                <div class="to-pips" id="to-home-pips"></div>
+                <button class="ctrl-btn btn-outline-orange mt-2" onclick="useTimeout('home')">USE TIMEOUT</button>
+              </div>
+            </div>
+          </div>
+          <!-- AWAY -->
+          <div class="stat-panel glass-panel border-left-blue">
+            <div class="split-stats">
+              <div class="stat-col">
+                <div class="stat-label">TEAM FOUL</div>
+                <div class="tfoul-num" id="tf-away-val">0</div>
+                <div class="tfoul-pips" id="tf-away-pips"></div>
+              </div>
+              <div class="stat-col">
+                <div class="stat-label" id="to-away-label">TIMEOUT (前半)</div>
+                <div class="to-rem-val" id="to-away-rem">2</div>
+                <div class="to-pips" id="to-away-pips"></div>
+                <button class="ctrl-btn btn-outline-blue mt-2" onclick="useTimeout('away')">USE TIMEOUT</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player Lists -->
+        <div class="oncourt-section">
+          <!-- HOME Players -->
+          <div class="player-roster glass-panel">
+            <div class="roster-header">
+              <div class="roster-title text-orange" id="roster-home-name">HOME TEAM</div>
+              <button class="btn-sm btn-outline-orange" onclick="openPlayerModal('home')">＋ 選手追加/編集</button>
+            </div>
+            <table class="roster-table" id="roster-home-table">
+              <thead><tr><th>#</th><th>PLAYER</th><th title="得点">PTS</th><th title="3ポイント">3P</th><th title="2ポイント">2P</th><th title="フリースロー">FT</th><th title="ファウル状況">FOULS</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <!-- AWAY Players -->
+          <div class="player-roster glass-panel">
+            <div class="roster-header">
+              <div class="roster-title text-blue" id="roster-away-name">AWAY TEAM</div>
+              <button class="btn-sm btn-outline-blue" onclick="openPlayerModal('away')">＋ 選手追加/編集</button>
+            </div>
+            <table class="roster-table" id="roster-away-table">
+              <thead><tr><th>#</th><th>PLAYER</th><th>PTS</th><th>3P</th><th>2P</th><th>FT</th><th>FOULS</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) PLAYS (SCORE LOG) TAB -->
+    <div id="tab-content-plays" class="tab-content">
+      <div class="log-container">
+        <div class="log-header-text">
+          <h1 class="glow-title">PLAY-BY-PLAY (得点記録)</h1>
+        </div>
+        <div class="glass-panel p-4 timeline-split">
+          <div class="timeline-col">
+            <div class="tl-col-header text-orange" id="log-home-title-s">HOME</div>
+            <div id="score-home-list"></div>
+          </div>
+          <div class="timeline-col">
+             <div class="tl-col-header text-blue" id="log-away-title-s">AWAY</div>
+             <div id="score-away-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4) FOULS TAB -->
+    <div id="tab-content-fouls" class="tab-content">
+      <div class="log-container">
+        <div class="log-header-text">
+          <h1 class="glow-title">FOUL LOG (ファウル記録)</h1>
+        </div>
+        <div class="glass-panel p-4 timeline-split">
+          <div class="timeline-col">
+            <div class="tl-col-header text-orange" id="log-home-title-f">HOME</div>
+            <div id="foul-home-list"></div>
+          </div>
+          <div class="timeline-col">
+             <div class="tl-col-header text-blue" id="log-away-title-f">AWAY</div>
+             <div id="foul-away-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5) HISTORY/AI TAB -->
+    <div id="tab-content-history" class="tab-content">
+      <div class="history-container">
+        <div class="history-header">
+          <h1 class="glow-title">MATCH HISTORY & AI</h1>
+          <button class="ctrl-btn btn-danger" id="btn-clear-history">全履歴を削除</button>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- 6) TEAMS DB TAB -->
+    <div id="tab-content-teams" class="tab-content">
+      <div class="teams-container">
+        <div class="history-header">
+          <h1 class="glow-title">SCHOOL / TEAM DB</h1>
+          <button class="btn-mega-glow" style="padding: 10px 30px; font-size: 20px;" id="btn-create-team">＋ 新規チーム(学校)を登録</button>
+        </div>
+        <p class="text-secondary" style="margin-bottom:20px;">学校ごとのチームと登録選手を管理します。ここで登録したチームはセットアップ画面で呼び出せます。</p>
+        <div class="teams-db-list history-list" id="teams-db-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ MODALS -->
+
+<!-- Custom Dialog Overlay -->
+<div class="modal-overlay" id="overlay-custom-dialog" style="z-index: 99999;">
+  <div class="modal-box" style="max-width:400px; padding: 30px 24px; text-align:center;">
+    <h3 class="modal-title" id="dialog-title" style="margin-bottom:16px; font-size: 22px;"></h3>
+    <p id="dialog-msg" style="margin-bottom:30px; color:var(--text-secondary); line-height:1.5; font-size: 15px; font-weight:600;"></p>
+    <div style="display:flex; gap:12px; justify-content:center;">
+      <button class="ctrl-btn btn-outline-glow" id="dialog-btn-cancel" style="flex:1;">キャンセル</button>
+      <button class="ctrl-btn btn-save" id="dialog-btn-ok" style="flex:1;">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Log Modal -->
+<div class="modal-overlay" id="overlay-edit-log">
+  <div class="modal-box p-4" id="modal-edit-log">
+    <div class="modal-header">
+      <h3 class="modal-title">記録の編集 (選手変更)</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:20px; color:var(--text-secondary); font-size:14px; font-weight:bold;">該当する選手を選択し直してください</p>
+      <div id="edit-log-player-list" class="btn-grid-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Player Modal -->
+<div class="modal-overlay" id="overlay-manage-players">
+  <div class="modal-box" id="modal-manage-players">
+    <div class="modal-header">
+      <h3 class="modal-title" id="mmp-title">選手管理</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="add-player-row">
+        <input type="number" id="mmp-num" class="glow-input" placeholder="No." style="width:80px;" />
+        <input type="text" id="mmp-name" class="glow-input" placeholder="選手名を入力" style="flex:1;" />
+        <button class="ctrl-btn btn-save" id="mmp-add-btn">追加</button>
+      </div>
+      <div class="player-edit-list" id="mmp-list"></div>
+      <button class="ctrl-btn btn-outline-glow mt-4" style="width:100%" id="mmp-save-team">このチーム編成をDBに保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- DB Team Load Modal -->
+<div class="modal-overlay" id="overlay-load-team">
+  <div class="modal-box" id="modal-load-team">
+    <div class="modal-header">
+      <h3 class="modal-title">登録チームから読み込み</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-search-row">
+      <input type="text" id="mlt-search" class="glow-input" placeholder="チーム名で検索..." style="width:100%;"/>
+    </div>
+    <div class="school-list" id="mlt-list"></div>
+  </div>
+</div>
+
+<!-- Player Action Sheet: Foul Selection -->
+<div class="modal-overlay" id="overlay-foul-action">
+  <div class="modal-box action-sheet" id="modal-foul-action">
+    <div class="modal-header border-none pb-0">
+      <h3 class="modal-title player-action-title" id="mact-title">#14 坂井陽向</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="action-section">
+        <div class="action-label text-red">🔴 FOUL TYPE (ファウル種類記録)</div>
+        <div class="btn-grid-2">
+          <button class="play-btn foul-play" data-type="P">P (Personal)</button>
+          <button class="play-btn foul-play" data-type="O">O (Offensive)</button>
+          <button class="play-btn foul-play" data-type="T">T (テクニカル)</button>
+          <button class="play-btn foul-play" data-type="U">U (アンスポ)</button>
+          <button class="play-btn foul-play" data-type="D" style="grid-column: span 2;">D (ディスクォリファイイング)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DB Team Editor Modal -->
+<div class="modal-overlay" id="overlay-team-editor">
+  <div class="modal-box modal-lg" id="modal-team-editor">
+    <div class="modal-header">
+      <h3 class="modal-title">チーム(学校) 編集</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="setup-form-group" style="margin-bottom:20px;">
+        <label>チーム(学校)名</label>
+        <input type="text" id="mte-name" class="glow-input" placeholder="チーム名" />
+      </div>
+      <div class="add-player-row">
+        <input type="number" id="mte-pnum" class="glow-input" placeholder="No." style="width:80px;" />
+        <input type="text" id="mte-pname" class="glow-input" placeholder="選手名を入力" style="flex:1;" />
+        <button class="ctrl-btn btn-save" id="mte-add-btn">選手を追加</button>
+      </div>
+      <div class="player-edit-list" id="mte-list"></div>
+      <button class="ctrl-btn btn-outline-glow mt-4" style="width:100%" id="mte-save-team">チームを保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Analysis Modal -->
+<div class="modal-overlay" id="overlay-ai-analysis">
+  <div class="modal-box modal-lg" id="modal-ai-analysis">
+    <div class="modal-header">
+      <h3 class="modal-title">🤖 AI MATCH ANALYSIS</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body ai-body" id="ai-content-box">
+      <!-- AI Content injected here -->
+    </div>
+  </div>
+</div>
+
+<!-- Pop Toast for +2, +3 etc -->
+<div class="score-pop" id="score-pop"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
