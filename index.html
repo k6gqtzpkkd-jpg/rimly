@@ -6,7 +6,7 @@
   <title>Rimly – Basketball Score Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -281,12 +281,46 @@
       <div class="teams-container">
         <div class="history-header">
           <h1 class="glow-title">SCHOOL / TEAM DB</h1>
-          <button class="btn-mega-glow" style="padding: 10px 30px; font-size: 20px;" id="btn-create-team">＋ 新規チーム(学校)を登録</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="ctrl-btn btn-outline-glow" id="btn-share-teams" style="font-size:14px;">📤 チームデータ共有</button>
+            <button class="ctrl-btn btn-outline-glow" id="btn-import-teams" style="font-size:14px;">📥 インポート</button>
+            <button class="btn-mega-glow" style="padding: 10px 30px; font-size: 20px;" id="btn-create-team">＋ 新規チーム(学校)を登録</button>
+          </div>
         </div>
-        <p class="text-secondary" style="margin-bottom:20px;">学校ごとのチームと登録選手を管理します。ここで登録したチームはセットアップ画面で呼び出せます。</p>
+        <p class="text-secondary" style="margin-bottom:20px;">学校ごとのチームと登録選手を管理します。ここで登録したチームはセットアップ画面で呼び出せます。<br><strong>📤「共有」で他のデバイスにチームデータを送れます。📥「インポート」で受け取ったデータを取り込めます。</strong></p>
         <div class="teams-db-list history-list" id="teams-db-list"></div>
       </div>
     </div>
+
+<!-- Team Share Modal -->
+<div class="modal-overlay" id="overlay-share-teams" style="z-index: 99998;">
+  <div class="modal-box" style="max-width:550px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📤 チームデータ共有</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">下のテキストをすべてコピーして、LINEやメモ帳などで相手に送ってください。相手は「📥インポート」ボタンから取り込めます。</p>
+      <textarea id="share-teams-text" class="glow-input" style="width:100%; height:200px; font-size:12px; resize:vertical;" readonly></textarea>
+      <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-copy-share">📋 コピーする</button>
+    </div>
+  </div>
+</div>
+
+<!-- Team Import Modal -->
+<div class="modal-overlay" id="overlay-import-teams" style="z-index: 99998;">
+  <div class="modal-box" style="max-width:550px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📥 チームデータ インポート</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">相手から受け取ったテキストを下に貼り付けて「取り込む」を押してください。</p>
+      <textarea id="import-teams-text" class="glow-input" style="width:100%; height:200px; font-size:12px; resize:vertical;" placeholder="ここにチームデータを貼り付け..."></textarea>
+      <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-do-import">📥 取り込む</button>
+    </div>
+  </div>
+</div>
   </div>
 </div>
 

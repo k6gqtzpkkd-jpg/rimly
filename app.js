@@ -874,3 +874,85 @@ function changeLogPlayer(logItem, newPid) {
    if(newP && isFoulOut(newP)) setTimeout(() => showAlert(`🚫 ${newP.name} (#${newP.num}) が退場しました！`), 200);
    showPop('記録を変更しました');
 }
+
+// --- Team Share / Import ---
+document.addEventListener('DOMContentLoaded', () => {
+  // Share button
+  const btnShare = document.getElementById('btn-share-teams');
+  if(btnShare) btnShare.onclick = () => {
+    const data = JSON.stringify(appState.teamsDB);
+    const encoded = btoa(unescape(encodeURIComponent(data)));
+    const shareText = 'RIMLY_TEAMS:' + encoded;
+    document.getElementById('share-teams-text').value = shareText;
+    document.getElementById('overlay-share-teams').classList.add('open');
+  };
+
+  // Copy button
+  const btnCopy = document.getElementById('btn-copy-share');
+  if(btnCopy) btnCopy.onclick = () => {
+    const ta = document.getElementById('share-teams-text');
+    ta.select();
+    ta.setSelectionRange(0, 999999);
+    navigator.clipboard.writeText(ta.value).then(() => {
+      showPop('📋 コピーしました！');
+    }).catch(() => {
+      document.execCommand('copy');
+      showPop('📋 コピーしました！');
+    });
+  };
+
+  // Import button (open modal)
+  const btnImport = document.getElementById('btn-import-teams');
+  if(btnImport) btnImport.onclick = () => {
+    document.getElementById('import-teams-text').value = '';
+    document.getElementById('overlay-import-teams').classList.add('open');
+  };
+
+  // Do Import
+  const btnDoImport = document.getElementById('btn-do-import');
+  if(btnDoImport) btnDoImport.onclick = () => {
+    const raw = document.getElementById('import-teams-text').value.trim();
+    if(!raw) { showAlert('テキストを貼り付けてください。'); return; }
+    
+    let jsonStr = raw;
+    if(raw.startsWith('RIMLY_TEAMS:')) {
+      try {
+        jsonStr = decodeURIComponent(escape(atob(raw.replace('RIMLY_TEAMS:', ''))));
+      } catch(e) {
+        showAlert('❌ データの形式が正しくありません。コピーし直してもらってください。');
+        return;
+      }
+    }
+    
+    try {
+      const imported = JSON.parse(jsonStr);
+      if(!Array.isArray(imported)) throw new Error('not array');
+      
+      let addedCount = 0;
+      imported.forEach(t => {
+        if(!t.name) return;
+        // Skip if team with same name already exists
+        const exists = appState.teamsDB.find(x => x.name === t.name);
+        if(!exists) {
+          appState.teamsDB.push({ id: Date.now() + Math.random(), name: t.name, players: t.players || [] });
+          addedCount++;
+        }
+      });
+      
+      saveData();
+      renderTeamsDB();
+      document.getElementById('overlay-import-teams').classList.remove('open');
+      showAlert(`✅ ${addedCount}チームを取り込みました！${imported.length - addedCount > 0 ? `（${imported.length - addedCount}チームは既に登録済み）` : ''}`);
+    } catch(e) {
+      showAlert('❌ データの形式が正しくありません。コピーし直してもらってください。');
+    }
+  };
+
+  // Close buttons for share/import modals
+  document.querySelectorAll('#overlay-share-teams .modal-close, #overlay-import-teams .modal-close').forEach(btn => {
+    btn.onclick = () => {
+      document.getElementById('overlay-share-teams').classList.remove('open');
+      document.getElementById('overlay-import-teams').classList.remove('open');
+    };
+  });
+});

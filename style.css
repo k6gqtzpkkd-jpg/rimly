@@ -32,7 +32,7 @@
 
 html, body {
   height: 100%; background: var(--bg-deepest); color: var(--text-primary);
-  font-family: 'Outfit', sans-serif; overflow-x: hidden;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif; overflow-x: hidden;
 }
 
 /* Base Styles */
@@ -48,7 +48,7 @@ html, body {
 /* Buttons */
 .ctrl-btn {
   padding: 10px 20px; border: none; border-radius: 10px;
-  font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 700;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700;
   cursor: pointer; transition: all .2s; letter-spacing: .04em;
 }
 .btn-save { background: linear-gradient(135deg, #FF6B00, #FF8C35); color: #000; box-shadow: 0 4px 15px var(--orange-glow); }
@@ -89,7 +89,7 @@ html, body {
 .pw-numpad { display: grid; grid-template-columns: repeat(3, 82px); gap: 12px; margin-top: 10px; }
 .num-btn {
   height: 72px; background: var(--bg-card2); border: 1px solid var(--border); border-radius: var(--radius);
-  color: var(--text-primary); font-size: 26px; font-weight: 600; cursor: pointer; transition: all .15s; font-family:'Outfit', sans-serif;
+  color: var(--text-primary); font-size: 26px; font-weight: 600; cursor: pointer; transition: all .15s; font-family:'Inter', 'Noto Sans JP', sans-serif;
 }
 .num-btn:hover { background: var(--bg-panel); border-color: var(--border-orange); color: var(--orange); box-shadow: 0 0 20px var(--orange-glow); transform: scale(1.04); }
 .num-btn:active { transform: scale(0.96); background: var(--orange-dim); }
@@ -115,7 +115,7 @@ html, body {
   display: flex; align-items: center; gap: 6px; padding: 8px 18px;
   background: transparent; border: 1px solid transparent; border-radius: 30px;
   color: var(--text-secondary); cursor: pointer; font-size: 14px; font-weight: 600;
-  letter-spacing: .03em; transition: all .2s; font-family: 'Outfit', sans-serif;
+  letter-spacing: .03em; transition: all .2s; font-family: 'Inter', 'Noto Sans JP', sans-serif;
 }
 .tab-btn svg { width: 16px; height: 16px; fill: currentColor; }
 .tab-btn:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-card); }
@@ -135,7 +135,7 @@ html, body {
 
 .glow-input {
   background: var(--bg-card2); border: 1px solid var(--border); color: var(--text-primary);
-  padding: 12px 16px; border-radius: 10px; font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600;
+  padding: 12px 16px; border-radius: 10px; font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 600;
   transition: all .2s; width: 100%; outline: none;
 }
 .glow-input:focus { border-color: var(--orange); box-shadow: 0 0 15px var(--orange-glow); }
@@ -151,7 +151,7 @@ html, body {
 .setup-form-group { display: flex; flex-direction: column; gap: 8px; }
 .setup-form-group label { font-size: 13px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px;}
 .toggle-switch { display: flex; background: var(--bg-card2); border-radius: 8px; padding: 4px; border: 1px solid var(--border); }
-.ts-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-secondary); font-family: 'Outfit', sans-serif; font-weight: 700; border-radius: 6px; cursor: pointer; transition:.2s;}
+.ts-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-secondary); font-family: 'Inter', 'Noto Sans JP', sans-serif; font-weight: 700; border-radius: 6px; cursor: pointer; transition:.2s;}
 .ts-btn.active.ts-orange { background: var(--orange); color: #fff; box-shadow: 0 0 15px var(--orange-glow); }
 .ts-btn.active.ts-blue { background: var(--blue); color: #fff; box-shadow: 0 0 15px var(--blue-glow); }
 
@@ -174,7 +174,7 @@ html, body {
 .q-btn:hover { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 15px var(--orange-glow); }
 .quarter-center { display: flex; flex-direction: column; align-items: center; }
 .quarter-label { font-family: 'Bebas Neue', cursive; font-size: 50px; color: var(--orange); letter-spacing: .05em; text-shadow: 0 0 20px var(--orange-glow); line-height: 1; }
-.period-badge { font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .15em; color: var(--orange); background: var(--orange-dim); border: 1px solid var(--border-orange); border-radius: 20px; padding: 4px 12px; margin-bottom: 4px; }
+.period-badge { font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: .15em; color: var(--orange); background: var(--orange-dim); border: 1px solid var(--border-orange); border-radius: 20px; padding: 4px 12px; margin-bottom: 4px; }
 .qbar-actions { display: flex; gap: 10px; }
 
 /* Score Block */
@@ -191,7 +191,7 @@ html, body {
 .team-label-row { display: flex; align-items: center; gap: 12px; }
 .team-side-tag { font-size: 12px; font-weight: 800; letter-spacing: .15em; color: var(--orange); background: var(--orange-dim); border: 1px solid var(--border-orange); padding: 4px 10px; border-radius: 6px; }
 .away-tag { color: var(--blue); background: var(--blue-dim); border-color: var(--border-blue); }
-.team-name-disp { font-size: 26px; font-weight: 800; font-family: 'Outfit', sans-serif; letter-spacing: 1px; }
+.team-name-disp { font-size: 26px; font-weight: 800; font-family: 'Inter', 'Noto Sans JP', sans-serif; letter-spacing: 1px; }
 
 .score-num { font-family: 'Bebas Neue', cursive; font-size: 140px; line-height: 1; color: var(--text-primary); text-shadow: 0 10px 40px rgba(0,0,0,0.6); }
 
@@ -225,7 +225,7 @@ html, body {
 .player-roster { padding: 0; overflow: hidden; }
 .roster-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); }
 .roster-title { font-size: 16px; font-weight: 800; }
-.btn-sm { font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition:.2s; }
+.btn-sm { font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition:.2s; }
 .roster-table { width: 100%; border-collapse: collapse; text-align: center; }
 .roster-table th { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 12px; border-bottom: 1px solid var(--border); background: var(--bg-card2); }
 .roster-table td { padding: 14px 10px; font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border); cursor: pointer; transition:.2s; }
@@ -278,7 +278,7 @@ html, body {
 .hist-card:hover { border-color: var(--border-orange); box-shadow: inset 0 0 40px var(--orange-dim); }
 .hc-date { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;}
 .hc-row { display: flex; align-items: center; gap: 20px; font-family: 'Bebas Neue', cursive; font-size: 40px; }
-.hc-tname { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 800; width: 150px;}
+.hc-tname { font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 18px; font-weight: 800; width: 150px;}
 .hc-score { text-shadow: 0 0 15px rgba(255,255,255,0.2); }
 .hc-vs { font-size: 20px; color: var(--text-muted); }
 .hc-acts { display: flex; gap: 10px; }
@@ -316,7 +316,7 @@ html, body {
 .btn-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .btn-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .play-btn {
-  padding: 18px 10px; border-radius: 10px; font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; cursor: pointer; transition: .15s;
+  padding: 18px 10px; border-radius: 10px; font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 16px; font-weight: 800; cursor: pointer; transition: .15s;
   background: var(--bg-panel); border: 1px solid var(--border); color: #fff; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 .play-btn:hover { transform: scale(1.02); }
@@ -331,7 +331,7 @@ html, body {
 .ai-bar-title { font-size: 14px; font-weight: 800; color: var(--text-secondary); margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase;}
 .ai-stat-row { margin-bottom: 16px; }
 .ai-stat-label { display: flex; justify-content: space-between; font-family: 'Bebas Neue', cursive; font-size: 24px; margin-bottom: 6px; }
-.ai-stat-lbl-txt { font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-muted); }
+.ai-stat-lbl-txt { font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 800; color: var(--text-muted); }
 .ai-bar-bg { height: 16px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); display: flex; overflow: hidden; }
 .ai-bar-fill-h { background: var(--orange); box-shadow: 0 0 15px var(--orange-glow); }
 .ai-bar-fill-a { background: var(--blue); box-shadow: 0 0 15px var(--blue-glow); }
