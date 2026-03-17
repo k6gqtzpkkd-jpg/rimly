@@ -110,11 +110,17 @@ function setupRimlyCanvas() {
   render();
 }
 
+// --- HAPTIC VIBRATION ---
+function vibrate(pattern) {
+  if(navigator.vibrate) navigator.vibrate(pattern);
+}
+
 // --- POP TOAST ---
-function showPop(str) {
+function showPop(str, vibeMs) {
   const p = document.getElementById('score-pop');
   p.textContent = str;
   p.classList.add('show');
+  if(vibeMs) vibrate(vibeMs);
   setTimeout(() => p.classList.remove('show'), 1500);
 }
 
@@ -290,6 +296,8 @@ function renderScore() {
   
   renderTableRoster('home');
   renderTableRoster('away');
+  renderQuarterScores();
+  renderQuickUndo();
 }
 
 // Quarter buttons
@@ -316,7 +324,7 @@ window.useTimeout = function(t) {
   g.timeouts[t][hf]++;
   g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: 'TIMEOUT', val: 0 });
   
-  showPop('TIMEOUT!');
+  showPop('TIMEOUT!', 30);
   renderScore();
 };
 
@@ -417,7 +425,7 @@ function addScore(tm, pid, val, type) {
 
   g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'SCORE', detail: newDetail, val, rawType: type });
   
-  showPop(`+${val} PTS! (#${p.num} ${p.name})`);
+  showPop(`+${val} PTS! (#${p.num} ${p.name})`, [15, 30, 15]);
   renderScore();
 }
 
@@ -459,11 +467,78 @@ document.querySelectorAll('.foul-play').forEach(btn => {
     g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'FOUL', detail: fn, val: 0, fType: type });
     
     document.getElementById('modal-foul-action').parentElement.classList.remove('open');
+    vibrate([20, 40, 20]);
     if(isFoulOut(p)) setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
     renderScore();
   };
 });
 
+// --- QUARTER SCORE BREAKDOWN ---
+function renderQuarterScores() {
+  const row = document.getElementById('quarter-score-row');
+  if(!row) return;
+  row.innerHTML = '';
+  const g = appState.game;
+  const qLabels = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'];
+  const maxQ = g.isOT ? 5 : g.quarter;
+  
+  for(let qi = 1; qi <= maxQ; qi++) {
+    const isOT = qi === 5;
+    const qStr = isOT ? 'OT' : `Q${qi}`;
+    let hPts = 0, aPts = 0;
+    g.logs.forEach(l => {
+      if(l.type === 'SCORE' && l.qStr === qStr) {
+        if(l.team === 'home') hPts += l.val;
+        else aPts += l.val;
+      }
+    });
+    const chip = document.createElement('div');
+    chip.className = 'qs-chip';
+    chip.innerHTML = `
+      <div class="qs-chip-label">${qLabels[qi-1]}</div>
+      <div class="qs-chip-score"><span class="qs-home">${hPts}</span><span class="qs-sep">-</span><span class="qs-away">${aPts}</span></div>
+    `;
+    row.appendChild(chip);
+  }
+}
+
+// --- QUICK UNDO ---
+function renderQuickUndo() {
+  const btn = document.getElementById('btn-quick-undo');
+  const preview = document.getElementById('undo-preview');
+  if(!btn || !preview) return;
+  const g = appState.game;
+  
+  if(g.logs.length === 0) {
+    btn.disabled = true;
+    preview.textContent = '';
+    return;
+  }
+  
+  btn.disabled = false;
+  const last = g.logs[0];
+  const p = last.pid !== 'TO' ? g[last.team].players.find(x => x.id === last.pid) : null;
+  const pName = p ? `#${p.num} ${p.name}` : '';
+  
+  if(last.type === 'SCORE') {
+    preview.textContent = `${last.team === 'home' ? '🟠' : '🔵'} ${pName} ${last.detail}`;
+  } else if(last.type === 'FOUL') {
+    preview.textContent = `${last.team === 'home' ? '🟠' : '🔵'} ${pName} ${last.detail}`;
+  } else if(last.type === 'TO') {
+    preview.textContent = `${last.team === 'home' ? '🟠' : '🔵'} TIMEOUT`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn-quick-undo');
+  if(btn) btn.onclick = () => {
+    const g = appState.game;
+    if(g.logs.length === 0) return;
+    vibrate(15);
+    revertLog(g.logs[0].id);
+    showPop('⏪ 取り消しました');
+  };
+});
 
 // --- 3, 4. PLAY LOG & FOUL LOG ---
 function renderLogs() {
