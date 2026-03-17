@@ -1,0 +1,18 @@
+{
+  "name": "Rimly – Basketball Score Manager",
+  "short_name": "Rimly",
+  "description": "Professional basketball score management app",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#070A0E",
+  "theme_color": "#FF6B00",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

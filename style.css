@@ -160,7 +160,7 @@ html, body {
 .start-game-area { display: flex; justify-content: center; margin-top: 20px; }
 .btn-mega-glow {
   background: var(--orange); color: #000; border: none; padding: 20px 60px; border-radius: 40px;
-  font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 2px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: 1px;
   cursor: pointer; transition: all .2s; box-shadow: 0 0 40px var(--orange-glow);
 }
 .btn-mega-glow:hover { transform: scale(1.05); box-shadow: 0 0 60px var(--orange-glow), 0 0 20px #fff; filter: brightness(1.2); }

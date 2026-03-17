@@ -337,12 +337,12 @@ function renderTableRoster(tm) {
     `;
     
     // Direct Score Actions
-    tr.querySelector('.cell-3p').onclick = () => { if(p.pf < 5) addScore(tm, p.id, 3, '3P'); else showAlert('退場しています'); };
-    tr.querySelector('.cell-2p').onclick = () => { if(p.pf < 5) addScore(tm, p.id, 2, '2P'); else showAlert('退場しています'); };
-    tr.querySelector('.cell-ft').onclick = () => { if(p.pf < 5) addScore(tm, p.id, 1, '1P'); else showAlert('退場しています'); };
+    tr.querySelector('.cell-3p').onclick = () => { if(!isFoulOut(p)) addScore(tm, p.id, 3, '3P'); else showAlert('退場しています'); };
+    tr.querySelector('.cell-2p').onclick = () => { if(!isFoulOut(p)) addScore(tm, p.id, 2, '2P'); else showAlert('退場しています'); };
+    tr.querySelector('.cell-ft').onclick = () => { if(!isFoulOut(p)) addScore(tm, p.id, 1, '1P'); else showAlert('退場しています'); };
     
     // Direct Foul Action
-    tr.querySelector('.cell-pf').onclick = () => { if(p.pf < 5) openActionSheet(p.id, tm); else showAlert('退場しています'); };
+    tr.querySelector('.cell-pf').onclick = () => { if(!isFoulOut(p)) openActionSheet(p.id, tm); else showAlert('退場しています'); };
     
     tbody.appendChild(tr);
   });
@@ -444,11 +444,22 @@ document.querySelectorAll('.foul-play').forEach(btn => {
     p.pf++;
     g.teamFouls[tm]++;
     
-    let fn = type === 'P' ? 'Personal Foul' : (type === 'T' ? 'Tech Foul' : (type === 'U' ? 'Unsports Foul' : 'Disqualifying'));
-    g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'FOUL', detail: fn, val: 0 });
+    // Track individual foul type counters
+    if(type === 'P' || type === 'O') {
+      p.po = (p.po || 0) + 1;
+    }
+    if(type === 'T' || type === 'U' || type === 'D') {
+      p.tud = (p.tud || 0) + 1;
+    }
+    if(type === 'T') p.tf = (p.tf || 0) + 1;
+    if(type === 'U') p.uf = (p.uf || 0) + 1;
+    if(type === 'D') p.df = (p.df || 0) + 1;
+    
+    let fn = type === 'P' ? 'Personal Foul' : (type === 'O' ? 'Offensive Foul' : (type === 'T' ? 'Tech Foul' : (type === 'U' ? 'Unsports Foul' : 'Disqualifying')));
+    g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'FOUL', detail: fn, val: 0, fType: type });
     
     document.getElementById('modal-foul-action').parentElement.classList.remove('open');
-    if(p.pf >= 5) setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
+    if(isFoulOut(p)) setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
     renderScore();
   };
 });
