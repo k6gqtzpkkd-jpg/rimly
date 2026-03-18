@@ -413,3 +413,85 @@ button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 .btn-quick-undo:active { transform: scale(0.93); background: var(--red-dim); }
 .btn-quick-undo:disabled { opacity: 0.3; cursor: not-allowed; }
 .undo-preview { font-size: 12px; color: var(--text-muted); max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ================================================================ PLAYER STATS DETAIL MODAL */
+.pstats-card {
+  background: var(--bg-card2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; margin-bottom: 20px;
+}
+.pstats-header {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.pstats-num {
+  font-family: 'Bebas Neue', cursive; font-size: 48px; line-height: 1;
+  width: 70px; height: 70px; display: flex; align-items: center; justify-content: center;
+  background: var(--orange-dim); border: 2px solid var(--orange); border-radius: 14px;
+  color: var(--orange); text-shadow: 0 0 15px var(--orange-glow);
+}
+.pstats-info { flex: 1; }
+.pstats-name { font-size: 22px; font-weight: 900; color: var(--text-primary); }
+.pstats-team { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-top: 4px; }
+.pstats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.pstats-stat {
+  background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; text-align: center; transition: .2s;
+}
+.pstats-stat:hover { border-color: var(--border-orange); box-shadow: 0 0 10px var(--orange-glow); }
+.pstats-stat-label { font-size: 11px; font-weight: 800; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 4px; }
+.pstats-stat-val { font-family: 'Bebas Neue', cursive; font-size: 36px; line-height: 1; color: var(--text-primary); }
+.pstats-stat-val.stat-orange { color: var(--orange); text-shadow: 0 0 10px var(--orange-glow); }
+.pstats-stat-val.stat-red { color: var(--red); text-shadow: 0 0 10px rgba(239,68,68,0.4); }
+.pstats-stat-val.stat-blue { color: var(--blue); text-shadow: 0 0 10px var(--blue-glow); }
+
+/* Clickable player name in roster */
+.roster-table td.td-player-name { cursor: pointer; transition: .12s; }
+.roster-table td.td-player-name:hover { color: var(--orange); text-shadow: 0 0 10px var(--orange-glow); }
+
+/* ================================================================ HALFTIME REPORT */
+.ht-score-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px; margin-bottom: 20px; background: var(--bg-card2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ht-team-block { text-align: center; }
+.ht-team-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.ht-team-score { font-family: 'Bebas Neue', cursive; font-size: 56px; line-height: 1; }
+.ht-vs { font-family: 'Bebas Neue', cursive; font-size: 24px; color: var(--text-muted); }
+.ht-section-title { font-size: 13px; font-weight: 800; letter-spacing: 1px; color: var(--text-secondary); margin: 16px 0 10px; text-transform: uppercase; }
+.ht-player-row {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+  background: var(--bg-card2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px;
+}
+.ht-player-num { font-family: 'Bebas Neue', cursive; font-size: 18px; color: var(--text-muted); width: 30px; }
+.ht-player-name { flex: 1; font-size: 14px; font-weight: 700; }
+.ht-player-pts { font-family: 'Bebas Neue', cursive; font-size: 22px; }
+
+/* ================================================================ FOUL WARNING ANIMATIONS */
+@keyframes foulWarningPulse {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(255,107,0,0.15); }
+}
+@keyframes foulDangerPulse {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(239,68,68,0.15); }
+}
+.foul-warning-row { animation: foulWarningPulse 1.5s ease-in-out 3; }
+.foul-danger-row { animation: foulDangerPulse 1.5s ease-in-out 3; }
+.foul-warning-badge {
+  display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 6px;
+  border-radius: 4px; margin-left: 6px; vertical-align: middle; animation: badgePulse 1s ease-in-out infinite alternate;
+}
+.foul-warning-badge.badge-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--border-orange); }
+.foul-warning-badge.badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+@keyframes badgePulse { from { opacity: 0.7; } to { opacity: 1; } }
+
+/* Team foul 5+ banner */
+.team-foul-warning-banner {
+  text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 800;
+  letter-spacing: 0.5px; margin-top: 8px; animation: foulDangerPulse 1.5s ease-in-out infinite;
+}
+.team-foul-warning-banner.warn-orange { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--border-orange); }
+.team-foul-warning-banner.warn-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }

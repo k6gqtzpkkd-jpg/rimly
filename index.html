@@ -458,6 +458,47 @@
   </div>
 </div>
 
+<!-- Player Stats Detail Modal -->
+<div class="modal-overlay" id="overlay-player-stats">
+  <div class="modal-box modal-lg" id="modal-player-stats">
+    <div class="modal-header">
+      <h3 class="modal-title" id="pstats-title">選手スタッツ</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="pstats-content">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Halftime Report Modal -->
+<div class="modal-overlay" id="overlay-halftime-report">
+  <div class="modal-box modal-lg" id="modal-halftime-report">
+    <div class="modal-header">
+      <h3 class="modal-title">📊 HALFTIME REPORT</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="halftime-content">
+      <!-- Injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Match Export Modal -->
+<div class="modal-overlay" id="overlay-match-export" style="z-index: 99998;">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-header">
+      <h3 class="modal-title">📤 試合記録エクスポート</h3>
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">下のテキストをコピーしてLINEやメモ帳で共有できます。</p>
+      <textarea id="match-export-text" class="glow-input" style="width:100%; height:300px; font-size:12px; resize:vertical; font-family:'Inter','Noto Sans JP',monospace; line-height:1.6;" readonly></textarea>
+      <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-copy-match-export">📋 コピーする</button>
+    </div>
+  </div>
+</div>
+
 <!-- Pop Toast for +2, +3 etc -->
 <div class="score-pop" id="score-pop"></div>
 

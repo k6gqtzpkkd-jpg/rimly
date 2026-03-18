@@ -110,17 +110,11 @@ function setupRimlyCanvas() {
   render();
 }
 
-// --- HAPTIC VIBRATION ---
-function vibrate(pattern) {
-  if(navigator.vibrate) navigator.vibrate(pattern);
-}
-
 // --- POP TOAST ---
-function showPop(str, vibeMs) {
+function showPop(str) {
   const p = document.getElementById('score-pop');
   p.textContent = str;
   p.classList.add('show');
-  if(vibeMs) vibrate(vibeMs);
   setTimeout(() => p.classList.remove('show'), 1500);
 }
 
@@ -294,6 +288,20 @@ function renderScore() {
     }
   });
   
+  // Team foul warning banners
+  ['home', 'away'].forEach(t => {
+    const panel = document.querySelector(`.stat-panel.border-left-${t === 'home' ? 'orange' : 'blue'}`);
+    if(!panel) return;
+    const existBanner = panel.querySelector('.team-foul-warning-banner');
+    if(existBanner) existBanner.remove();
+    if(g.teamFouls[t] >= 5) {
+      const banner = document.createElement('div');
+      banner.className = `team-foul-warning-banner warn-${t === 'home' ? 'orange' : 'red'}`;
+      banner.textContent = `⚠️ チームファウル ${g.teamFouls[t]} — フリースロー対象`;
+      panel.querySelector('.split-stats').after(banner);
+    }
+  });
+  
   renderTableRoster('home');
   renderTableRoster('away');
   renderQuarterScores();
@@ -310,10 +318,16 @@ document.getElementById('q-prev').onclick = () => {
 };
 document.getElementById('q-next').onclick = () => {
     const g = appState.game;
+    const prevQ = g.quarter;
+    const wasOT = g.isOT;
     if(!g.isOT && g.quarter < 4) g.quarter++;
     else if(g.quarter === 4 && !g.isOT) g.isOT = true;
     g.teamFouls = {home:0, away:0};
     renderScore();
+    // Show halftime report when moving from Q2 to Q3
+    if(!wasOT && prevQ === 2 && g.quarter === 3) {
+      setTimeout(() => showHalftimeReport(), 300);
+    }
 };
 
 window.useTimeout = function(t) {
@@ -324,7 +338,7 @@ window.useTimeout = function(t) {
   g.timeouts[t][hf]++;
   g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: 'TIMEOUT', val: 0 });
   
-  showPop('TIMEOUT!', 30);
+  showPop('TIMEOUT!');
   renderScore();
 };
 
@@ -336,13 +350,20 @@ function renderTableRoster(tm) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="td-num">${p.num}</td>
-      <td style="text-align:left;">${p.name}</td>
+      <td class="td-player-name" style="text-align:left;">${p.name}</td>
       <td class="td-pts">${p.pts}</td>
       <td class="hover-cell cell-3p" style="color:var(--text-secondary);"><span class="cell-bg">${p.p3}</span></td>
       <td class="hover-cell cell-2p" style="color:var(--text-secondary);"><span class="cell-bg">${p.p2}</span></td>
       <td class="hover-cell cell-ft" style="color:var(--text-secondary);"><span class="cell-bg">${p.pt}</span></td>
-      <td class="hover-cell cell-pf ${p.pf >= 5 ? 'text-red' : (p.pf >= 4 ? 'text-orange' : '')}"><span class="cell-bg">${p.pf}</span></td>
+      <td class="hover-cell cell-pf ${p.pf >= 5 ? 'text-red' : (p.pf >= 4 ? 'text-orange' : '')}">
+        <span class="cell-bg">${p.pf}</span>
+        ${p.pf === 4 ? '<span class="foul-warning-badge badge-orange">注意</span>' : ''}
+        ${p.pf >= 5 && !isFoulOut(p) ? '<span class="foul-warning-badge badge-red">危険</span>' : ''}
+        ${isFoulOut(p) ? '<span class="foul-warning-badge badge-red">退場</span>' : ''}
+      </td>
     `;
+    // Player name tap → stats detail popup
+    tr.querySelector('.td-player-name').onclick = () => openPlayerStatsModal(p, tm);
     
     // Direct Score Actions
     tr.querySelector('.cell-3p').onclick = () => { if(!isFoulOut(p)) addScore(tm, p.id, 3, '3P'); else showAlert('退場しています'); };
@@ -351,6 +372,10 @@ function renderTableRoster(tm) {
     
     // Direct Foul Action
     tr.querySelector('.cell-pf').onclick = () => { if(!isFoulOut(p)) openActionSheet(p.id, tm); else showAlert('退場しています'); };
+    
+    // Foul warning row highlighting
+    if(p.pf === 4) tr.classList.add('foul-warning-row');
+    if(p.pf >= 5 || isFoulOut(p)) tr.classList.add('foul-danger-row');
     
     tbody.appendChild(tr);
   });
@@ -425,7 +450,7 @@ function addScore(tm, pid, val, type) {
 
   g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'SCORE', detail: newDetail, val, rawType: type });
   
-  showPop(`+${val} PTS! (#${p.num} ${p.name})`, [15, 30, 15]);
+  showPop(`+${val} PTS! (#${p.num} ${p.name})`);
   renderScore();
 }
 
@@ -467,8 +492,20 @@ document.querySelectorAll('.foul-play').forEach(btn => {
     g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: tm, pid: p.id, type: 'FOUL', detail: fn, val: 0, fType: type });
     
     document.getElementById('modal-foul-action').parentElement.classList.remove('open');
-    vibrate([20, 40, 20]);
-    if(isFoulOut(p)) setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
+    // Foul warnings
+    if(isFoulOut(p)) {
+      setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
+    } else if(type === 'T' && (p.tf || 0) === 1) {
+      setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がテクニカルファウル1回目！あと1回で退場です`), 200);
+    } else if(p.pf === 4) {
+      setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がファウル4個目！注意が必要です（あと1回で退場）`), 200);
+    } else if(p.pf >= 5 && !isFoulOut(p)) {
+      setTimeout(() => showAlert(`🔴 ${p.name} (#${p.num}) がファウル${p.pf}個目！退場の危険があります。`), 200);
+    }
+    // Team foul 5 warning
+    if(g.teamFouls[tm] === 5) {
+      setTimeout(() => showAlert(`🏀 ${g[tm].name} のチームファウルが5個に達しました！以降のファウルはフリースロー対象です。`), isFoulOut(p) || p.pf >= 4 ? 1500 : 200);
+    }
     renderScore();
   };
 });
@@ -534,7 +571,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if(btn) btn.onclick = () => {
     const g = appState.game;
     if(g.logs.length === 0) return;
-    vibrate(15);
     revertLog(g.logs[0].id);
     showPop('⏪ 取り消しました');
   };
@@ -786,7 +822,8 @@ function renderHistory() {
         </div>
       </div>
       <div class="hc-acts">
-        <button class="btn-sm btn-outline-glow" data-idx="${idx}">🤖 分析</button>
+        <button class="btn-sm btn-outline-glow hist-export" data-idx="${idx}">📤 エクスポート</button>
+        <button class="btn-sm btn-outline-glow hist-ai" data-idx="${idx}">🤖 分析</button>
         <button class="btn-sm btn-danger hist-del" data-idx="${idx}">削除</button>
       </div>
     `;
@@ -796,7 +833,8 @@ function renderHistory() {
         saveData(); renderHistory();
       } })
     };
-    el.querySelector('.btn-outline-glow').onclick = () => openAI(h);
+    el.querySelector('.hist-ai').onclick = () => openAI(h);
+    el.querySelector('.hist-export').onclick = () => openMatchExport(h);
     g.appendChild(el);
   });
 }
@@ -892,12 +930,9 @@ function closeDialog() {
   document.getElementById('overlay-custom-dialog').classList.remove('open');
 }
 function isFoulOut(p) {
-  // P/O (Personal type) = p.pf - (p.tf + p.uf + p.df) if we were strictly counting, BUT
-  // The simplest is: total personal type (P+O) = p.pf (since we increment it for everything?)
-  // Wait, let's track p.po (Personal/Offensive) separately from p.tud (Tech/Unsports/Disqualifying)
-  const po = (p.po || 0);
   const tud = (p.tud || 0);
-  return po >= 5 || tud >= 2 || (p.df||0) >= 1;
+  const tf = (p.tf || 0);
+  return p.pf >= 5 || tf >= 2 || tud >= 2 || (p.df||0) >= 1;
 }
 
 // --- Log Editing ---
@@ -1041,4 +1076,234 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('overlay-import-teams').classList.remove('open');
     };
   });
+
+  // Match export copy button
+  const btnCopyExport = document.getElementById('btn-copy-match-export');
+  if(btnCopyExport) btnCopyExport.onclick = () => {
+    const ta = document.getElementById('match-export-text');
+    ta.select();
+    ta.setSelectionRange(0, 999999);
+    navigator.clipboard.writeText(ta.value).then(() => {
+      showPop('📋 コピーしました！');
+    }).catch(() => {
+      document.execCommand('copy');
+      showPop('📋 コピーしました！');
+    });
+  };
+
+  // Close export modal
+  document.querySelectorAll('#overlay-match-export .modal-close').forEach(btn => {
+    btn.onclick = () => document.getElementById('overlay-match-export').classList.remove('open');
+  });
 });
+
+// ================================================================
+// FEATURE: Player Stats Detail Popup
+// ================================================================
+function openPlayerStatsModal(player, team) {
+  const g = appState.game;
+  const teamName = g[team].name;
+  const colorClass = team === 'home' ? 'stat-orange' : 'stat-blue';
+  const numBorderColor = team === 'home' ? 'var(--orange)' : 'var(--blue)';
+  const numBgColor = team === 'home' ? 'var(--orange-dim)' : 'var(--blue-dim)';
+  const numTextColor = team === 'home' ? 'var(--orange)' : 'var(--blue)';
+  
+  document.getElementById('pstats-title').textContent = `#${player.num} ${player.name}`;
+  document.getElementById('pstats-title').className = `modal-title ${team === 'home' ? 'text-orange' : 'text-blue'}`;
+  
+  const foulStatus = isFoulOut(player) ? '<span class="foul-warning-badge badge-red" style="font-size:14px; padding:4px 10px;">退場</span>' 
+    : (player.pf >= 4 ? `<span class="foul-warning-badge ${player.pf >= 5 ? 'badge-red' : 'badge-orange'}" style="font-size:14px; padding:4px 10px;">${player.pf >= 5 ? '危険' : '注意'}</span>` : '');
+  
+  const content = document.getElementById('pstats-content');
+  content.innerHTML = `
+    <div class="pstats-card">
+      <div class="pstats-header">
+        <div class="pstats-num" style="border-color:${numBorderColor}; background:${numBgColor}; color:${numTextColor};">${player.num}</div>
+        <div class="pstats-info">
+          <div class="pstats-name">${player.name} ${foulStatus}</div>
+          <div class="pstats-team">${teamName}</div>
+        </div>
+      </div>
+      <div class="pstats-grid">
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">TOTAL PTS</div>
+          <div class="pstats-stat-val ${colorClass}">${player.pts}</div>
+        </div>
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">3-POINT</div>
+          <div class="pstats-stat-val">${player.p3}</div>
+        </div>
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">2-POINT</div>
+          <div class="pstats-stat-val">${player.p2}</div>
+        </div>
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">FREE THROW</div>
+          <div class="pstats-stat-val">${player.pt}</div>
+        </div>
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">FOULS</div>
+          <div class="pstats-stat-val stat-red">${player.pf}</div>
+        </div>
+        <div class="pstats-stat">
+          <div class="pstats-stat-label">3P得点</div>
+          <div class="pstats-stat-val">${player.p3 * 3}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('overlay-player-stats').classList.add('open');
+}
+
+// ================================================================
+// FEATURE: Halftime Report
+// ================================================================
+function showHalftimeReport() {
+  const g = appState.game;
+  let hPts = 0, aPts = 0;
+  
+  // Calculate Q1+Q2 points
+  g.logs.forEach(l => {
+    if(l.type === 'SCORE' && (l.qStr === 'Q1' || l.qStr === 'Q2')) {
+      if(l.team === 'home') hPts += l.val;
+      else aPts += l.val;
+    }
+  });
+  
+  const content = document.getElementById('halftime-content');
+  
+  // Build players sorted by pts in first half
+  const getHalfPts = (tm) => {
+    const pts = {};
+    g[tm].players.forEach(p => pts[p.id] = { ...p, halfPts: 0, half3: 0, half2: 0, halfFT: 0 });
+    g.logs.forEach(l => {
+      if(l.type === 'SCORE' && l.team === tm && (l.qStr === 'Q1' || l.qStr === 'Q2')) {
+        if(pts[l.pid]) {
+          pts[l.pid].halfPts += l.val;
+          if(l.rawType === '3P') pts[l.pid].half3++;
+          if(l.rawType === '2P') pts[l.pid].half2++;
+          if(l.rawType === '1P') pts[l.pid].halfFT++;
+        }
+      }
+    });
+    return Object.values(pts).sort((a, b) => b.halfPts - a.halfPts);
+  };
+  
+  const homePlayers = getHalfPts('home');
+  const awayPlayers = getHalfPts('away');
+  
+  const playerRows = (players, color) => {
+    if(players.length === 0) return '<div style="color:var(--text-muted); text-align:center; padding:10px;">選手なし</div>';
+    return players.map(p => `
+      <div class="ht-player-row">
+        <div class="ht-player-num">#${p.num}</div>
+        <div class="ht-player-name">${p.name}</div>
+        <div class="ht-player-pts" style="color:var(--${color});">${p.halfPts}</div>
+      </div>
+    `).join('');
+  };
+  
+  const leader = hPts > aPts ? `<span class="text-orange">${g.home.name}</span>` 
+    : (aPts > hPts ? `<span class="text-blue">${g.away.name}</span>` : '同点');
+  
+  content.innerHTML = `
+    <div class="ai-summary">前半終了！${hPts === aPts ? '現在<strong>同点</strong>です。' : `${leader} が ${Math.abs(hPts - aPts)} 点リードしています。`}</div>
+    <div class="ht-score-row">
+      <div class="ht-team-block">
+        <div class="ht-team-name text-orange">${g.home.name}</div>
+        <div class="ht-team-score text-orange">${hPts}</div>
+      </div>
+      <div class="ht-vs">VS</div>
+      <div class="ht-team-block">
+        <div class="ht-team-name text-blue">${g.away.name}</div>
+        <div class="ht-team-score text-blue">${aPts}</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div>
+        <div class="ht-section-title text-orange">🟠 ${g.home.name} 前半スタッツ</div>
+        ${playerRows(homePlayers, 'orange')}
+      </div>
+      <div>
+        <div class="ht-section-title text-blue">🔵 ${g.away.name} 前半スタッツ</div>
+        ${playerRows(awayPlayers, 'blue')}
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('overlay-halftime-report').classList.add('open');
+}
+
+// ================================================================
+// FEATURE: Match Record Text Export
+// ================================================================
+function openMatchExport(h) {
+  const lines = [];
+  const divider = '━'.repeat(30);
+  
+  lines.push('🏀 RIMLY 試合記録');
+  lines.push(divider);
+  lines.push(`📅 ${h.date}`);
+  lines.push('');
+  lines.push(`${h.home.name}  ${h.score.home} - ${h.score.away}  ${h.away.name}`);
+  lines.push(divider);
+  
+  // Quarter breakdown
+  const qLabels = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'];
+  const qScores = {};
+  (h.logs || []).forEach(l => {
+    if(l.type === 'SCORE') {
+      if(!qScores[l.qStr]) qScores[l.qStr] = { home: 0, away: 0 };
+      qScores[l.qStr][l.team] += l.val;
+    }
+  });
+  if(Object.keys(qScores).length > 0) {
+    lines.push('');
+    lines.push('【クォーター別得点】');
+    qLabels.forEach(q => {
+      if(qScores[q]) {
+        lines.push(`  ${q}: ${h.home.name} ${qScores[q].home} - ${qScores[q].away} ${h.away.name}`);
+      }
+    });
+  }
+  
+  // Player stats
+  ['home', 'away'].forEach(tm => {
+    const teamData = h[tm];
+    if(!teamData.players || teamData.players.length === 0) return;
+    lines.push('');
+    lines.push(divider);
+    lines.push(`【${teamData.name}】 合計: ${h.score[tm]}点`);
+    lines.push('  #   選手名          PTS  3P  2P  FT  PF');
+    lines.push('  ' + '-'.repeat(44));
+    teamData.players.forEach(p => {
+      const num = String(p.num).padStart(3);
+      const name = (p.name + '　'.repeat(8)).slice(0, 8);
+      const pts = String(p.pts).padStart(4);
+      const p3 = String(p.p3 || 0).padStart(3);
+      const p2 = String(p.p2 || 0).padStart(3);
+      const ft = String(p.pt || 0).padStart(3);
+      const pf = String(p.pf || 0).padStart(3);
+      lines.push(`  ${num}  ${name}  ${pts} ${p3} ${p2} ${ft} ${pf}`);
+    });
+  });
+  
+  // Fouls summary
+  const hFouls = h.home.players.reduce((s, p) => s + (p.pf || 0), 0);
+  const aFouls = h.away.players.reduce((s, p) => s + (p.pf || 0), 0);
+  lines.push('');
+  lines.push(divider);
+  lines.push('【チームスタッツ】');
+  lines.push(`  総ファウル: ${h.home.name} ${hFouls} / ${h.away.name} ${aFouls}`);
+  
+  const h3pts = h.home.players.reduce((s, p) => s + (p.p3 || 0) * 3, 0);
+  const a3pts = h.away.players.reduce((s, p) => s + (p.p3 || 0) * 3, 0);
+  lines.push(`  3P得点: ${h.home.name} ${h3pts} / ${h.away.name} ${a3pts}`);
+  
+  lines.push('');
+  lines.push('Powered by Rimly 🏀');
+  
+  document.getElementById('match-export-text').value = lines.join('\n');
+  document.getElementById('overlay-match-export').classList.add('open');
+}
