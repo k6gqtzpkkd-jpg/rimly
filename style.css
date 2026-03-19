@@ -253,9 +253,14 @@ button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 
 /* ================================================================ TIMELINE / LOGS (Plays & Fouls) */
 .log-container { display: flex; flex-direction: column; gap: 20px; }
-.timeline-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-height: 600px; }
-.timeline-col { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 10px; }
+.timeline-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.timeline-col { display: flex; flex-direction: column; gap: 10px; }
 .tl-col-header { font-family: 'Bebas Neue', cursive; font-size: 24px; text-align:center; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 2px;}
+
+#score-home-list, #score-away-list, #foul-home-list, #foul-away-list {
+  display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; max-height: 400px; padding-right: 8px;
+}
 .tl-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card2); border: 1px solid var(--border); padding: 12px 14px; border-radius: 12px; position: relative; overflow: hidden; animation: fadeInLeft .3s ease; }
 @keyframes fadeInLeft { from{opacity:0; transform:translateX(-20px);} to{opacity:1; transform:translateX(0);} }
 .tl-item::before { content:''; position: absolute; left:0; top:0; bottom:0; width:4px; }
