@@ -355,10 +355,10 @@ function renderTableRoster(tm) {
       <td class="hover-cell cell-3p" style="color:var(--text-secondary);"><span class="cell-bg">${p.p3}</span></td>
       <td class="hover-cell cell-2p" style="color:var(--text-secondary);"><span class="cell-bg">${p.p2}</span></td>
       <td class="hover-cell cell-ft" style="color:var(--text-secondary);"><span class="cell-bg">${p.pt}</span></td>
-      <td class="hover-cell cell-pf ${p.pf >= 5 ? 'text-red' : (p.pf >= 4 ? 'text-orange' : '')}">
+      <td class="hover-cell cell-pf ${p.pf >= 6 ? 'text-red' : (p.pf >= 5 ? 'text-orange' : '')}">
         <span class="cell-bg">${p.pf}</span>
         ${p.pf === 4 ? '<span class="foul-warning-badge badge-orange">注意</span>' : ''}
-        ${p.pf >= 5 && !isFoulOut(p) ? '<span class="foul-warning-badge badge-red">危険</span>' : ''}
+        ${p.pf === 5 ? '<span class="foul-warning-badge badge-red">危険</span>' : ''}
         ${isFoulOut(p) ? '<span class="foul-warning-badge badge-red">退場</span>' : ''}
       </td>
     `;
@@ -374,8 +374,8 @@ function renderTableRoster(tm) {
     tr.querySelector('.cell-pf').onclick = () => { if(!isFoulOut(p)) openActionSheet(p.id, tm); else showAlert('退場しています'); };
     
     // Foul warning row highlighting
-    if(p.pf === 4) tr.classList.add('foul-warning-row');
-    if(p.pf >= 5 || isFoulOut(p)) tr.classList.add('foul-danger-row');
+    if(p.pf === 4 || p.pf === 5) tr.classList.add('foul-warning-row');
+    if(p.pf >= 6 || isFoulOut(p)) tr.classList.add('foul-danger-row');
     
     tbody.appendChild(tr);
   });
@@ -498,9 +498,9 @@ document.querySelectorAll('.foul-play').forEach(btn => {
     } else if(type === 'T' && (p.tf || 0) === 1) {
       setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がテクニカルファウル1回目！あと1回で退場です`), 200);
     } else if(p.pf === 4) {
-      setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がファウル4個目！注意が必要です（あと1回で退場）`), 200);
-    } else if(p.pf >= 5 && !isFoulOut(p)) {
-      setTimeout(() => showAlert(`🔴 ${p.name} (#${p.num}) がファウル${p.pf}個目！退場の危険があります。`), 200);
+      setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がファウル4個目！注意喚起（まだ余裕あり）`), 200);
+    } else if(p.pf === 5) {
+      setTimeout(() => showAlert(`🔴 ${p.name} (#${p.num}) がファウル5個目！あと1回で退場です`), 200);
     }
     // Team foul 5 warning
     if(g.teamFouls[tm] === 5) {
@@ -932,7 +932,7 @@ function closeDialog() {
 function isFoulOut(p) {
   const tud = (p.tud || 0);
   const tf = (p.tf || 0);
-  return p.pf >= 5 || tf >= 2 || tud >= 2 || (p.df||0) >= 1;
+  return p.pf >= 6 || tf >= 2 || tud >= 2 || (p.df||0) >= 1;
 }
 
 // --- Log Editing ---
