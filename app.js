@@ -393,7 +393,7 @@ window.openPlayerModal = function(t) {
 document.getElementById('mmp-add-btn').onclick = () => {
   const num = document.getElementById('mmp-num').value.trim();
   const name = document.getElementById('mmp-name').value.trim();
-  if(!num || !name) return;
+  if(!num) { showAlert('背番号を入力してください'); return; }
   appState.game[actTeamTarget].players.push({
     id: Date.now()+Math.random(), num, name, pts:0, p3:0, p2:0, pt:0, pf:0
   });
@@ -775,7 +775,7 @@ function renderTeamEditorPlayers() {
 document.getElementById('mte-add-btn').onclick = () => {
   const num = document.getElementById('mte-pnum').value.trim();
   const name = document.getElementById('mte-pname').value.trim();
-  if(!num || !name) return;
+  if(!num) { showAlert('背番号を入力してください'); return; }
   activeEditTeamData.players.push({
     id: Date.now()+Math.random(), num, name, pts:0, p3:0, p2:0, pt:0, pf:0
   });
