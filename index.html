@@ -315,9 +315,12 @@
       <button class="modal-close">✕</button>
     </div>
     <div class="modal-body">
-      <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">下のテキストをすべてコピーして、LINEやメモ帳などで相手に送ってください。相手は「📥インポート」ボタンから取り込めます。</p>
-      <textarea id="share-teams-text" class="glow-input" style="width:100%; height:200px; font-size:12px; resize:vertical;" readonly></textarea>
-      <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-copy-share">📋 コピーする</button>
+      <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">下のQRコードを相手のカメラ（標準カメラ等）で読み取らせるか、テキストをコピーして相手に送ってください。</p>
+      <div style="display:flex; justify-content:center; margin-bottom: 20px;">
+        <div id="share-qr-container" style="background:#fff; padding:10px; border-radius:10px; display:none;"></div>
+      </div>
+      <textarea id="share-teams-text" class="glow-input" style="width:100%; height:120px; font-size:12px; resize:vertical;" readonly></textarea>
+      <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-copy-share">📋 テキストをコピーする</button>
     </div>
   </div>
 </div>
@@ -502,6 +505,7 @@
 <!-- Pop Toast for +2, +3 etc -->
 <div class="score-pop" id="score-pop"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

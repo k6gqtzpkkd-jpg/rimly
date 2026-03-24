@@ -899,10 +899,54 @@ document.querySelectorAll('.modal-close').forEach(b => {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
+  
+  // URL Import check (for QR codes)
+  const urlParams = new URLSearchParams(window.location.search);
+  const importData = urlParams.get('import');
+  if(importData) {
+     setTimeout(() => handleUrlImport(importData), 500);
+     window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   setupPassword();
   setupRimlyCanvas();
   setupTabs();
 });
+
+function handleUrlImport(rawData) {
+    let raw = rawData.replace(/[\s\n\r]+/g, '');
+    let jsonStr = raw;
+    if(raw.startsWith('RIMLY_TEAMS:')) {
+      try {
+        const b64str = raw.replace('RIMLY_TEAMS:', '');
+        jsonStr = decodeURIComponent(escape(atob(b64str)));
+      } catch(e) {
+        showAlert('❌ URLからのデータ読み込みに失敗しました。');
+        return;
+      }
+    }
+    
+    try {
+      const imported = JSON.parse(jsonStr);
+      if(!Array.isArray(imported)) throw new Error('not array');
+      
+      let addedCount = 0;
+      imported.forEach(t => {
+        if(!t.name) return;
+        const exists = appState.teamsDB.find(x => x.name === t.name);
+        if(!exists) {
+          appState.teamsDB.push({ id: Date.now() + Math.random(), name: t.name, players: t.players || [] });
+          addedCount++;
+        }
+      });
+      
+      saveData();
+      if(typeof renderTeamsTab === 'function' && appState.activeTab === 'teams') renderTeamsTab();
+      showAlert(`✅ URL(QR)から ${addedCount}チーム を取り込みました！${imported.length - addedCount > 0 ? `（${imported.length - addedCount}チームは既に登録済み）` : ''}`);
+    } catch(e) {
+      showAlert('❌ データ形式が正しくありません。');
+    }
+}
 
 // --- CUSTOM DIALOGS ---
 function showAlert(msg) {
@@ -1005,6 +1049,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const encoded = btoa(unescape(encodeURIComponent(data)));
     const shareText = 'RIMLY_TEAMS:' + encoded;
     document.getElementById('share-teams-text').value = shareText;
+    
+    const qrContainer = document.getElementById('share-qr-container');
+    if(qrContainer) {
+      qrContainer.innerHTML = '';
+      const shareUrl = window.location.href.split('?')[0] + '?import=' + encodeURIComponent(shareText);
+      try {
+        new QRCode(qrContainer, {
+          text: shareUrl,
+          width: 160,
+          height: 160,
+          colorDark : "#000000",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.L
+        });
+        qrContainer.style.display = 'block';
+      } catch (e) {
+        qrContainer.innerHTML = '<div style="color:var(--text-secondary); font-size:12px; font-weight:bold; max-width:160px; text-align:center; padding:10px;">データが大きすぎるためQRコードは生成できません。<br>下のテキストをコピーしてください。</div>';
+        qrContainer.style.display = 'block';
+      }
+    }
+    
     document.getElementById('overlay-share-teams').classList.add('open');
   };
 
@@ -1032,15 +1097,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Do Import
   const btnDoImport = document.getElementById('btn-do-import');
   if(btnDoImport) btnDoImport.onclick = () => {
-    const raw = document.getElementById('import-teams-text').value.trim();
+    let raw = document.getElementById('import-teams-text').value.trim();
     if(!raw) { showAlert('テキストを貼り付けてください。'); return; }
+    
+    // LINEなどでのコピペ時に混入する改行やスペースを除去
+    raw = raw.replace(/[\s\n\r]+/g, '');
     
     let jsonStr = raw;
     if(raw.startsWith('RIMLY_TEAMS:')) {
       try {
-        jsonStr = decodeURIComponent(escape(atob(raw.replace('RIMLY_TEAMS:', ''))));
+        const b64str = raw.replace('RIMLY_TEAMS:', '');
+        jsonStr = decodeURIComponent(escape(atob(b64str)));
       } catch(e) {
-        showAlert('❌ データの形式が正しくありません。コピーし直してもらってください。');
+        showAlert('❌ データの形式が正しくありません。LINE等で文字化け・改行が混ざった可能性があります。コピーし直してください。');
         return;
       }
     }
@@ -1052,7 +1121,6 @@ document.addEventListener('DOMContentLoaded', () => {
       let addedCount = 0;
       imported.forEach(t => {
         if(!t.name) return;
-        // Skip if team with same name already exists
         const exists = appState.teamsDB.find(x => x.name === t.name);
         if(!exists) {
           appState.teamsDB.push({ id: Date.now() + Math.random(), name: t.name, players: t.players || [] });
@@ -1061,11 +1129,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       
       saveData();
-      renderTeamsDB();
+      if(typeof renderTeamsTab === 'function') renderTeamsTab();
       document.getElementById('overlay-import-teams').classList.remove('open');
       showAlert(`✅ ${addedCount}チームを取り込みました！${imported.length - addedCount > 0 ? `（${imported.length - addedCount}チームは既に登録済み）` : ''}`);
     } catch(e) {
-      showAlert('❌ データの形式が正しくありません。コピーし直してもらってください。');
+      showAlert('❌ データの形式が正しくありません。コピーし直してください。');
     }
   };
 
