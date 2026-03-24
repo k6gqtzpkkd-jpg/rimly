@@ -72,6 +72,10 @@
         <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
         <span>履歴/AI</span>
       </button>
+      <button class="tab-btn" data-tab="settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.73 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <span>設定</span>
+      </button>
     </div>
   </header>
 
@@ -304,6 +308,38 @@
         </div>
         <p class="text-secondary" style="margin-bottom:20px;">学校ごとのチームと登録選手を管理します。ここで登録したチームはセットアップ画面で呼び出せます。<br><strong>📤「共有」で他のデバイスにチームデータを送れます。📥「インポート」で受け取ったデータを取り込めます。</strong></p>
         <div class="teams-db-list history-list" id="teams-db-list"></div>
+      </div>
+    </div>
+
+    <!-- 7) SETTINGS TAB -->
+    <div id="tab-content-settings" class="tab-content">
+      <div class="setup-container">
+        <div class="setup-header-text">
+          <h1 class="glow-title">SYSTEM SETTINGS</h1>
+          <p class="text-secondary" style="margin-bottom:20px;">アプリの動作環境やデータの保存先を設定します。</p>
+        </div>
+        
+        <div class="team-setup-card border-orange" style="max-width:600px; margin:0 auto; padding:30px;">
+          <h2 class="card-glow-title text-orange">データの保存先</h2>
+          <div class="setup-form-group">
+            <select id="setting-storage-mode" class="glow-input" style="width:100%;">
+              <option value="local">完全本体ストレージ保存 (クラウドを使わない)</option>
+              <option value="db">完全DB保存 (Neon DBを使ったクラウドのみ)</option>
+              <option value="hybrid">ハイブリッド保存 (本体＋自動クラウドバックアップ)</option>
+            </select>
+            <p style="font-size:13px; color:var(--text-secondary); margin-top:8px;">Neon DBと連携し、データ破損時に備えたり別端末と同期させることができます。設定した「クラウド同期キー」と同じキーを入れた端末同士でデータが同期されます。</p>
+          </div>
+          
+          <div class="setup-form-group mt-4">
+            <label>クラウド同期キー (Device Key)</label>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="setting-db-key" class="glow-input" placeholder="例: my_school_id_123" />
+              <button class="ctrl-btn btn-save" id="btn-save-settings" style="white-space:nowrap;">適用 / クラウド同期</button>
+            </div>
+            <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="settings-status-msg"></p>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">※Netlify環境変数「DATABASE_URL」が設定されデプロイされている必要があります。</p>
+          </div>
+        </div>
       </div>
     </div>
 

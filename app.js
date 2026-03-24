@@ -8,6 +8,7 @@ let pwInput = '';
 let appState = {
   isGameActive: false,
   activeTab: 'setup',
+  settings: { storageMode: 'local', dbKey: '' },
   game: {
     home: { name: '', color: 'dark', players: [] },
     away: { name: '', color: 'light', players: [] },
@@ -21,20 +22,104 @@ let appState = {
   historyDB: []
 };
 
-// --- Storage Data ---
-function loadData() {
-  try {
-    appState.teamsDB = JSON.parse(localStorage.getItem('rimly_v4_teams') || '[]');
-    // Clean up corrupted or default data
-    appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
-    appState.teamsDB.forEach(t => { if(!t.players) t.players = []; });
+// --- Storage System, Settings, OS Checking ---
+const DB_API = '/.netlify/functions/db';
 
-    appState.historyDB = JSON.parse(localStorage.getItem('rimly_v4_history') || '[]');
+async function loadData() {
+  // Load settings first
+  try {
+    appState.settings = JSON.parse(localStorage.getItem('rimly_settings')) || { storageMode: 'local', dbKey: '' };
   } catch(e) {}
+  if (!appState.settings.dbKey) {
+    appState.settings.dbKey = 'USER_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+  }
+  
+  const mode = appState.settings.storageMode;
+
+  if (mode === 'local' || mode === 'hybrid') {
+    try {
+      appState.teamsDB = JSON.parse(localStorage.getItem('rimly_v4_teams') || '[]');
+      appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
+      appState.historyDB = JSON.parse(localStorage.getItem('rimly_v4_history') || '[]');
+    } catch(e) {}
+  } else {
+    appState.teamsDB = [];
+    appState.historyDB = [];
+  }
+
+  // Cloud Load for DB / Hybrid
+  if (mode === 'db' || mode === 'hybrid') {
+    try {
+      showPop('☁️ クラウド同期中...');
+      const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
+      const json = await res.json();
+      if(json.success && json.data) {
+        if(json.data.teams) appState.teamsDB = json.data.teams;
+        if(json.data.history) appState.historyDB = json.data.history;
+        if (mode === 'hybrid') {
+           localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
+           localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+        }
+        showPop('✅ クラウド同期完了');
+      } else if (json.error) {
+        if(mode === 'db') showAlert('DBエラー: ' + json.error + '\\n※Neon DBが未設定の可能性があります');
+      }
+    } catch(e) {
+      console.error(e);
+      if (mode === 'db') showAlert('クラウド同期に失敗しました。オフラインかDB連携が構成されていません。');
+      else showPop('❌ 同期エラー (ローカル使用中)');
+    }
+  }
+  appState.teamsDB.forEach(t => { if(!t.players) t.players = []; });
+  
+  if(appState.activeTab === 'teams') renderTeamsTab();
+  if(appState.activeTab === 'history') renderHistory();
 }
-function saveData() {
-  localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
-  localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+
+async function saveData() {
+  const mode = appState.settings.storageMode;
+  if (mode === 'local' || mode === 'hybrid') {
+    localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
+    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+  }
+  
+  if (mode === 'db' || mode === 'hybrid') {
+    try {
+      await fetch(DB_API, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'save',
+          user_key: appState.settings.dbKey,
+          teams: appState.teamsDB,
+          history: appState.historyDB
+        })
+      });
+    } catch(e) {
+      console.error('Cloud save failed');
+    }
+  }
+}
+
+function checkOSUpdate() {
+  const currentUA = navigator.userAgent;
+  let osVersion = 'Unknown';
+  if (/android/i.test(currentUA)) {
+    const match = currentUA.match(/Android\s([0-9\.]*)/i);
+    if(match) osVersion = `Android ${match[1]}`;
+  } else if (/iPad|iPhone|iPod/.test(currentUA) && !window.MSStream) {
+    const match = currentUA.match(/OS\s([0-9_]*)/i);
+    if(match) osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
+  } else if (/Mac OS X/.test(currentUA)) {
+    const match = currentUA.match(/Mac OS X\s([0-9_]*)/i);
+    if(match) osVersion = `macOS ${match[1].replace(/_/g, '.')}`;
+  }
+  
+  const lastOS = localStorage.getItem('rimly_os_version');
+  if (lastOS && lastOS !== osVersion && lastOS !== 'Unknown') {
+     showAlert(`OSが【${lastOS}】から【${osVersion}】にアップデートされたことを検知しました。\n\n【トラブル解決マニュアル】\nアップデート直後はブラウザの仕様変更等により、文字化けやレイアウト崩れ等の動作不良が起きる可能性があります。\n不具合を感じた場合は「ブラウザのキャッシュ削除」もしくは「ホーム画面アイコンの作り直し(アプリ再インストール)」を行うことで直ります。`);
+  }
+  localStorage.setItem('rimly_os_version', osVersion);
 }
 
 // --- PASSWORD SCREEN ---
@@ -151,6 +236,30 @@ function switchTab(t) {
   if(t === 'history') renderHistory();
   if(t === 'teams') renderTeamsTab();
   if(t === 'plays' || t === 'fouls') renderLogs();
+  if(t === 'settings') renderSettings();
+}
+
+function renderSettings() {
+  document.getElementById('setting-storage-mode').value = appState.settings.storageMode || 'local';
+  document.getElementById('setting-db-key').value = appState.settings.dbKey || '';
+  
+  document.getElementById('btn-save-settings').onclick = async () => {
+    const btn = document.getElementById('btn-save-settings');
+    btn.disabled = true;
+    btn.textContent = '同期中...';
+    
+    appState.settings.storageMode = document.getElementById('setting-storage-mode').value;
+    appState.settings.dbKey = document.getElementById('setting-db-key').value.trim();
+    localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+    
+    await loadData();
+    if (appState.settings.storageMode !== 'local') await saveData();
+    
+    document.getElementById('settings-status-msg').textContent = '設定を保存しました。';
+    setTimeout(()=> { document.getElementById('settings-status-msg').textContent = ''; }, 3000);
+    btn.disabled = false;
+    btn.textContent = '適用 / クラウド同期';
+  };
 }
 
 
@@ -898,13 +1007,14 @@ document.querySelectorAll('.modal-close').forEach(b => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  checkOSUpdate();
   loadData();
   
   // URL Import check (for QR codes)
   const urlParams = new URLSearchParams(window.location.search);
   const importData = urlParams.get('import');
   if(importData) {
-     setTimeout(() => handleUrlImport(importData), 500);
+     setTimeout(async () => { await processImportData(importData); }, 500);
      window.history.replaceState({}, document.title, window.location.pathname);
   }
 
@@ -913,33 +1023,48 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
 });
 
-function handleUrlImport(rawData) {
-    processImportData(rawData);
-}
-
-function processImportData(rawData) {
+async function processImportData(rawData) {
     let raw = rawData.replace(/[\s\n\r]+/g, '');
+    if(raw.includes('?import=')) { raw = decodeURIComponent(raw.split('?import=')[1] || ''); }
     
-    // If scanned via in-app QR scanner and it was a URL format, strip the URL part
-    if(raw.includes('?import=')) {
-        raw = decodeURIComponent(raw.split('?import=')[1] || '');
+    if(raw.startsWith('RIMLY_SHARE:')) {
+      const shareId = raw.replace('RIMLY_SHARE:', '');
+      try {
+        showPop('クラウドからデータを取得中...');
+        const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'get_share', shareId }) });
+        const json = await res.json();
+        if(json.success && json.data && json.data.type === 'teams') {
+          processTeamDataArray(json.data.data);
+          return true;
+        } else {
+          showAlert('クラウドデータの共有期限が切れているか、IDが無効です。'); return false;
+        }
+      } catch(e) {
+        showAlert('通信エラーのためクラウドデータを取得できません。'); return false;
+      }
     }
-    
+
     let jsonStr = raw;
     if(raw.startsWith('RIMLY_TEAMS:')) {
       try {
         const b64str = raw.replace('RIMLY_TEAMS:', '');
         jsonStr = decodeURIComponent(escape(atob(b64str)));
       } catch(e) {
-        showAlert('❌ データの形式が正しくありません。LINE等で文字化け・改行が混ざった可能性があります。');
-        return false;
+        showAlert('❌ データの形式が正しくありません。'); return false;
       }
     }
     
     try {
       const imported = JSON.parse(jsonStr);
       if(!Array.isArray(imported)) throw new Error('not array');
-      
+      processTeamDataArray(imported);
+      return true;
+    } catch(e) {
+      showAlert('❌ データ形式が正しくありません。'); return false;
+    }
+}
+
+function processTeamDataArray(imported) {
       let addedCount = 0;
       imported.forEach(t => {
         const tName = t.name || t.n;
@@ -947,13 +1072,8 @@ function processImportData(rawData) {
         const exists = appState.teamsDB.find(x => x.name === tName);
         if(!exists) {
           let cleanPlayers = [];
-          if(t.p) {
-             // 新軽量フォーマットからの復元
-             cleanPlayers = t.p.map(pl => ({id:Date.now()+Math.random(), num: pl[0], name: pl[1], pts:0, p3:0, p2:0, pt:0, pf:0}));
-          } else if(t.players) {
-             // 古いフォーマットからの復元
-             cleanPlayers = t.players;
-          }
+          if(t.p) cleanPlayers = t.p.map(pl => ({id:Date.now()+Math.random(), num: pl[0], name: pl[1], pts:0, p3:0, p2:0, pt:0, pf:0}));
+          else if(t.players) cleanPlayers = t.players;
           appState.teamsDB.push({ id: Date.now() + Math.random(), name: tName, players: cleanPlayers });
           addedCount++;
         }
@@ -962,11 +1082,6 @@ function processImportData(rawData) {
       saveData();
       if(typeof renderTeamsTab === 'function' && appState.activeTab === 'teams') renderTeamsTab();
       showAlert(`✅ ${addedCount}チームを取り込みました！${imported.length - addedCount > 0 ? `（${imported.length - addedCount}チームは既に登録済み）` : ''}`);
-      return true;
-    } catch(e) {
-      showAlert('❌ データ形式が正しくありません。コピーし直してください。');
-      return false;
-    }
 }
 
 // --- CUSTOM DIALOGS ---
@@ -1065,18 +1180,25 @@ function changeLogPlayer(logItem, newPid) {
 document.addEventListener('DOMContentLoaded', () => {
   // Share button
   const btnShare = document.getElementById('btn-share-teams');
-  if(btnShare) btnShare.onclick = () => {
-    // タブレット等で多数のチームが入っている場合の容量オーバーを防ぐため、共有データを極限まで軽量化
-    const optimizedTeams = appState.teamsDB.map(t => ({
-      n: t.name,
-      p: t.players.map(pl => [pl.num, pl.name]) // idやpts等は復元時に初期化できるので除外
-    }));
-    const data = JSON.stringify(optimizedTeams);
-    const encoded = btoa(unescape(encodeURIComponent(data)));
-    const shareText = 'RIMLY_TEAMS:' + encoded;
-    document.getElementById('share-teams-text').value = shareText;
-    
+  if(btnShare) btnShare.onclick = async () => {
+    btnShare.disabled = true;
     const qrContainer = document.getElementById('share-qr-container');
+    const shareTextEl = document.getElementById('share-teams-text');
+    let shareText = '';
+    
+    try {
+      const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'create_share', type: 'teams', data: appState.teamsDB }) });
+      const json = await res.json();
+      if(json.success && json.shareId) shareText = 'RIMLY_SHARE:' + json.shareId;
+      else throw new Error();
+    } catch(e) {
+      const optimizedTeams = appState.teamsDB.map(t => ({ n: t.name, p: t.players.map(pl => [pl.num, pl.name]) }));
+      shareText = 'RIMLY_TEAMS:' + btoa(unescape(encodeURIComponent(JSON.stringify(optimizedTeams))));
+    }
+    
+    btnShare.disabled = false;
+    shareTextEl.value = shareText;
+    
     if(qrContainer) {
       qrContainer.innerHTML = '<div id="qr-code-wrapper"></div>';
       const shareUrl = window.location.href.split('?')[0] + '?import=' + encodeURIComponent(shareText);
@@ -1095,7 +1217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         qrContainer.style.display = 'block';
       }
     }
-    
     document.getElementById('overlay-share-teams').classList.add('open');
   };
 
@@ -1122,11 +1243,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Do Import text manually
   const btnDoImport = document.getElementById('btn-do-import');
-  if(btnDoImport) btnDoImport.onclick = () => {
+  if(btnDoImport) btnDoImport.onclick = async () => {
     let raw = document.getElementById('import-teams-text').value.trim();
     if(!raw) { showAlert('テキストを貼り付けてください。'); return; }
     
-    if(processImportData(raw)) {
+    const success = await processImportData(raw);
+    if(success) {
       document.getElementById('import-teams-text').value = '';
       document.getElementById('overlay-import-teams').classList.remove('open');
     }
@@ -1144,12 +1266,13 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (typeof Html5Qrcode !== "undefined") {
           html5QrCode = new Html5Qrcode("qr-reader");
-          html5QrCode.start(
+           html5QrCode.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
+            async (decodedText) => {
                // on success
-               if(processImportData(decodedText)) {
+               const success = await processImportData(decodedText);
+               if(success) {
                   html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(()=>{});
                   html5QrCode = null;
                   qrReaderDiv.style.display = 'none';
