@@ -942,10 +942,19 @@ function processImportData(rawData) {
       
       let addedCount = 0;
       imported.forEach(t => {
-        if(!t.name) return;
-        const exists = appState.teamsDB.find(x => x.name === t.name);
+        const tName = t.name || t.n;
+        if(!tName) return;
+        const exists = appState.teamsDB.find(x => x.name === tName);
         if(!exists) {
-          appState.teamsDB.push({ id: Date.now() + Math.random(), name: t.name, players: t.players || [] });
+          let cleanPlayers = [];
+          if(t.p) {
+             // 新軽量フォーマットからの復元
+             cleanPlayers = t.p.map(pl => ({id:Date.now()+Math.random(), num: pl[0], name: pl[1], pts:0, p3:0, p2:0, pt:0, pf:0}));
+          } else if(t.players) {
+             // 古いフォーマットからの復元
+             cleanPlayers = t.players;
+          }
+          appState.teamsDB.push({ id: Date.now() + Math.random(), name: tName, players: cleanPlayers });
           addedCount++;
         }
       });
@@ -1057,7 +1066,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Share button
   const btnShare = document.getElementById('btn-share-teams');
   if(btnShare) btnShare.onclick = () => {
-    const data = JSON.stringify(appState.teamsDB);
+    // タブレット等で多数のチームが入っている場合の容量オーバーを防ぐため、共有データを極限まで軽量化
+    const optimizedTeams = appState.teamsDB.map(t => ({
+      n: t.name,
+      p: t.players.map(pl => [pl.num, pl.name]) // idやpts等は復元時に初期化できるので除外
+    }));
+    const data = JSON.stringify(optimizedTeams);
     const encoded = btoa(unescape(encodeURIComponent(data)));
     const shareText = 'RIMLY_TEAMS:' + encoded;
     document.getElementById('share-teams-text').value = shareText;
