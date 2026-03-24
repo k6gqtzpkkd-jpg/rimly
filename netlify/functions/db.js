@@ -2,9 +2,10 @@ const { Pool } = require('pg');
 
 let pool;
 function getPool() {
-  if (!pool && process.env.DATABASE_URL) {
+  const dbUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
+  if (!pool && dbUrl) {
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: dbUrl,
       ssl: { rejectUnauthorized: false }
     });
   }
@@ -24,7 +25,7 @@ exports.handler = async function(event, context) {
 
   const p = getPool();
   if (!p) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'DATABASE_URL is not configured in Netlify' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'DATABASE_URL or NETLIFY_DATABASE_URL is not configured' }) };
   }
 
   try {
