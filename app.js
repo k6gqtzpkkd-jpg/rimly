@@ -1064,10 +1064,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const qrContainer = document.getElementById('share-qr-container');
     if(qrContainer) {
-      qrContainer.innerHTML = '';
+      qrContainer.innerHTML = '<div id="qr-code-wrapper"></div>';
       const shareUrl = window.location.href.split('?')[0] + '?import=' + encodeURIComponent(shareText);
       try {
-        new QRCode(qrContainer, {
+        new QRCode(document.getElementById('qr-code-wrapper'), {
           text: shareUrl,
           width: 160,
           height: 160,
@@ -1119,28 +1119,40 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // In-App QR Scanner
-  let html5QrcodeScanner = null;
+  let html5QrCode = null;
   const btnStartScan = document.getElementById('btn-start-qr-scan');
   if (btnStartScan) {
     btnStartScan.onclick = () => {
       btnStartScan.style.display = 'none';
       const qrReaderDiv = document.getElementById('qr-reader');
       qrReaderDiv.style.display = 'block';
+      qrReaderDiv.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 20px;">カメラを起動中...<br>権限ダイアログが出たら許可してください</div>';
       
-      if (typeof Html5QrcodeScanner !== "undefined") {
-          html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-          html5QrcodeScanner.render((decodedText) => {
-             // on success
-             if(processImportData(decodedText)) {
-                html5QrcodeScanner.clear().catch(()=>{});
-                html5QrcodeScanner = null;
-                qrReaderDiv.style.display = 'none';
-                btnStartScan.style.display = 'block';
-                document.getElementById('overlay-import-teams').classList.remove('open');
-             }
-          }, (error) => {});
+      if (typeof Html5Qrcode !== "undefined") {
+          html5QrCode = new Html5Qrcode("qr-reader");
+          html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+               // on success
+               if(processImportData(decodedText)) {
+                  html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(()=>{});
+                  html5QrCode = null;
+                  qrReaderDiv.style.display = 'none';
+                  btnStartScan.style.display = 'block';
+                  document.getElementById('overlay-import-teams').classList.remove('open');
+               }
+            },
+            (errorMessage) => {
+               // ignore scan failures (keeps looking)
+            }
+          ).catch((err) => {
+             showAlert('カメラの起動に失敗しました。ブラウザのカメラ権限が許可されているか確認してください。');
+             qrReaderDiv.style.display = 'none';          
+             btnStartScan.style.display = 'block';
+          });
       } else {
-          showAlert('カメラが読み込めませんでした。再読み込みしてください。');
+          showAlert('カメラモジュールが読み込めませんでした。再読み込みしてください。');
           btnStartScan.style.display = 'block';
           qrReaderDiv.style.display = 'none';
       }
@@ -1150,9 +1162,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cleanup scanner on modal close
   document.querySelectorAll('#overlay-import-teams .modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
-       if(html5QrcodeScanner) {
-          html5QrcodeScanner.clear().catch(()=>{});
-          html5QrcodeScanner = null;
+       if(html5QrCode) {
+          html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(()=>{});
+          html5QrCode = null;
        }
        const qrReaderDiv = document.getElementById('qr-reader');
        if(qrReaderDiv) qrReaderDiv.style.display = 'none';
