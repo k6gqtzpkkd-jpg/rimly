@@ -2,7 +2,6 @@
    RIMLY v4 CLASSIC GLOW - Logic & State Handling
    ========================================================== */
 
-const CORRECT_PW = '082655';
 let pwInput = '';
 
 let appState = {
@@ -135,7 +134,8 @@ function setupPassword() {
   };
   
   const checkPw = () => {
-    if(pwInput === CORRECT_PW) {
+    const correctPw = localStorage.getItem('rimly_app_pw') || '082655';
+    if(pwInput === correctPw) {
       document.getElementById('password-screen').classList.remove('active');
       document.getElementById('app-screen').classList.add('active');
     } else {
@@ -242,6 +242,19 @@ function switchTab(t) {
 function renderSettings() {
   document.getElementById('setting-storage-mode').value = appState.settings.storageMode || 'local';
   document.getElementById('setting-db-key').value = appState.settings.dbKey || '';
+  document.getElementById('setting-app-pw').value = localStorage.getItem('rimly_app_pw') || '082655';
+  
+  const btnPw = document.getElementById('btn-save-pw');
+  if(btnPw) {
+    btnPw.onclick = () => {
+      const newPw = document.getElementById('setting-app-pw').value.trim();
+      if(!/^\d{6}$/.test(newPw)) {
+        showAlert('パスワードは6桁の数字で指定してください。'); return;
+      }
+      localStorage.setItem('rimly_app_pw', newPw);
+      showAlert('パスワードを「' + newPw + '」に変更しました！次回の起動時から有効になります。');
+    };
+  }
   
   document.getElementById('btn-save-settings').onclick = async () => {
     const btn = document.getElementById('btn-save-settings');

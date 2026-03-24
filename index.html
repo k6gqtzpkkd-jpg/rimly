@@ -339,6 +339,15 @@
             <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="settings-status-msg"></p>
             <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">※Netlify環境変数「DATABASE_URL」または「NETLIFY_DATABASE_URL」が設定されデプロイされている必要があります。</p>
           </div>
+          
+          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
+            <label style="color:var(--text-primary); font-weight:800;">起動時パスワードの変更</label>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">6桁の数字を入力してください（初期値: 082655）</p>
+            <div style="display:flex; gap:10px;">
+              <input type="text" id="setting-app-pw" class="glow-input" placeholder="新しいパスワード" maxlength="6" inputmode="numeric" />
+              <button class="ctrl-btn btn-outline-glow" id="btn-save-pw" style="white-space:nowrap;">変 更</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
