@@ -226,10 +226,12 @@
               <div class="roster-title text-orange" id="roster-home-name">HOME TEAM</div>
               <button class="btn-sm btn-outline-orange" onclick="openPlayerModal('home')">＋ 選手追加/編集</button>
             </div>
-            <table class="roster-table" id="roster-home-table">
-              <thead><tr><th>#</th><th>PLAYER</th><th title="得点">PTS</th><th title="3ポイント">3P</th><th title="2ポイント">2P</th><th title="フリースロー">FT</th><th title="ファウル状況">FOULS</th></tr></thead>
-              <tbody></tbody>
-            </table>
+            <div style="overflow-x:auto;">
+              <table class="roster-table" id="roster-home-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
           <!-- AWAY Players -->
           <div class="player-roster glass-panel">
@@ -237,10 +239,12 @@
               <div class="roster-title text-blue" id="roster-away-name">AWAY TEAM</div>
               <button class="btn-sm btn-outline-blue" onclick="openPlayerModal('away')">＋ 選手追加/編集</button>
             </div>
-            <table class="roster-table" id="roster-away-table">
-              <thead><tr><th>#</th><th>PLAYER</th><th>PTS</th><th>3P</th><th>2P</th><th>FT</th><th>FOULS</th></tr></thead>
-              <tbody></tbody>
-            </table>
+            <div style="overflow-x:auto;">
+              <table class="roster-table" id="roster-away-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -338,6 +342,24 @@
             </div>
             <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="settings-status-msg"></p>
             <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">※Netlify環境変数「DATABASE_URL」または「NETLIFY_DATABASE_URL」が設定されデプロイされている必要があります。</p>
+          </div>
+          
+          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
+            <label style="color:var(--text-primary); font-weight:800;">スタッツ記録モード</label>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">詳細モードにすると、アシストやリバウンド等の記録カラムが追加されます。</p>
+            <select id="setting-stats-mode" class="glow-input" style="width:100%;">
+              <option value="basic">簡易モード (得点・ファウルのみ)</option>
+              <option value="advanced">詳細モード (アシスト・リバウンド・スティール等追加)</option>
+            </select>
+          </div>
+
+          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
+            <label style="color:var(--text-primary); font-weight:800;">試合結果の自動コピー</label>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">試合終了時に、LINE等にそのまま送れるレポートを自動でクリップボードにコピーします。</p>
+            <select id="setting-auto-copy" class="glow-input" style="width:100%;">
+              <option value="false">自動コピーしない</option>
+              <option value="true">試合終了時に自動コピーする</option>
+            </select>
           </div>
           
           <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
