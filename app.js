@@ -36,14 +36,20 @@ async function loadData() {
 
   const mode = appState.settings.storageMode;
 
+  // チームデータはオフラインでも絶対に消えないよう【常に完全本体保存】で即座に読み込む
+  try {
+    appState.teamsDB = JSON.parse(localStorage.getItem('rimly_v4_teams') || '[]');
+    appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
+  } catch (e) { appState.teamsDB = []; }
+
+  // 待たせずにまずチーム画面を描画してしまう（白紙防止）
+  if (appState.activeTab === 'teams') renderTeamsTab();
+
   if (mode === 'local' || mode === 'hybrid') {
     try {
-      appState.teamsDB = JSON.parse(localStorage.getItem('rimly_v4_teams') || '[]');
-      appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
       appState.historyDB = JSON.parse(localStorage.getItem('rimly_v4_history') || '[]');
     } catch (e) { }
   } else {
-    appState.teamsDB = [];
     appState.historyDB = [];
   }
 
@@ -54,10 +60,8 @@ async function loadData() {
       const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
       const json = await res.json();
       if (json.success && json.data) {
-        if (json.data.teams) appState.teamsDB = json.data.teams;
         if (json.data.history) appState.historyDB = json.data.history;
         if (mode === 'hybrid') {
-          localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
           localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
         }
         showPop('✅ クラウド同期完了');
@@ -78,11 +82,15 @@ async function loadData() {
 
 async function saveData() {
   const mode = appState.settings.storageMode;
+  
+  // チームはどんな設定でも常に本体を最優先で安全保存
+  localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
+
   if (mode === 'local' || mode === 'hybrid') {
-    localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
     localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
   }
 
+  // DB保存は試合履歴（History）のみに特化させる
   if (mode === 'db' || mode === 'hybrid') {
     try {
       await fetch(DB_API, {
@@ -90,7 +98,6 @@ async function saveData() {
         body: JSON.stringify({
           action: 'save',
           user_key: appState.settings.dbKey,
-          teams: appState.teamsDB,
           history: appState.historyDB
         })
       });
