@@ -42,6 +42,20 @@ async function loadData() {
     appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
   } catch (e) { appState.teamsDB = []; }
 
+  try {
+    const savedMatch = localStorage.getItem('rimly_v4_active_match');
+    if (savedMatch) {
+      const parsedMatch = JSON.parse(savedMatch);
+      if (parsedMatch.isGameActive) {
+        appState.game = parsedMatch.game;
+        appState.isGameActive = parsedMatch.isGameActive;
+        appState.activeTab = parsedMatch.activeTab || 'score';
+        document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"], .tab-btn[data-tab="teams"]').forEach(b => b.disabled = true);
+        setTimeout(() => switchTab(appState.activeTab), 50);
+      }
+    }
+  } catch(e) {}
+
   // 待たせずにまずチーム画面を描画してしまう（白紙防止）
   if (appState.activeTab === 'teams') renderTeamsTab();
 
@@ -106,6 +120,23 @@ async function saveData() {
     }
   }
 }
+
+function saveActiveMatchState() {
+  if (appState.isGameActive) {
+    localStorage.setItem('rimly_v4_active_match', JSON.stringify({
+      game: appState.game,
+      isGameActive: appState.isGameActive,
+      activeTab: appState.activeTab
+    }));
+  } else {
+    localStorage.removeItem('rimly_v4_active_match');
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveActiveMatchState();
+});
+window.addEventListener('pagehide', () => saveActiveMatchState());
 
 function checkOSUpdate() {
   const currentUA = navigator.userAgent;
@@ -244,6 +275,8 @@ function switchTab(t) {
   if (t === 'teams') renderTeamsTab();
   if (t === 'plays' || t === 'fouls') renderLogs();
   if (t === 'settings') renderSettings();
+
+  if (typeof saveActiveMatchState === 'function') saveActiveMatchState();
 }
 
 function renderSettings() {
@@ -439,6 +472,8 @@ function renderScore() {
   renderTableRoster('away');
   renderQuarterScores();
   renderQuickUndo();
+
+  if (typeof saveActiveMatchState === 'function') saveActiveMatchState();
 }
 
 // Quarter buttons
