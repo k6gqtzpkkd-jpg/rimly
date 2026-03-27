@@ -76,7 +76,7 @@ async function loadData() {
       try {
         showPop('☁️ クラウド同期中...');
 
-        const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
+        const res = await fetch(DB_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
         const json = await res.json();
         if (json.success && json.data) {
           if (json.data.history) appState.historyDB = json.data.history;
@@ -115,6 +115,7 @@ async function saveData() {
     try {
       await fetch(DB_API, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'save',
           user_key: appState.settings.dbKey,
@@ -1154,7 +1155,7 @@ async function processImportData(rawData) {
     const shareId = raw.replace('RIMLY_SHARE:', '');
     try {
       showPop('クラウドからデータを取得中...');
-      const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'get_share', shareId }) });
+      const res = await fetch(DB_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'get_share', shareId }) });
       const json = await res.json();
       if (json.success && json.data && json.data.type === 'teams') {
         processTeamDataArray(json.data.data);
@@ -1313,7 +1314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let shareText = '';
 
     try {
-      const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'create_share', type: 'teams', data: appState.teamsDB }) });
+      const res = await fetch(DB_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create_share', type: 'teams', data: appState.teamsDB }) });
       const json = await res.json();
       if (json.success && json.shareId) shareText = 'RIMLY_SHARE:' + json.shareId;
       else throw new Error();
