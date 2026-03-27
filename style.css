@@ -2073,3 +2073,39 @@ button,
   /* 必要に応じて高さを制限します。画面に合わせて調整してください */
   max-height: 60vh;
 }
+
+/* =========================================
+   スコアボードの左右カードの高さ・レイアウト統一
+========================================= */
+
+/* 1. 左右のカードが常に同じ高さになるように引っ張る */
+.score-display {
+  align-items: stretch !important;
+}
+
+/* 2. カードの中身を「縦並び」の構造にする */
+.team-score-block {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+/* 3. 得点の大きな数字を「常に一番下」へ押し付ける設定
+   （これでチーム名が何行になっても、数字の高さが左右で完璧に揃います） */
+.score-num {
+  margin-top: auto !important;
+}
+
+/* 4. チーム名が長すぎるときの文字の省略設定（お好みで） */
+.team-name-disp {
+  /* チーム名が長すぎる場合、最大2行まで表示して残りを「...」で省略し、
+       カードが限界以上に大きくなるのを防ぎます */
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  overflow: hidden !important;
+
+  /* 1行のときも2行分の余白をあらかじめ確保してより綺麗にしたい場合は、
+       以下の1行のコメントを取り除いてください */
+  /* min-height: 2.8em; */
+}
