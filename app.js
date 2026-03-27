@@ -214,7 +214,53 @@ function setupPassword() {
     if (e.key >= '0' && e.key <= '9' && pwInput.length < 6) { pwInput += e.key; updateDots(); if (pwInput.length === 6) setTimeout(checkPw, 100); }
     else if (e.key === 'Backspace') { pwInput = pwInput.slice(0, -1); updateDots(); document.getElementById('pw-error').textContent = ''; }
   });
+
+  // 👇 ==== 追加：生体認証解除ボタンを画面に作る処理 ==== 👇
+  try {
+    if (window.PublicKeyCredential) {
+      const bioBtn = document.createElement('button');
+      bioBtn.className = 'ctrl-btn btn-outline-glow';
+      bioBtn.style.cssText = 'width: 100%; margin-top: 25px; padding: 15px; font-size: 16px; border-radius: 12px; border-color: var(--orange);';
+      bioBtn.innerHTML = '👆 生体認証（Face ID / 指紋）でロック解除';
+
+      bioBtn.onclick = async () => {
+        const storedId = localStorage.getItem('rimly_bio_id');
+        if (!storedId) {
+          document.getElementById('pw-error').textContent = '未登録です。設定タブから生体認証を登録してください。';
+          return;
+        }
+        try {
+          const credId = Uint8Array.from(atob(storedId), c => c.charCodeAt(0));
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+
+          await navigator.credentials.get({
+            publicKey: {
+              challenge: challenge,
+              allowCredentials: [{ type: "public-key", id: credId }],
+              userVerification: "required"
+            }
+          });
+          // 🎉 認証成功でロック解除！
+          document.getElementById('password-screen').classList.remove('active');
+          document.getElementById('app-screen').classList.add('active');
+        } catch (e) {
+          document.getElementById('pw-error').textContent = '生体認証がキャンセルされたか、失敗しました';
+        }
+      };
+
+      // パスワード入力画面の最後に追加
+      const pwScreen = document.getElementById('password-screen');
+      if (pwScreen) pwScreen.appendChild(bioBtn);
+
+      // 既に登録済みなら、アプリを開いた瞬間に自動でFace IDを呼び出す
+      if (localStorage.getItem('rimly_bio_id')) {
+        setTimeout(() => bioBtn.click(), 500);
+      }
+    }
+  } catch (e) { console.error('Bio Auth not supported', e) }
 }
+
 
 // Canvas DB draw
 function setupRimlyCanvas() {
@@ -1696,3 +1742,35 @@ function openMatchExport(h) {
   document.getElementById('match-export-text').value = generateMatchExportText(h);
   document.getElementById('overlay-match-export').classList.add('open');
 }
+// --- 生体認証の登録機能 ---
+async function registerBiometrics() {
+  if (!window.PublicKeyCredential) {
+    alert('お使いの端末・ブラウザは生体認証に対応していません。');
+    return;
+  }
+  try {
+    const challenge = new Uint8Array(32);
+    const userId = new Uint8Array(16);
+    window.crypto.getRandomValues(challenge);
+    window.crypto.getRandomValues(userId);
+
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: challenge,
+        rp: { name: "RIMLY", id: location.hostname },
+        user: { id: userId, name: "rimly_user", displayName: "Rimly User" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000
+      }
+    });
+
+    const rawId = btoa(String.fromCharCode.apply(null, new Uint8Array(cred.rawId)));
+    localStorage.setItem('rimly_bio_id', rawId);
+    alert('✅ 生体認証（Face ID / Touch ID等）を登録しました！\n次回からパスワードの代わりに顔や指紋でロック解除できます。');
+  } catch (e) {
+    console.error(e);
+    alert('登録がキャンセルされたか、システムに拒否されました。');
+  }
+}
+
