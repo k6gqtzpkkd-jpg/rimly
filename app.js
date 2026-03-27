@@ -465,6 +465,18 @@ function renderScore() {
   // Team foul warning banners
   ['home', 'away'].forEach(t => {
     const panel = document.querySelector(`.stat-panel.border-left-${t === 'home' ? 'orange' : 'blue'}`);
+    #log - home - title - f, #log - away - title - f,
+      #log - home - title - s, #log - away - title - s {
+      min - height: 56px;
+      display: flex;
+      align - items: center;
+      justify - content: center;
+      overflow: hidden;
+      text - overflow: ellipsis;
+    }
+
+
+
     if (!panel) return;
     const existBanner = panel.querySelector('.team-foul-warning-banner');
     if (existBanner) existBanner.remove();
