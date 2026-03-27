@@ -1772,20 +1772,21 @@ async function registerBiometrics() {
     console.error(e);
     alert('登録がキャンセルされたか、システムに拒否されました。');
   }
-  // --- 設定画面に「生体認証の登録ボタン」を自動で作り出す魔法のコード（修正版） ---
-  function addBiometricButton() {
-    const settingsTab = document.getElementById('tab-content-settings');
-    if (!settingsTab) return;
+}
+// --- 設定画面に「生体認証の登録ボタン」を自動で作り出す魔法のコード（修正版） ---
+function addBiometricButton() {
+  const settingsTab = document.getElementById('tab-content-settings');
+  if (!settingsTab) return;
 
-    // すでにボタンがあれば重複して作らないようにする
-    if (document.getElementById('bio-reg-section')) return;
+  // すでにボタンがあれば重複して作らないようにする
+  if (document.getElementById('bio-reg-section')) return;
 
-    const bioSection = document.createElement('div');
-    bioSection.id = 'bio-reg-section';
-    bioSection.className = 'setup-form-group mt-4';
-    bioSection.style.cssText = 'border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;';
+  const bioSection = document.createElement('div');
+  bioSection.id = 'bio-reg-section';
+  bioSection.className = 'setup-form-group mt-4';
+  bioSection.style.cssText = 'border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;';
 
-    bioSection.innerHTML = `
+  bioSection.innerHTML = `
       <label style="color:var(--text-primary); font-weight:800;">生体認証ログイン</label>
       <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Face ID や Touch ID（指紋）を登録すると、次回からパスワードを入力せずに起動できます。</p>
       <button class="ctrl-btn btn-outline-glow" style="width:100%; padding:15px; font-size:16px;">
@@ -1793,22 +1794,22 @@ async function registerBiometrics() {
       </button>
     `;
 
-    // ボタンの機能として、登録関数を紐づけ
-    bioSection.querySelector('button').onclick = typeof registerBiometrics !== 'undefined' ? registerBiometrics : () => alert('エラー：登録機能が見つかりません');
+  // ボタンの機能として、登録関数を紐づけ
+  bioSection.querySelector('button').onclick = typeof registerBiometrics !== 'undefined' ? registerBiometrics : () => alert('エラー：登録機能が見つかりません');
 
-    // パスワード変更枠の下に自動で挿入する
-    const pwInput = document.getElementById('setting-app-pw');
-    if (pwInput && pwInput.parentNode && pwInput.parentNode.parentNode) {
-      pwInput.parentNode.parentNode.after(bioSection);
-    } else {
-      const card = settingsTab.querySelector('.team-setup-card');
-      if (card) card.appendChild(bioSection);
-    }
+  // パスワード変更枠の下に自動で挿入する
+  const pwInput = document.getElementById('setting-app-pw');
+  if (pwInput && pwInput.parentNode && pwInput.parentNode.parentNode) {
+    pwInput.parentNode.parentNode.after(bioSection);
+  } else {
+    const card = settingsTab.querySelector('.team-setup-card');
+    if (card) card.appendChild(bioSection);
   }
-
-  // 待たずに今すぐ実行してボタンを表示する
-  addBiometricButton();
-  // 念のため、1秒後にもう一度ボタンがあるかチェックしてダメ押しを作る
-  setTimeout(addBiometricButton, 1000);
 }
+
+// 待たずに今すぐ実行してボタンを表示する
+addBiometricButton();
+// 念のため、1秒後にもう一度ボタンがあるかチェックしてダメ押しを作る
+setTimeout(addBiometricButton, 1000);
+
 
