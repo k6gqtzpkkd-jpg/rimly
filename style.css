@@ -897,7 +897,8 @@ button,
 
 .player-roster {
   padding: 0;
-  overflow: clip; /* clip instead of hidden: preserves border-radius AND allows sticky thead */
+  overflow: clip;
+  /* clip instead of hidden: preserves border-radius AND allows sticky thead */
 }
 
 .roster-header {
@@ -1152,7 +1153,8 @@ button,
   font-size: 11px;
   cursor: pointer;
   transition: .12s;
-  opacity: 1; /* Always visible */
+  opacity: 1;
+  /* Always visible */
 }
 
 .tl-item:hover .edit-log,
@@ -2039,4 +2041,35 @@ button,
   background: var(--red-dim);
   color: var(--red);
   border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* -------------------------------------
+   ログ画面のカード（得点・ファウル）の潰れ防止
+------------------------------------- */
+
+/* 1. リストの各カードが絶対に縮まない・潰れないようにする */
+#score-home-list>div,
+#score-away-list>div,
+#foul-home-list>div,
+#foul-away-list>div {
+  flex-shrink: 0 !important;
+  height: auto !important;
+  /* 固定の高さを解除して、中身の分だけ高さを出す */
+  min-height: min-content !important;
+}
+
+/* 2. カードの中身（テキストや選手名など）が潰れないようにする */
+.tl-pinfo {
+  flex-shrink: 0 !important;
+  height: auto !important;
+}
+
+/* 3. リスト全体が画面をはみ出た場合は、縦スクロールできるようにする */
+#score-home-list,
+#score-away-list,
+#foul-home-list,
+#foul-away-list {
+  overflow-y: auto !important;
+  /* 必要に応じて高さを制限します。画面に合わせて調整してください */
+  max-height: 60vh;
 }
