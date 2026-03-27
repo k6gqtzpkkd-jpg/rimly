@@ -13,7 +13,6 @@ function getPool() {
 }
 
 module.exports = async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, POST');
@@ -48,32 +47,50 @@ module.exports = async function handler(req, res) {
     const body = req.body || {};
 
     if (body.action === 'save') {
+      // historyを最新100件に制限
+      const limitedHistory = Array.isArray(body.history)
+        ? body.history.slice(-100)
+        : body.history;
+
       await p.query(
         `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_key) DO UPDATE SET teams = EXCLUDED.teams, history = EXCLUDED.history, updated_at = NOW()`,
-         [body.user_key, JSON.stringify(body.teams), JSON.stringify(body.history)]
+        [body.user_key, JSON.stringify(body.teams), JSON.stringify(limitedHistory)]
       );
+
+      // 7日以上古いシェアを自動削除
+      await p.query(`DELETE FROM rimly_shares WHERE created_at < NOW() - INTERVAL '7 days'`);
+
       return res.status(200).json({ success: true });
     }
 
     if (body.action === 'load') {
-      const result = await p.query(`SELECT teams, history FROM rimly_users WHERE user_key = $1`, [body.user_key]);
+      const result = await p.query(
+        `SELECT teams, history FROM rimly_users WHERE user_key = $1`,
+        [body.user_key]
+      );
       return res.status(200).json({ success: true, data: result.rows[0] || null });
     }
 
     if (body.action === 'create_share') {
       const shareId = Math.random().toString(36).substring(2, 10).toUpperCase();
-      await p.query(`INSERT INTO rimly_shares (share_id, type, data) VALUES ($1, $2, $3)`, [shareId, body.type, JSON.stringify(body.data)]);
+      await p.query(
+        `INSERT INTO rimly_shares (share_id, type, data) VALUES ($1, $2, $3)`,
+        [shareId, body.type, JSON.stringify(body.data)]
+      );
       return res.status(200).json({ success: true, shareId });
     }
 
     if (body.action === 'get_share') {
-      const result = await p.query(`SELECT type, data FROM rimly_shares WHERE share_id = $1`, [body.shareId]);
+      const result = await p.query(
+        `SELECT type, data FROM rimly_shares WHERE share_id = $1`,
+        [body.shareId]
+      );
       return res.status(200).json({ success: true, data: result.rows[0] || null });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
-  } catch(e) {
+  } catch (e) {
     console.error('DB Error:', e);
     return res.status(500).json({ error: e.message });
   }
