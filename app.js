@@ -1772,12 +1772,16 @@ async function registerBiometrics() {
     console.error(e);
     alert('登録がキャンセルされたか、システムに拒否されました。');
   }
-  // --- 設定画面に「生体認証の登録ボタン」を自動で作り出す魔法のコード（HTML編集不要） ---
-  window.addEventListener('DOMContentLoaded', () => {
+  // --- 設定画面に「生体認証の登録ボタン」を自動で作り出す魔法のコード（修正版） ---
+  function addBiometricButton() {
     const settingsTab = document.getElementById('tab-content-settings');
     if (!settingsTab) return;
 
+    // すでにボタンがあれば重複して作らないようにする
+    if (document.getElementById('bio-reg-section')) return;
+
     const bioSection = document.createElement('div');
+    bioSection.id = 'bio-reg-section';
     bioSection.className = 'setup-form-group mt-4';
     bioSection.style.cssText = 'border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;';
 
@@ -1790,7 +1794,7 @@ async function registerBiometrics() {
     `;
 
     // ボタンの機能として、登録関数を紐づけ
-    bioSection.querySelector('button').onclick = typeof registerBiometrics !== 'undefined' ? registerBiometrics : () => alert('登録機能が準備されていません。');
+    bioSection.querySelector('button').onclick = typeof registerBiometrics !== 'undefined' ? registerBiometrics : () => alert('エラー：登録機能が見つかりません');
 
     // パスワード変更枠の下に自動で挿入する
     const pwInput = document.getElementById('setting-app-pw');
@@ -1800,6 +1804,11 @@ async function registerBiometrics() {
       const card = settingsTab.querySelector('.team-setup-card');
       if (card) card.appendChild(bioSection);
     }
-  });
+  }
+
+  // 待たずに今すぐ実行してボタンを表示する
+  addBiometricButton();
+  // 念のため、1秒後にもう一度ボタンがあるかチェックしてダメ押しを作る
+  setTimeout(addBiometricButton, 1000);
 }
 
