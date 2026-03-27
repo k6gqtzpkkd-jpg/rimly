@@ -897,7 +897,7 @@ button,
 
 .player-roster {
   padding: 0;
-  overflow: hidden;
+  overflow: clip; /* clip instead of hidden: preserves border-radius AND allows sticky thead */
 }
 
 .roster-header {
