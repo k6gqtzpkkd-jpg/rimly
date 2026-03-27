@@ -98,73 +98,74 @@ async function loadData() {
     if (appState.activeTab === 'teams') renderTeamsTab();
     if (appState.activeTab === 'history') renderHistory();
   }
+}
 
-  async function saveData() {
-    const mode = appState.settings.storageMode;
+async function saveData() {
+  const mode = appState.settings.storageMode;
 
-    // チームはどんな設定でも常に本体を最優先で安全保存
-    localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
+  // チームはどんな設定でも常に本体を最優先で安全保存
+  localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
 
-    if (mode === 'local' || mode === 'hybrid') {
-      localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
-    }
-
-    // DB保存は試合履歴（History）のみに特化させる
-    if (mode === 'db' || mode === 'hybrid') {
-      try {
-        await fetch(DB_API, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'save',
-            user_key: appState.settings.dbKey,
-            history: appState.historyDB.slice(-30)  // DBには最新30件のみ
-          })
-
-        });
-      } catch (e) {
-        console.error('Cloud save failed');
-      }
-    }
+  if (mode === 'local' || mode === 'hybrid') {
+    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
   }
 
-  function saveActiveMatchState() {
-    if (appState.isGameActive) {
-      localStorage.setItem('rimly_v4_active_match', JSON.stringify({
-        game: appState.game,
-        isGameActive: appState.isGameActive,
-        activeTab: appState.activeTab
-      }));
-    } else {
-      localStorage.removeItem('rimly_v4_active_match');
-    }
-  }
+  // DB保存は試合履歴（History）のみに特化させる
+  if (mode === 'db' || mode === 'hybrid') {
+    try {
+      await fetch(DB_API, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'save',
+          user_key: appState.settings.dbKey,
+          history: appState.historyDB.slice(-30)  // DBには最新30件のみ
+        })
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveActiveMatchState();
-  });
-  window.addEventListener('pagehide', () => saveActiveMatchState());
-
-  function checkOSUpdate() {
-    const currentUA = navigator.userAgent;
-    let osVersion = 'Unknown';
-    if (/android/i.test(currentUA)) {
-      const match = currentUA.match(/Android\s([0-9\.]*)/i);
-      if (match) osVersion = `Android ${match[1]}`;
-    } else if (/iPad|iPhone|iPod/.test(currentUA) && !window.MSStream) {
-      const match = currentUA.match(/OS\s([0-9_]*)/i);
-      if (match) osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
-    } else if (/Mac OS X/.test(currentUA)) {
-      const match = currentUA.match(/Mac OS X\s([0-9_]*)/i);
-      if (match) osVersion = `macOS ${match[1].replace(/_/g, '.')}`;
+      });
+    } catch (e) {
+      console.error('Cloud save failed');
     }
-
-    const lastOS = localStorage.getItem('rimly_os_version');
-    if (lastOS && lastOS !== osVersion && lastOS !== 'Unknown') {
-      showAlert(`OSが【${lastOS}】から【${osVersion}】にアップデートされたことを検知しました。\n\n【トラブル解決マニュアル】\nアップデート直後はブラウザの仕様変更等により、文字化けやレイアウト崩れ等の動作不良が起きる可能性があります。\n不具合を感じた場合は「ブラウザのキャッシュ削除」もしくは「ホーム画面アイコンの作り直し(アプリ再インストール)」を行うことで直ります。`);
-    }
-    localStorage.setItem('rimly_os_version', osVersion);
   }
 }
+
+function saveActiveMatchState() {
+  if (appState.isGameActive) {
+    localStorage.setItem('rimly_v4_active_match', JSON.stringify({
+      game: appState.game,
+      isGameActive: appState.isGameActive,
+      activeTab: appState.activeTab
+    }));
+  } else {
+    localStorage.removeItem('rimly_v4_active_match');
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveActiveMatchState();
+});
+window.addEventListener('pagehide', () => saveActiveMatchState());
+
+function checkOSUpdate() {
+  const currentUA = navigator.userAgent;
+  let osVersion = 'Unknown';
+  if (/android/i.test(currentUA)) {
+    const match = currentUA.match(/Android\s([0-9\.]*)/i);
+    if (match) osVersion = `Android ${match[1]}`;
+  } else if (/iPad|iPhone|iPod/.test(currentUA) && !window.MSStream) {
+    const match = currentUA.match(/OS\s([0-9_]*)/i);
+    if (match) osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
+  } else if (/Mac OS X/.test(currentUA)) {
+    const match = currentUA.match(/Mac OS X\s([0-9_]*)/i);
+    if (match) osVersion = `macOS ${match[1].replace(/_/g, '.')}`;
+  }
+
+  const lastOS = localStorage.getItem('rimly_os_version');
+  if (lastOS && lastOS !== osVersion && lastOS !== 'Unknown') {
+    showAlert(`OSが【${lastOS}】から【${osVersion}】にアップデートされたことを検知しました。\n\n【トラブル解決マニュアル】\nアップデート直後はブラウザの仕様変更等により、文字化けやレイアウト崩れ等の動作不良が起きる可能性があります。\n不具合を感じた場合は「ブラウザのキャッシュ削除」もしくは「ホーム画面アイコンの作り直し(アプリ再インストール)」を行うことで直ります。`);
+  }
+  localStorage.setItem('rimly_os_version', osVersion);
+}
+
 
 // --- PASSWORD SCREEN ---
 function setupPassword() {
