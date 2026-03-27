@@ -22,7 +22,7 @@ let appState = {
 };
 
 // --- Storage System, Settings, OS Checking ---
-const DB_API = '/.netlify/functions/db';
+const DB_API = '/api/db';
 
 async function loadData() {
   // Load settings first
@@ -54,7 +54,7 @@ async function loadData() {
         setTimeout(() => switchTab(appState.activeTab), 50);
       }
     }
-  } catch(e) {}
+  } catch (e) { }
 
   // 待たせずにまずチーム画面を描画してしまう（白紙防止）
   if (appState.activeTab === 'teams') renderTeamsTab();
@@ -69,94 +69,101 @@ async function loadData() {
 
   // Cloud Load for DB / Hybrid
   if (mode === 'db' || mode === 'hybrid') {
-    try {
-      showPop('☁️ クラウド同期中...');
-      const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
-      const json = await res.json();
-      if (json.success && json.data) {
-        if (json.data.history) appState.historyDB = json.data.history;
-        if (mode === 'hybrid') {
-          localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+    // hybridモード：localStorageにデータがあればDBを読まない
+    if (mode === 'hybrid' && appState.historyDB.length > 0) {
+      showPop('📱 ローカルデータ使用中');
+    } else {
+      try {
+        showPop('☁️ クラウド同期中...');
+
+        const res = await fetch(DB_API, { method: 'POST', body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey }) });
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (json.data.history) appState.historyDB = json.data.history;
+          if (mode === 'hybrid') {
+            localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+          }
+          showPop('✅ クラウド同期完了');
+        } else if (json.error) {
+          if (mode === 'db') showAlert('DBエラー: ' + json.error + '\\n※Neon DBが未設定の可能性があります');
         }
-        showPop('✅ クラウド同期完了');
-      } else if (json.error) {
-        if (mode === 'db') showAlert('DBエラー: ' + json.error + '\\n※Neon DBが未設定の可能性があります');
+      } catch (e) {
+        console.error(e);
+        if (mode === 'db') showAlert('クラウド同期に失敗しました。オフラインかDB連携が構成されていません。');
+        else showPop('❌ 同期エラー (ローカル使用中)');
       }
-    } catch (e) {
-      console.error(e);
-      if (mode === 'db') showAlert('クラウド同期に失敗しました。オフラインかDB連携が構成されていません。');
-      else showPop('❌ 同期エラー (ローカル使用中)');
+    }
+    appState.teamsDB.forEach(t => { if (!t.players) t.players = []; });
+
+    if (appState.activeTab === 'teams') renderTeamsTab();
+    if (appState.activeTab === 'history') renderHistory();
+  }
+
+  async function saveData() {
+    const mode = appState.settings.storageMode;
+
+    // チームはどんな設定でも常に本体を最優先で安全保存
+    localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
+
+    if (mode === 'local' || mode === 'hybrid') {
+      localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+    }
+
+    // DB保存は試合履歴（History）のみに特化させる
+    if (mode === 'db' || mode === 'hybrid') {
+      try {
+        await fetch(DB_API, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'save',
+            user_key: appState.settings.dbKey,
+            history: appState.historyDB.slice(-30)  // DBには最新30件のみ
+          })
+
+        });
+      } catch (e) {
+        console.error('Cloud save failed');
+      }
     }
   }
-  appState.teamsDB.forEach(t => { if (!t.players) t.players = []; });
 
-  if (appState.activeTab === 'teams') renderTeamsTab();
-  if (appState.activeTab === 'history') renderHistory();
-}
-
-async function saveData() {
-  const mode = appState.settings.storageMode;
-  
-  // チームはどんな設定でも常に本体を最優先で安全保存
-  localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
-
-  if (mode === 'local' || mode === 'hybrid') {
-    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
-  }
-
-  // DB保存は試合履歴（History）のみに特化させる
-  if (mode === 'db' || mode === 'hybrid') {
-    try {
-      await fetch(DB_API, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'save',
-          user_key: appState.settings.dbKey,
-          history: appState.historyDB
-        })
-      });
-    } catch (e) {
-      console.error('Cloud save failed');
+  function saveActiveMatchState() {
+    if (appState.isGameActive) {
+      localStorage.setItem('rimly_v4_active_match', JSON.stringify({
+        game: appState.game,
+        isGameActive: appState.isGameActive,
+        activeTab: appState.activeTab
+      }));
+    } else {
+      localStorage.removeItem('rimly_v4_active_match');
     }
   }
-}
 
-function saveActiveMatchState() {
-  if (appState.isGameActive) {
-    localStorage.setItem('rimly_v4_active_match', JSON.stringify({
-      game: appState.game,
-      isGameActive: appState.isGameActive,
-      activeTab: appState.activeTab
-    }));
-  } else {
-    localStorage.removeItem('rimly_v4_active_match');
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveActiveMatchState();
+  });
+  window.addEventListener('pagehide', () => saveActiveMatchState());
+
+  function checkOSUpdate() {
+    const currentUA = navigator.userAgent;
+    let osVersion = 'Unknown';
+    if (/android/i.test(currentUA)) {
+      const match = currentUA.match(/Android\s([0-9\.]*)/i);
+      if (match) osVersion = `Android ${match[1]}`;
+    } else if (/iPad|iPhone|iPod/.test(currentUA) && !window.MSStream) {
+      const match = currentUA.match(/OS\s([0-9_]*)/i);
+      if (match) osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
+    } else if (/Mac OS X/.test(currentUA)) {
+      const match = currentUA.match(/Mac OS X\s([0-9_]*)/i);
+      if (match) osVersion = `macOS ${match[1].replace(/_/g, '.')}`;
+    }
+
+    const lastOS = localStorage.getItem('rimly_os_version');
+    if (lastOS && lastOS !== osVersion && lastOS !== 'Unknown') {
+      showAlert(`OSが【${lastOS}】から【${osVersion}】にアップデートされたことを検知しました。\n\n【トラブル解決マニュアル】\nアップデート直後はブラウザの仕様変更等により、文字化けやレイアウト崩れ等の動作不良が起きる可能性があります。\n不具合を感じた場合は「ブラウザのキャッシュ削除」もしくは「ホーム画面アイコンの作り直し(アプリ再インストール)」を行うことで直ります。`);
+    }
+    localStorage.setItem('rimly_os_version', osVersion);
   }
-}
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') saveActiveMatchState();
-});
-window.addEventListener('pagehide', () => saveActiveMatchState());
-
-function checkOSUpdate() {
-  const currentUA = navigator.userAgent;
-  let osVersion = 'Unknown';
-  if (/android/i.test(currentUA)) {
-    const match = currentUA.match(/Android\s([0-9\.]*)/i);
-    if (match) osVersion = `Android ${match[1]}`;
-  } else if (/iPad|iPhone|iPod/.test(currentUA) && !window.MSStream) {
-    const match = currentUA.match(/OS\s([0-9_]*)/i);
-    if (match) osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
-  } else if (/Mac OS X/.test(currentUA)) {
-    const match = currentUA.match(/Mac OS X\s([0-9_]*)/i);
-    if (match) osVersion = `macOS ${match[1].replace(/_/g, '.')}`;
-  }
-
-  const lastOS = localStorage.getItem('rimly_os_version');
-  if (lastOS && lastOS !== osVersion && lastOS !== 'Unknown') {
-    showAlert(`OSが【${lastOS}】から【${osVersion}】にアップデートされたことを検知しました。\n\n【トラブル解決マニュアル】\nアップデート直後はブラウザの仕様変更等により、文字化けやレイアウト崩れ等の動作不良が起きる可能性があります。\n不具合を感じた場合は「ブラウザのキャッシュ削除」もしくは「ホーム画面アイコンの作り直し(アプリ再インストール)」を行うことで直ります。`);
-  }
-  localStorage.setItem('rimly_os_version', osVersion);
 }
 
 // --- PASSWORD SCREEN ---
@@ -899,7 +906,7 @@ document.getElementById('btn-end-match').onclick = () => {
 
         const idx = appState.teamsDB.findIndex(x => x.name === g[t].name);
         // Clean stats to standard 0
-        const cls = JSON.parse(JSON.stringify(g[t].players)).map(p => ({ ...p, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, ast:0, orb:0, drb:0, stl:0, tov:0, blk:0 }));
+        const cls = JSON.parse(JSON.stringify(g[t].players)).map(p => ({ ...p, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, ast: 0, orb: 0, drb: 0, stl: 0, tov: 0, blk: 0 }));
         if (idx >= 0) appState.teamsDB[idx].players = cls;
         else appState.teamsDB.push({ id: Date.now() + Math.random(), name: g[t].name, players: cls });
       });
@@ -1632,10 +1639,10 @@ function generateMatchExportText(h) {
     lines.push('');
     lines.push(divider);
     lines.push(`【${teamData.name}】 合計: ${h.score[tm]}点`);
-    
+
     // Check if advanced stats exist
     const isAdv = teamData.players.some(p => p.ast > 0 || p.orb > 0 || p.drb > 0 || p.stl > 0 || p.tov > 0 || p.blk > 0) || (appState.settings && appState.settings.statsMode === 'advanced');
-    
+
     if (isAdv) {
       lines.push('  #   選手名      PTS 3P 2P FT PF AS OR DR ST TO BK');
       lines.push('  ' + '-'.repeat(56));
@@ -1643,7 +1650,7 @@ function generateMatchExportText(h) {
       lines.push('  #   選手名          PTS  3P  2P  FT  PF');
       lines.push('  ' + '-'.repeat(44));
     }
-    
+
     teamData.players.forEach(p => {
       const num = String(p.num).padStart(3);
       const name = (p.name + '　'.repeat(5)).slice(0, 5);
@@ -1652,7 +1659,7 @@ function generateMatchExportText(h) {
       const p2 = String(p.p2 || 0).padStart(2);
       const ft = String(p.pt || 0).padStart(2);
       const pf = String(p.pf || 0).padStart(2);
-      
+
       if (isAdv) {
         const ast = String(p.ast || 0).padStart(2);
         const orb = String(p.orb || 0).padStart(2);
