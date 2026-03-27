@@ -816,7 +816,7 @@ function renderLogs() {
     el.innerHTML = `
       <div class="tl-q">${l.qStr}</div>
       <div class="tl-pinfo">
-        <span class="tl-player">${pName} <span class="tl-meta ${metaClass}">${l.detail}</span></span>
+        <span class="tl-player"><span class="tl-player-name">${pName}</span><span class="tl-meta ${metaClass}">${l.detail}</span></span>
         <div style="display:flex; gap:8px; margin-top:6px;">
           <button class="edit-log" data-id="${l.id}">変更</button>
           <button class="del-log" data-id="${l.id}">取消</button>

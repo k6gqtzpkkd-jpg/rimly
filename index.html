@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Rimly – Basketball Score Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -226,7 +226,7 @@
               <div class="roster-title text-orange" id="roster-home-name">HOME TEAM</div>
               <button class="btn-sm btn-outline-orange" onclick="openPlayerModal('home')">＋ 選手追加/編集</button>
             </div>
-            <div style="overflow-x:auto;">
+            <div style="overflow-x:auto; overflow-y:auto; max-height:60vh;">
               <table class="roster-table" id="roster-home-table">
                 <thead></thead>
                 <tbody></tbody>
@@ -239,7 +239,7 @@
               <div class="roster-title text-blue" id="roster-away-name">AWAY TEAM</div>
               <button class="btn-sm btn-outline-blue" onclick="openPlayerModal('away')">＋ 選手追加/編集</button>
             </div>
-            <div style="overflow-x:auto;">
+            <div style="overflow-x:auto; overflow-y:auto; max-height:60vh;">
               <table class="roster-table" id="roster-away-table">
                 <thead></thead>
                 <tbody></tbody>

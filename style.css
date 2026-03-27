@@ -36,6 +36,11 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Hide OS status bar area in standalone PWA mode */
+@supports(padding: env(safe-area-inset-top)) {
+  html { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+}
+
 /* Touch optimization: remove 300ms tap delay */
 button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 .num-btn, .tab-btn, .q-btn, .sl-item, .ts-btn, .hover-cell, .pel-del,
@@ -238,6 +243,7 @@ button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 .roster-title { font-size: 16px; font-weight: 800; }
 .btn-sm { font-family: 'Inter', 'Noto Sans JP', sans-serif; font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer; transition:.2s; }
 .roster-table { width: 100%; border-collapse: collapse; text-align: center; }
+.roster-table thead { position: sticky; top: 0; z-index: 10; }
 .roster-table th { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 12px; border-bottom: 1px solid var(--border); background: var(--bg-card2); }
 .roster-table td { padding: 14px 10px; font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border); cursor: pointer; transition:.12s; }
 .roster-table tbody tr:hover td { background: var(--bg-panel); color: #fff; }
@@ -253,8 +259,8 @@ button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 
 /* ================================================================ TIMELINE / LOGS (Plays & Fouls) */
 .log-container { display: flex; flex-direction: column; gap: 20px; }
-.timeline-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.timeline-col { display: flex; flex-direction: column; gap: 10px; }
+.timeline-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.timeline-col { display: flex; flex-direction: column; gap: 10px; align-self: flex-start; }
 .tl-col-header { font-family: 'Bebas Neue', cursive; font-size: 24px; text-align:center; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 2px;}
 
 #score-home-list, #score-away-list, #foul-home-list, #foul-away-list {
@@ -267,9 +273,10 @@ button, .ctrl-btn, .btn-sm, .btn-mega-glow, .play-btn, .foul-play,
 .tl-home::before { background: var(--orange); box-shadow: 0 0 15px var(--orange-glow); }
 .tl-away::before { background: var(--blue); box-shadow: 0 0 15px var(--blue-glow); }
 .tl-q { font-family: 'Bebas Neue', cursive; font-size: 18px; width: 30px; text-align: center; color: var(--text-secondary);}
-.tl-pinfo { flex: 1; display: flex; flex-direction: column; }
+.tl-pinfo { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .tl-team { display: none; } /* Hide team name since columns split it */
 .tl-player { font-size: 14px; font-weight: 700; display:flex; flex-direction:column; gap:2px; }
+.tl-player-name { font-size: 15px; font-weight: 800; color: var(--text-primary); }
 .tl-val { font-family: 'Bebas Neue', cursive; font-size: 30px; text-shadow: 0 0 15px rgba(255,255,255,0.2); }
 .tl-meta { font-size: 12px; font-weight: 700; color: var(--text-orange); padding-left: 0;}
 .edit-log, .del-log { background: transparent; border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; transition:.12s; opacity: 0; }
