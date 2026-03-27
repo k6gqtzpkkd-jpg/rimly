@@ -1152,7 +1152,7 @@ button,
   font-size: 11px;
   cursor: pointer;
   transition: .12s;
-  opacity: 0;
+  opacity: 1; /* Always visible */
 }
 
 .tl-item:hover .edit-log,
