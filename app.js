@@ -643,7 +643,7 @@ function renderTableRoster(tm) {
         <span class="cell-bg">${p.pf}</span>
         ${p.pf === 4 ? '<span class="foul-warning-badge badge-orange">注意</span>' : ''}
         ${p.pf === 5 ? '<span class="foul-warning-badge badge-red">危険</span>' : ''}
-        ${isFoulOut(p) ? '<span class="foul-warning-badge badge-red">退場</span>' : ''}
+        ${(typeof isFoulOut === 'function' && isFoulOut(p)) ? '<span class="foul-warning-badge badge-red">退場</span>' : ''}
       </td>
     `;
     if (isAdv) {
@@ -660,22 +660,22 @@ function renderTableRoster(tm) {
     tr.innerHTML = tdHTML;
 
     tr.querySelector('.td-player-name').onclick = () => openPlayerStatsModal(p, tm);
-    tr.querySelector('.cell-3p').onclick = () => { if (!isFoulOut(p)) addScore(tm, p.id, 3, '3P'); else showAlert('退場しています'); };
-    tr.querySelector('.cell-2p').onclick = () => { if (!isFoulOut(p)) addScore(tm, p.id, 2, '2P'); else showAlert('退場しています'); };
-    tr.querySelector('.cell-ft').onclick = () => { if (!isFoulOut(p)) addScore(tm, p.id, 1, '1P'); else showAlert('退場しています'); };
-    tr.querySelector('.cell-pf').onclick = () => { if (!isFoulOut(p)) openActionSheet(p.id, tm); else showAlert('退場しています'); };
+    tr.querySelector('.cell-3p').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addScore(tm, p.id, 3, '3P'); };
+    tr.querySelector('.cell-2p').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addScore(tm, p.id, 2, '2P'); };
+    tr.querySelector('.cell-ft').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addScore(tm, p.id, 1, '1P'); };
+    tr.querySelector('.cell-pf').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } openActionSheet(p.id, tm); };
 
     if (isAdv) {
-      tr.querySelector('.cell-ast').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'ast', 'AST (アシスト)'); else showAlert('退場しています'); };
-      tr.querySelector('.cell-orb').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'orb', 'ORB (Oリバウンド)'); else showAlert('退場しています'); };
-      tr.querySelector('.cell-drb').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'drb', 'DRB (Dリバウンド)'); else showAlert('退場しています'); };
-      tr.querySelector('.cell-stl').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'stl', 'STL (スティール)'); else showAlert('退場しています'); };
-      tr.querySelector('.cell-tov').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'tov', 'TOV (ターンオーバー)'); else showAlert('退場しています'); };
-      tr.querySelector('.cell-blk').onclick = () => { if (!isFoulOut(p)) addStat(tm, p.id, 'blk', 'BLK (ブロック)'); else showAlert('退場しています'); };
+      tr.querySelector('.cell-ast').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'ast', 'AST (アシスト)'); };
+      tr.querySelector('.cell-orb').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'orb', 'ORB (Oリバウンド)'); };
+      tr.querySelector('.cell-drb').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'drb', 'DRB (Dリバウンド)'); };
+      tr.querySelector('.cell-stl').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'stl', 'STL (スティール)'); };
+      tr.querySelector('.cell-tov').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'tov', 'TOV (ターンオーバー)'); };
+      tr.querySelector('.cell-blk').onclick = () => { if (typeof isFoulOut === 'function' && isFoulOut(p)) { showAlert('退場しています'); return; } addStat(tm, p.id, 'blk', 'BLK (ブロック)'); };
     }
 
     if (p.pf === 4 || p.pf === 5) tr.classList.add('foul-warning-row');
-    if (p.pf >= 6 || isFoulOut(p)) tr.classList.add('foul-danger-row');
+    if (p.pf >= 6 || (typeof isFoulOut === 'function' && isFoulOut(p))) tr.classList.add('foul-danger-row');
     tbody.appendChild(tr);
   });
 }
@@ -698,7 +698,7 @@ function openSubstitutionModal(mode) {
 
   const target = (mode === 'both') ? 'home' : mode;
 
-  // 開始前、もし誰もコートに出ていなければ上から5名自動選択しておく優しさ設計
+  // 開始前、もし誰もコートに出ていなければ上から最大5名自動選択しておく
   const onCourtCount = g[target].players.filter(p => p.isOnCourt).length;
   if (onCourtCount === 0) {
     for (let i = 0; i < Math.min(5, g[target].players.length); i++) { g[target].players[i].isOnCourt = true; }
@@ -713,7 +713,7 @@ function openSubstitutionModal(mode) {
         <button class="modal-close" id="btn-close-sub">✕</button>
       </div>
       <div class="modal-body" style="overflow-y:auto; flex:1; padding-bottom:120px;">
-        <p style="color:var(--text-secondary); margin-bottom:10px; font-weight:bold;">コートに出る「5名」の選手を選択してください</p>
+        <p style="color:var(--text-secondary); margin-bottom:10px; font-weight:bold;">コートに出る選手を（1〜5名）選択してください</p>
         <div id="sub-player-list" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
       <div class="modal-footer" style="position:absolute; bottom:0; left:0; width:100%; background:#1c1e22; padding:15px; border-top:1px solid rgba(255,255,255,0.1);">
@@ -749,13 +749,11 @@ function openSubstitutionModal(mode) {
 
       div.onclick = () => {
         if (isOut) return; // 退場者は交代ボタン押せない
-        // 6人目を入れようとしたらストップ
         const currentCount = g[tm].players.filter(x => x.isOnCourt).length;
         if (!p.isOnCourt && currentCount >= 5) {
-          if (typeof showPop === 'function') showPop('コートに出られるのは5名のみです！');
+          if (typeof showPop === 'function') showPop('コートに出られるのは最大5名までです！');
           return;
         }
-        // オンオフ切り替え
         p.isOnCourt = !p.isOnCourt;
         renderList(tm);
       };
@@ -768,8 +766,9 @@ function openSubstitutionModal(mode) {
   // 決定ボタン
   document.getElementById('btn-sub-confirm').onclick = () => {
     const onCourtCount = g[target].players.filter(p => p.isOnCourt).length;
-    if (onCourtCount !== 5) {
-      if (typeof showPop === 'function') showPop(`現在 ${onCourtCount} 名選択されています。必ず 5 名選んでください！`);
+    // 🏀修正：5人未満（1名〜5名）でも許可する緩いルール
+    if (onCourtCount === 0 || onCourtCount > 5) {
+      if (typeof showPop === 'function') showPop(`現在 ${onCourtCount} 名選択されています。1名〜5名で選んでください！`);
       return;
     }
 
@@ -779,7 +778,7 @@ function openSubstitutionModal(mode) {
       document.getElementById('sub-modal-title').style.color = 'var(--blue)';
       document.getElementById('btn-sub-confirm').textContent = '試合開始！ 🏀';
 
-      // AWAYも自動チェック
+      // AWAYの自動チェック
       const onCourtCountA = g.away.players.filter(p => p.isOnCourt).length;
       if (onCourtCountA === 0) {
         for (let i = 0; i < Math.min(5, g.away.players.length); i++) { g.away.players[i].isOnCourt = true; }
@@ -788,8 +787,8 @@ function openSubstitutionModal(mode) {
 
       document.getElementById('btn-sub-confirm').onclick = () => {
         const checkA = g.away.players.filter(p => p.isOnCourt).length;
-        if (checkA !== 5) {
-          if (typeof showPop === 'function') showPop(`現在 ${checkA} 名選択されています。必ず 5 名選んでください！`);
+        if (checkA === 0 || checkA > 5) {
+          if (typeof showPop === 'function') showPop(`現在 ${checkA} 名選択されています。1名〜5名で選んでください！`);
           return;
         }
         overlay.remove();
@@ -802,6 +801,62 @@ function openSubstitutionModal(mode) {
     }
   };
 }
+
+// -------------------------------------------------------------
+// ▼ START MATCH ボタンを押したときの動作を上書き（フック） ▼
+// -------------------------------------------------------------
+document.getElementById('btn-start-match').onclick = () => {
+  const g = appState.game;
+  g.home.name = document.getElementById('setup-home-name').value.trim() || 'HOME TEAM';
+  g.away.name = document.getElementById('setup-away-name').value.trim() || 'AWAY TEAM';
+
+  // 🏀テストや3x3などで5人未満でも開始できるように「最低1人以上」ならOK
+  if (g.home.players.length < 1 || g.away.players.length < 1) {
+    if (typeof showAlert === 'function') showAlert('試合を始めるには、両チームとも最低1名以上の選手を登録してください！');
+    else alert('試合を始めるには、両チームとも最低1名以上の選手を登録してください！');
+    return;
+  }
+
+  // スタメンを選ぶための交代画面を開く（終わったら自動で executeActualStartMatch へ）
+  openSubstitutionModal('both');
+};
+
+// 元々の「リセットから試合開始まで」の処理をここに封じ込める
+function executeActualStartMatch() {
+  const g = appState.game;
+  g.score = { home: 0, away: 0 };
+  g.quarter = 1; g.isOT = false;
+  g.teamFouls = { home: 0, away: 0 };
+  g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+  g.logs = [];
+
+  const resetStats = (players) => {
+    if (!players || !Array.isArray(players)) return;
+    players.forEach(p => {
+      p.pts = 0; p.p2 = 0; p.p3 = 0; p.pt = 0; p.pf = 0; p.halfPts = 0;
+      p.ast = 0; p.reb = 0; p.stl = 0; p.blk = 0; p.turnover = 0;
+    });
+  };
+  resetStats(g.home.players);
+  resetStats(g.away.players);
+
+  appState.isGameActive = true;
+  document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+
+  const hs = document.getElementById('home-score'); const as = document.getElementById('away-score');
+  if (hs) hs.textContent = '0'; if (as) as.textContent = '0';
+  const pInfo = document.getElementById('period-info'); const qLabel = document.getElementById('quarter-label');
+  if (pInfo) pInfo.textContent = '1st QUARTER'; if (qLabel) qLabel.textContent = 'Q1';
+
+  if (typeof showPop === 'function') showPop('TIP OFF! 🏀');
+  if (typeof switchTab === 'function') switchTab('score');
+
+  if (typeof renderScore === 'function') renderScore();
+  if (typeof renderLogs === 'function') renderLogs();
+  if (typeof renderFouls === 'function') renderFouls();
+}
+
+
 
 // -------------------------------------------------------------
 // ▼ START MATCH ボタンを押したときの動作を上書き（フック） ▼
