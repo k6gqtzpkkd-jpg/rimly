@@ -611,13 +611,26 @@ function renderTableRoster(tm) {
   const tbody = table.querySelector('tbody');
   const isAdv = appState.settings.statsMode === 'advanced';
 
+  // 🔽 追加：テーブルの上に自動で「🔄選手交代ボタン」を作る
+  const rosterHeader = table.parentElement.previousElementSibling;
+  if (rosterHeader && !rosterHeader.querySelector('.btn-sub')) {
+    const subBtn = document.createElement('button');
+    subBtn.className = 'btn-sm btn-outline-glow btn-sub';
+    subBtn.style.marginRight = '8px';
+    subBtn.innerHTML = '🔄 選手交代';
+    subBtn.onclick = () => openSubstitutionModal(tm);
+    const addBtn = rosterHeader.querySelector('button'); // ＋選手追加ボタン
+    if (addBtn) addBtn.before(subBtn);
+  }
+
   let headHTML = `<tr><th>#</th><th>PLAYER</th><th title="得点">PTS</th><th title="3ポイント">3P</th><th title="2ポイント">2P</th><th title="フリースロー">FT</th><th title="ファウル">FOULS</th>`;
   if (isAdv) headHTML += `<th title="アシスト">AST</th><th title="オフェンスリバウンド">ORB</th><th title="ディフェンスリバウンド">DRB</th><th title="スティール">STL</th><th title="ターンオーバー">TOV</th><th title="ブロック">BLK</th>`;
   headHTML += `</tr>`;
   thead.innerHTML = headHTML;
   tbody.innerHTML = '';
 
-  appState.game[tm].players.forEach(p => {
+  // 🔽 変更：「コートに出ている（isOnCourt === true）5人だけ」を厳選してスコアボードに描画！
+  appState.game[tm].players.filter(p => p.isOnCourt).forEach(p => {
     if (typeof p.ast === 'undefined') { p.ast = 0; p.orb = 0; p.drb = 0; p.stl = 0; p.tov = 0; p.blk = 0; }
     let tdHTML = `
       <td class="td-num">${p.num}</td>
@@ -666,6 +679,184 @@ function renderTableRoster(tm) {
     tbody.appendChild(tr);
   });
 }
+
+// -------------------------------------------------------------
+// ▼ ここから下が スタメン・選手交代システム一式 ▼
+// -------------------------------------------------------------
+let subModalTeam = 'home';
+
+function openSubstitutionModal(mode) {
+  subModalTeam = mode;
+  const g = appState.game;
+  const existing = document.getElementById('overlay-substitution');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'overlay-substitution';
+  overlay.className = 'modal-overlay active';
+  overlay.style.zIndex = '99999';
+
+  const target = (mode === 'both') ? 'home' : mode;
+
+  // 開始前、もし誰もコートに出ていなければ上から5名自動選択しておく優しさ設計
+  const onCourtCount = g[target].players.filter(p => p.isOnCourt).length;
+  if (onCourtCount === 0) {
+    for (let i = 0; i < Math.min(5, g[target].players.length); i++) { g[target].players[i].isOnCourt = true; }
+  }
+
+  overlay.innerHTML = `
+    <div class="modal-box modal-lg" style="max-height:80vh; display:flex; flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="sub-modal-title" style="color:var(--${target === 'home' ? 'orange' : 'blue'})">
+          ${mode === 'both' ? '🏀 スタメン選択 (HOME)' : '🔄 選手交代'}
+        </h3>
+        <button class="modal-close" id="btn-close-sub">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; padding-bottom:120px;">
+        <p style="color:var(--text-secondary); margin-bottom:10px; font-weight:bold;">コートに出る「5名」の選手を選択してください</p>
+        <div id="sub-player-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+      <div class="modal-footer" style="position:absolute; bottom:0; left:0; width:100%; background:#1c1e22; padding:15px; border-top:1px solid rgba(255,255,255,0.1);">
+        <button class="ctrl-btn btn-mega-glow" id="btn-sub-confirm" style="width:100%; font-size:18px; padding:15px;">
+          ${mode === 'both' ? '次へ (AWAY選択) →' : '決定して交代する'}
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // 閉じるボタン
+  document.getElementById('btn-close-sub').onclick = () => overlay.remove();
+
+  // リストの描画処理
+  const renderList = (tm) => {
+    const listEl = document.getElementById('sub-player-list');
+    listEl.innerHTML = '';
+
+    g[tm].players.forEach(p => {
+      const div = document.createElement('div');
+      if (typeof p.isOnCourt === 'undefined') p.isOnCourt = false;
+      const isOut = typeof isFoulOut === 'function' ? isFoulOut(p) : false;
+
+      div.style.cssText = `padding: 12px; border-radius: 8px; border: 2px solid ${p.isOnCourt ? 'var(--orange)' : 'rgba(255,255,255,0.1)'}; background: ${p.isOnCourt ? 'rgba(255,100,0,0.1)' : (isOut ? 'rgba(255,0,0,0.1)' : 'transparent')}; display:flex; align-items:center; gap:10px; cursor:pointer; opacity: ${isOut ? '0.5' : '1'}; transition: 0.2s;`;
+
+      div.innerHTML = `
+        <div style="width:24px; height:24px; border-radius:50%; border:2px solid ${p.isOnCourt ? 'var(--orange)' : '#555'}; background:${p.isOnCourt ? 'var(--orange)' : 'transparent'}; flex-shrink:0;"></div>
+        <div style="font-weight:900; font-size:18px; width:40px; color:${p.isOnCourt ? 'var(--text-primary)' : 'var(--text-secondary)'}">#${p.num}</div>
+        <div style="flex:1; font-size:16px; font-weight:bold; color:${p.isOnCourt ? 'var(--text-primary)' : 'var(--text-secondary)'}">${p.name}</div>
+        <div style="font-size:12px; font-weight:bold; color:${isOut ? 'var(--red)' : 'var(--text-secondary)'};">${p.pf} Fouls ${isOut ? '(退場)' : ''}</div>
+      `;
+
+      div.onclick = () => {
+        if (isOut) return; // 退場者は交代ボタン押せない
+        // 6人目を入れようとしたらストップ
+        const currentCount = g[tm].players.filter(x => x.isOnCourt).length;
+        if (!p.isOnCourt && currentCount >= 5) {
+          if (typeof showPop === 'function') showPop('コートに出られるのは5名のみです！');
+          return;
+        }
+        // オンオフ切り替え
+        p.isOnCourt = !p.isOnCourt;
+        renderList(tm);
+      };
+      listEl.appendChild(div);
+    });
+  };
+
+  renderList(target);
+
+  // 決定ボタン
+  document.getElementById('btn-sub-confirm').onclick = () => {
+    const onCourtCount = g[target].players.filter(p => p.isOnCourt).length;
+    if (onCourtCount !== 5) {
+      if (typeof showPop === 'function') showPop(`現在 ${onCourtCount} 名選択されています。必ず 5 名選んでください！`);
+      return;
+    }
+
+    if (subModalTeam === 'both' && target === 'home') {
+      // 次にAWAYの選択へ移る
+      document.getElementById('sub-modal-title').textContent = '🏀 スタメン選択 (AWAY)';
+      document.getElementById('sub-modal-title').style.color = 'var(--blue)';
+      document.getElementById('btn-sub-confirm').textContent = '試合開始！ 🏀';
+
+      // AWAYも自動チェック
+      const onCourtCountA = g.away.players.filter(p => p.isOnCourt).length;
+      if (onCourtCountA === 0) {
+        for (let i = 0; i < Math.min(5, g.away.players.length); i++) { g.away.players[i].isOnCourt = true; }
+      }
+      renderList('away');
+
+      document.getElementById('btn-sub-confirm').onclick = () => {
+        const checkA = g.away.players.filter(p => p.isOnCourt).length;
+        if (checkA !== 5) {
+          if (typeof showPop === 'function') showPop(`現在 ${checkA} 名選択されています。必ず 5 名選んでください！`);
+          return;
+        }
+        overlay.remove();
+        executeActualStartMatch();
+      };
+    } else {
+      // 通常の交代完了
+      overlay.remove();
+      if (typeof renderScore === 'function') renderScore(); // 画面を更新して表を再描画
+    }
+  };
+}
+
+// -------------------------------------------------------------
+// ▼ START MATCH ボタンを押したときの動作を上書き（フック） ▼
+// -------------------------------------------------------------
+document.getElementById('btn-start-match').onclick = () => {
+  const g = appState.game;
+  g.home.name = document.getElementById('setup-home-name').value.trim() || 'HOME TEAM';
+  g.away.name = document.getElementById('setup-away-name').value.trim() || 'AWAY TEAM';
+
+  // 人数が足りているかチェック
+  if (g.home.players.length < 5 || g.away.players.length < 5) {
+    if (typeof showAlert === 'function') showAlert('試合を始めるには、両チームとも最低5名以上の選手を登録してください！');
+    else alert('試合を始めるには、両チームとも最低5名以上の選手を登録してください！');
+    return;
+  }
+
+  // スタメンを選ぶための交代画面を開く（終わったら自動で executeActualStartMatch へ）
+  openSubstitutionModal('both');
+};
+
+// 元々の「リセットから試合開始まで」の処理をここに封じ込める
+function executeActualStartMatch() {
+  const g = appState.game;
+  g.score = { home: 0, away: 0 };
+  g.quarter = 1; g.isOT = false;
+  g.teamFouls = { home: 0, away: 0 };
+  g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+  g.logs = [];
+
+  const resetStats = (players) => {
+    if (!players || !Array.isArray(players)) return;
+    players.forEach(p => {
+      p.pts = 0; p.p2 = 0; p.p3 = 0; p.pt = 0; p.pf = 0; p.halfPts = 0;
+      p.ast = 0; p.reb = 0; p.stl = 0; p.blk = 0; p.turnover = 0;
+    });
+  };
+  resetStats(g.home.players);
+  resetStats(g.away.players);
+
+  appState.isGameActive = true;
+  document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+
+  const hs = document.getElementById('home-score'); const as = document.getElementById('away-score');
+  if (hs) hs.textContent = '0'; if (as) as.textContent = '0';
+  const pInfo = document.getElementById('period-info'); const qLabel = document.getElementById('quarter-label');
+  if (pInfo) pInfo.textContent = '1st QUARTER'; if (qLabel) qLabel.textContent = 'Q1';
+
+  if (typeof showPop === 'function') showPop('TIP OFF! 🏀');
+  if (typeof switchTab === 'function') switchTab('score');
+
+  if (typeof renderScore === 'function') renderScore();
+  if (typeof renderLogs === 'function') renderLogs();
+  if (typeof renderFouls === 'function') renderFouls();
+}
+
 
 // Add/Edit Players (In match)
 window.openPlayerModal = function (t) {
