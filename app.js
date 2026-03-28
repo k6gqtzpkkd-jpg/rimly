@@ -437,19 +437,50 @@ document.getElementById('btn-start-match').onclick = () => {
   g.home.name = document.getElementById('setup-home-name').value.trim() || 'HOME TEAM';
   g.away.name = document.getElementById('setup-away-name').value.trim() || 'AWAY TEAM';
 
-  // reset state
+  // 1. チームの成績をリセット
   g.score = { home: 0, away: 0 };
   g.quarter = 1; g.isOT = false;
   g.teamFouls = { home: 0, away: 0 };
   g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
   g.logs = [];
 
+  // 2. ★追加：選手個人のスタッツ（得点やファウル）を全員「0」にリセットする
+  const resetStats = (players) => {
+    if (!players || !Array.isArray(players)) return;
+    players.forEach(p => {
+      // 基本スタッツ
+      p.pts = 0; p.p2 = 0; p.p3 = 0; p.pt = 0; p.pf = 0; p.halfPts = 0;
+      // 詳細モード用スタッツ（もしあれば）
+      p.ast = 0; p.reb = 0; p.stl = 0; p.blk = 0; p.turnover = 0;
+    });
+  };
+  resetStats(g.home.players);
+  resetStats(g.away.players);
+
   appState.isGameActive = true;
   document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
 
+  // 3. ★追加：画面の表示も問答無用で「0」や「初期状態」に戻す
+  const hs = document.getElementById('home-score');
+  const as = document.getElementById('away-score');
+  if (hs) hs.textContent = '0';
+  if (as) as.textContent = '0';
+
+  const pInfo = document.getElementById('period-info');
+  const qLabel = document.getElementById('quarter-label');
+  if (pInfo) pInfo.textContent = '1st QUARTER';
+  if (qLabel) qLabel.textContent = 'Q1';
+
   showPop('TIP OFF! 🏀');
   switchTab('score');
+
+  // もし各種表示を更新する関数があれば、このタイミングで再描画させて画面を空っぽにする
+  if (typeof renderScore === 'function') renderScore();
+  if (typeof renderLogs === 'function') renderLogs();
+  if (typeof renderFouls === 'function') renderFouls();
+  if (typeof renderPlayers === 'function') { renderPlayers('home'); renderPlayers('away'); }
 };
+
 
 
 // --- 2. SCOREBOARD LOGIC ---
