@@ -482,7 +482,6 @@ document.getElementById('btn-start-match').onclick = () => {
 };
 
 
-
 // --- 2. SCOREBOARD LOGIC ---
 const TO_LIMS = { h1: 2, h2: 3, ot: 3 };
 function getQHalf(q, isOT) { return isOT ? 'ot' : (q <= 2 ? 'h1' : 'h2'); }
@@ -1843,4 +1842,107 @@ addBiometricButton();
 // 念のため、1秒後にもう一度ボタンがあるかチェックしてダメ押しを作る
 setTimeout(addBiometricButton, 1000);
 
+// --- 🎤 音声入力アシスタント機能（完全版） ---
+window.addEventListener('DOMContentLoaded', () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return;
 
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  let isListening = false;
+
+  // ボタンの作成
+  const qBarActions = document.querySelector('.qbar-actions');
+  if (!qBarActions) return;
+
+  const voiceBtn = document.createElement('button');
+  voiceBtn.className = 'ctrl-btn btn-outline-glow';
+  voiceBtn.style.marginRight = '10px';
+  voiceBtn.innerHTML = '🎤 音声AI: OFF';
+  qBarActions.prepend(voiceBtn);
+
+  voiceBtn.onclick = () => {
+    if (isListening) { recognition.stop(); } else { try { recognition.start(); } catch (e) { } }
+  };
+
+  recognition.onstart = () => {
+    isListening = true;
+    voiceBtn.innerHTML = '🔴 待機中 (声で記録)...';
+    voiceBtn.style.borderColor = 'red'; voiceBtn.style.color = 'red';
+    if (typeof showPop === 'function') showPop('🤖「4番、2点」や「ホームの8番、3点」など話しかけてください');
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    voiceBtn.innerHTML = '🎤 音声AI: OFF';
+    voiceBtn.style.borderColor = ''; voiceBtn.style.color = '';
+  };
+
+  // 音声解析と addScore への流し込み
+  recognition.onresult = (event) => {
+    const last = event.results.length - 1;
+    const text = event.results[last][0].transcript.trim();
+
+    // 数字（背番号）の抽出
+    const numMatch = text.match(/([0-9０-９]+)番/);
+    let playerNum = null;
+    if (numMatch) {
+      playerNum = numMatch[1].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    }
+
+    // 点数の抽出
+    let action = null;
+    if (text.includes('2点') || text.includes('シュート')) action = '+2';
+    else if (text.includes('3点') || text.includes('スリー')) action = '+3';
+    else if (text.includes('フリースロー') || text.includes('1点')) action = '+1';
+
+    if (playerNum && action) {
+      const g = typeof appState !== 'undefined' ? appState.game : null;
+      if (!g) return;
+
+      let targetTeam = null;
+      let targetPlayer = null;
+
+      // 両チームから背番号を検索する
+      const homeMatch = g.home.players.find(p => String(p.num) === String(playerNum));
+      const awayMatch = g.away.players.find(p => String(p.num) === String(playerNum));
+
+      // チームの判定（言葉に含まれているか、片方にしかその番号がいないか）
+      if ((text.includes('ホーム') || text.includes('白')) && homeMatch) {
+        targetTeam = 'home'; targetPlayer = homeMatch;
+      } else if ((text.includes('アウェイ') || text.includes('黒') || text.includes('色')) && awayMatch) {
+        targetTeam = 'away'; targetPlayer = awayMatch;
+      } else if (homeMatch && awayMatch) {
+        if (typeof showPop === 'function') showPop(`🤖 警告: 両チームに${playerNum}番がいます！「ホームの${playerNum}番」と教えてください`);
+        return;
+      } else if (homeMatch) {
+        targetTeam = 'home'; targetPlayer = homeMatch;
+      } else if (awayMatch) {
+        targetTeam = 'away'; targetPlayer = awayMatch;
+      }
+
+      if (!targetTeam || !targetPlayer) {
+        if (typeof showPop === 'function') showPop(`🤖 警告: コート上に${playerNum}番の選手が見つかりません`);
+        return;
+      }
+
+      // 得点を実際に加算する処理（先ほどいただいた addScore を実行！）
+      const val = parseInt(action.replace('+', ''), 10);
+      let type = '2P';
+      if (val === 3) type = '3P';
+      if (val === 1) type = '1P';
+
+      if (typeof addScore === 'function') {
+        addScore(targetTeam, targetPlayer.id, val, type);
+        // showPop は addScore 内で呼ばれるのでここでは呼ばない
+      }
+    } else if (text.includes('ファウル')) {
+      if (typeof showPop === 'function') showPop(`🤖 ファウルは現在「声での記録」準備中です`);
+    } else {
+      if (typeof showPop === 'function') showPop('🎤 聞き取り: ' + text + '（点数が分かりませんでした）');
+    }
+  };
+});
