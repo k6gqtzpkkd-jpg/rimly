@@ -878,38 +878,185 @@ document.getElementById('btn-start-match').onclick = () => {
 };
 
 // 元々の「リセットから試合開始まで」の処理をここに封じ込める
-function executeActualStartMatch() {
-  const g = appState.game;
-  g.score = { home: 0, away: 0 };
-  g.quarter = 1; g.isOT = false;
-  g.teamFouls = { home: 0, away: 0 };
-  g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
-  g.logs = [];
+/* --- 🏀 選手交代・スタメン管理システム（究極安定版） --- */
 
-  const resetStats = (players) => {
-    if (!players || !Array.isArray(players)) return;
+// 元々の退場判定があるかチェックし、なければ安全用の身代わりを作る
+const safeIsFoulOut = (p) => {
+  if (typeof isFoulOut === 'function') return isFoulOut(p);
+  return p && p.pf >= 5; // 簡易判定
+};
+
+function renderTableRoster(tm) {
+  try {
+    const table = document.getElementById(`roster-${tm}-table`);
+    if (!table) return;
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+    const isAdv = (appState.settings && appState.settings.statsMode === 'advanced');
+
+    // テーブルの上に「🔄選手交代ボタン」を作る
+    const rosterHeader = table.parentElement.previousElementSibling;
+    if (rosterHeader && !rosterHeader.querySelector('.btn-sub')) {
+      const subBtn = document.createElement('button');
+      subBtn.className = 'btn-sm btn-outline-glow btn-sub';
+      subBtn.style.marginRight = '8px';
+      subBtn.innerHTML = '🔄 選手交代';
+      subBtn.onclick = () => openSubstitutionModal(tm);
+      const addBtn = rosterHeader.querySelector('button');
+      if (addBtn) addBtn.before(subBtn);
+    }
+
+    thead.innerHTML = `<tr><th>#</th><th>PLAYER</th><th>PTS</th><th>3P</th><th>2P</th><th>FT</th><th>FOULS</th>${isAdv ? '<th>AST</th><th>ORB</th><th>DRB</th><th>STL</th><th>TOV</th><th>BLK</th>' : ''}</tr>`;
+    tbody.innerHTML = '';
+
+    // コートに出ている選手だけを描画
+    (appState.game[tm].players || []).filter(p => p.isOnCourt).forEach(p => {
+      const tr = document.createElement('tr');
+      const fOut = safeIsFoulOut(p);
+
+      tr.innerHTML = `
+        <td class="td-num">${p.num}</td>
+        <td class="td-player-name" style="text-align:left;">${p.name}</td>
+        <td class="td-pts">${p.pts || 0}</td>
+        <td class="hover-cell cell-3p"><span class="cell-bg">${p.p3 || 0}</span></td>
+        <td class="hover-cell cell-2p"><span class="cell-bg">${p.p2 || 0}</span></td>
+        <td class="hover-cell cell-ft"><span class="cell-bg">${p.pt || 0}</span></td>
+        <td class="hover-cell cell-pf ${p.pf >= 5 ? 'text-orange' : ''}"><span class="cell-bg">${p.pf || 0}</span></td>
+        ${isAdv ? `<td>${p.ast || 0}</td><td>${p.orb || 0}</td><td>${p.drb || 0}</td><td>${p.stl || 0}</td><td>${p.tov || 0}</td><td>${p.blk || 0}</td>` : ''}
+      `;
+
+      // クリックイベントの紐付け（安全策を強化）
+      const click = (sel, fn) => { const el = tr.querySelector(sel); if (el) el.onclick = fn; };
+      click('.td-player-name', () => { if (typeof openPlayerStatsModal === 'function') openPlayerStatsModal(p, tm); });
+      click('.cell-3p', () => { if (fOut) return alert('退場しています'); addScore(tm, p.id, 3, '3P'); });
+      click('.cell-2p', () => { if (fOut) return alert('退場しています'); addScore(tm, p.id, 2, '2P'); });
+      click('.cell-ft', () => { if (fOut) return alert('退場しています'); addScore(tm, p.id, 1, '1P'); });
+      click('.cell-pf', () => { if (fOut) return alert('退場しています'); if (typeof openActionSheet === 'function') openActionSheet(p.id, tm); else { p.pf++; renderScore(); } });
+
+      tbody.appendChild(tr);
+    });
+  } catch (err) { console.error("renderTableRoster error:", err); }
+}
+
+function openSubstitutionModal(mode) {
+  const g = appState.game;
+  const target = (mode === 'both') ? 'home' : mode;
+
+  // モーダルの作成と表示
+  const overlay = document.createElement('div');
+  overlay.id = 'overlay-substitution';
+  overlay.className = 'modal-overlay active';
+  overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; display:flex; align-items:center; justify-content:center;';
+
+  overlay.innerHTML = `
+    <div class="modal-box" style="background:#1c1e22; border-radius:12px; width:90%; max-width:500px; max-height:85vh; display:flex; flex-direction:column; border:1px solid #444;">
+      <div style="padding:20px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+        <h3 id="sub-title" style="margin:0; color:var(--orange);">${mode === 'both' ? '🏀 スタメン選択 (HOME)' : '🔄 選手交代'}</h3>
+        <button id="sub-close" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">✕</button>
+      </div>
+      <div id="sub-list" style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:10px;"></div>
+      <div style="padding:20px; border-top:1px solid #333;">
+        <button id="sub-ok" style="width:100%; padding:15px; background:var(--orange); color:white; border:none; border-radius:8px; font-weight:bold; font-size:18px;">
+          ${mode === 'both' ? '次へ (AWAY) →' : '交代を確定する'}
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const drawList = (tm) => {
+    const listEl = document.getElementById('sub-list');
+    listEl.innerHTML = '';
+    const players = g[tm].players || [];
+    // 初期状態で誰もいないなら5名自動チェック
+    if (players.filter(p => p.isOnCourt).length === 0) {
+      players.slice(0, 5).forEach(p => p.isOnCourt = true);
+    }
+
     players.forEach(p => {
-      p.pts = 0; p.p2 = 0; p.p3 = 0; p.pt = 0; p.pf = 0; p.halfPts = 0;
-      p.ast = 0; p.reb = 0; p.stl = 0; p.blk = 0; p.turnover = 0;
+      const isOut = safeIsFoulOut(p);
+      const row = document.createElement('div');
+      row.style.cssText = `padding:12px; border-radius:8px; border:2px solid ${p.isOnCourt ? 'var(--orange)' : '#333'}; background:${p.isOnCourt ? 'rgba(255,100,0,0.1)' : 'transparent'}; display:flex; align-items:center; opacity:${isOut ? '0.5' : '1'};`;
+      row.innerHTML = `
+        <div style="width:20px; height:20px; border-radius:50%; border:2px solid ${p.isOnCourt ? 'var(--orange)' : '#666'}; background:${p.isOnCourt ? 'var(--orange)' : 'transparent'}; margin-right:15px;"></div>
+        <div style="font-weight:bold; width:40px;">#${p.num}</div>
+        <div style="flex:1;">${p.name}</div>
+        <div style="font-size:12px; color:#aaa;">${p.pf || 0}F</div>
+      `;
+      if (!isOut) {
+        row.onclick = () => {
+          const count = players.filter(x => x.isOnCourt).length;
+          if (!p.isOnCourt && count >= 5) return alert('コートに出られるのは最大5名までです');
+          p.isOnCourt = !p.isOnCourt;
+          drawList(tm);
+        };
+      }
+      listEl.appendChild(row);
     });
   };
-  resetStats(g.home.players);
-  resetStats(g.away.players);
 
-  appState.isGameActive = true;
-  document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+  drawList(target);
+  document.getElementById('sub-close').onclick = () => overlay.remove();
 
-  const hs = document.getElementById('home-score'); const as = document.getElementById('away-score');
-  if (hs) hs.textContent = '0'; if (as) as.textContent = '0';
-  const pInfo = document.getElementById('period-info'); const qLabel = document.getElementById('quarter-label');
-  if (pInfo) pInfo.textContent = '1st QUARTER'; if (qLabel) qLabel.textContent = 'Q1';
+  const okBtn = document.getElementById('sub-ok');
+  okBtn.onclick = () => {
+    const count = g[target].players.filter(p => p.isOnCourt).length;
+    if (count === 0 || count > 5) return alert('1名〜5名の選手を選択してください');
 
-  if (typeof showPop === 'function') showPop('TIP OFF! 🏀');
-  if (typeof switchTab === 'function') switchTab('score');
+    if (mode === 'both' && target === 'home') {
+      document.getElementById('sub-title').textContent = '🏀 スタメン選択 (AWAY)';
+      document.getElementById('sub-title').style.color = 'var(--blue)';
+      okBtn.textContent = '試合開始！ 🏀';
+      okBtn.style.background = 'var(--blue)';
+      okBtn.onclick = () => {
+        const countA = g.away.players.filter(p => p.isOnCourt).length;
+        if (countA === 0 || countA > 5) return alert('1名〜5名の選手を選択してください');
+        overlay.remove();
+        executeActualStartMatch();
+      };
+      drawList('away');
+    } else {
+      overlay.remove();
+      renderScore();
+    }
+  };
+}
 
-  if (typeof renderScore === 'function') renderScore();
-  if (typeof renderLogs === 'function') renderLogs();
-  if (typeof renderFouls === 'function') renderFouls();
+document.getElementById('btn-start-match').onclick = () => {
+  const g = appState.game;
+  g.home.name = (document.getElementById('setup-home-name').value || '').trim() || 'HOME';
+  g.away.name = (document.getElementById('setup-away-name').value || '').trim() || 'AWAY';
+  if (!g.home.players || g.home.players.length === 0 || !g.away.players || g.away.players.length === 0) {
+    return alert('両方のチームに選手を登録（または読み込み）してください');
+  }
+  openSubstitutionModal('both');
+};
+
+function executeActualStartMatch() {
+  try {
+    const g = appState.game;
+    g.score = { home: 0, away: 0 };
+    g.quarter = 1; g.isOT = false;
+    g.teamFouls = { home: 0, away: 0 };
+    g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+    g.logs = [];
+
+    [g.home.players, g.away.players].forEach(list => {
+      if (list) list.forEach(p => { p.pts = 0; p.p2 = 0; p.p3 = 0; p.pt = 0; p.pf = 0; p.ast = 0; p.orb = 0; p.drb = 0; p.stl = 0; p.tov = 0; p.blk = 0; });
+    });
+
+    appState.isGameActive = true;
+    document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+
+    // 画面表示のリセット
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('home-score', '0'); set('away-score', '0');
+    set('period-info', '1st QUARTER'); set('quarter-label', 'Q1');
+
+    if (typeof showPop === 'function') showPop('TIP OFF! 🏀');
+    if (typeof switchTab === 'function') switchTab('score');
+    renderScore();
+  } catch (e) { alert("試合開始エラー: " + e.message); }
 }
 
 
