@@ -259,6 +259,43 @@ function setupPassword() {
       }
     }
   } catch (e) { console.error('Bio Auth not supported', e) }
+
+  // 🌍 ▼ iPhone(NFC)からの遠隔ロック解除を監視（ポーリング）する機能 ▼ 🌍
+  let pollInterval = setInterval(async () => {
+    // 既にパスワード画面が消えていれば監視終了
+    if (!document.getElementById('password-screen').classList.contains('active')) {
+      clearInterval(pollInterval);
+      return;
+    }
+    
+    try {
+      // urlにkeyパラメータがなければデフォルトの global_admin を監視
+      const sessionKey = appState?.settings?.dbKey || 'global_admin';
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_auth', session_id: sessionKey })
+      });
+      const json = await res.json();
+      
+      if (json.success && json.is_unlocked) {
+        // iPhone側で解除が行われた！
+        clearInterval(pollInterval);
+        document.getElementById('pw-error').style.color = '#00e676';
+        document.getElementById('pw-error').textContent = '✅ リモート解除完了！';
+        
+        // パスワードのドットを全部緑にする演出
+        ds.forEach(d => { d.classList.add('filled'); d.style.background = '#00e676'; d.style.boxShadow = '0 0 10px #00e676'; });
+        
+        setTimeout(() => {
+          document.getElementById('password-screen').classList.remove('active');
+          document.getElementById('app-screen').classList.add('active');
+        }, 800);
+      }
+    } catch (e) {
+      // ネットワークがない場合などは無視してポーリングを続ける
+    }
+  }, 2000); // 2秒ごとに確認
 }
 
 

@@ -1,0 +1,17 @@
+{
+  "name": "Rimly Key",
+  "short_name": "Rimly Key",
+  "description": "Rimly Remote Authenticator",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d0e12",
+  "theme_color": "#FF6B00",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/846/846985.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

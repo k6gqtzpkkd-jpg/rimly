@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+}
+
+body {
+  background: #0d0e12;
+  color: #fff;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.auth-container {
+  text-align: center;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.logo-glow {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 64px;
+  color: transparent;
+  background: linear-gradient(135deg, #FF8C35, #FF6B00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: 10px;
+  text-shadow: 0 0 20px rgba(255, 107, 0, 0.4);
+}
+
+.subtitle {
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  letter-spacing: 2px;
+  margin-bottom: 60px;
+}
+
+.face-id-btn {
+  background: rgba(255,107,0,0.1);
+  border: 2px solid #FF6B00;
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 40px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 30px rgba(255, 107, 0, 0.2);
+}
+
+.face-id-btn:active {
+  transform: scale(0.95);
+  background: rgba(255,107,0,0.3);
+}
+
+.face-id-icon {
+  font-size: 50px;
+}
+
+.status-msg {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  transition: opacity 0.3s;
+}
+
+.success-glow {
+  color: #00e676 !important;
+  text-shadow: 0 0 15px rgba(0,230,118,0.5);
+}
+
+/* Animations */
+@keyframes scanning {
+  0% { box-shadow: 0 0 30px rgba(255, 107, 0, 0.2); transform: scale(1); }
+  50% { box-shadow: 0 0 60px rgba(255, 107, 0, 0.6); transform: scale(1.05); }
+  100% { box-shadow: 0 0 30px rgba(255, 107, 0, 0.2); transform: scale(1); }
+}
+
+.scanning {
+  animation: scanning 1.5s infinite;
+}

@@ -43,6 +43,13 @@ module.exports = async function handler(req, res) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS rimly_auth_sessions (
+        session_id VARCHAR(50) PRIMARY KEY,
+        is_unlocked BOOLEAN DEFAULT false,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     const body = req.body || {};
 
@@ -87,6 +94,26 @@ module.exports = async function handler(req, res) {
         [body.shareId]
       );
       return res.status(200).json({ success: true, data: result.rows[0] || null });
+    }
+
+    if (body.action === 'set_auth') {
+      await p.query(
+        `INSERT INTO rimly_auth_sessions (session_id, is_unlocked, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (session_id) DO UPDATE SET is_unlocked = EXCLUDED.is_unlocked, updated_at = NOW()`,
+        [body.session_id || 'global_admin', body.is_unlocked]
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    if (body.action === 'get_auth') {
+      const result = await p.query(
+        `SELECT is_unlocked FROM rimly_auth_sessions WHERE session_id = $1`,
+        [body.session_id || 'global_admin']
+      );
+      if (result.rows[0] && result.rows[0].is_unlocked) {
+        await p.query(`UPDATE rimly_auth_sessions SET is_unlocked = false WHERE session_id = $1`, [body.session_id || 'global_admin']);
+      }
+      return res.status(200).json({ success: true, is_unlocked: result.rows[0]?.is_unlocked || false });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
