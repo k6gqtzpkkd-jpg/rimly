@@ -6,6 +6,13 @@ function bufferToBase64(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
 
+let sessionKey = localStorage.getItem('rimly_auth_key');
+if (!sessionKey) {
+  sessionKey = 'KEY_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  localStorage.setItem('rimly_auth_key', sessionKey);
+}
+document.getElementById('sync-key').textContent = sessionKey;
+
 async function unlockSystem() {
   btn.classList.add('scanning');
   status.textContent = '認証しています...';
@@ -70,10 +77,6 @@ async function unlockSystem() {
 
     // Success! Send unlock signal to backend
     status.textContent = '解除信号を送信中...';
-    
-    // We get the target device DB key from URL params or use 'global_admin'
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionKey = urlParams.get('key') || 'global_admin';
 
     const res = await fetch('/api/db', {
       method: 'POST',

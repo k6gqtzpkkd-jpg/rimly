@@ -224,8 +224,10 @@ function setupPassword() {
     }
     
     try {
-      // urlにkeyパラメータがなければデフォルトの global_admin を監視
-      const sessionKey = appState?.settings?.dbKey || 'global_admin';
+      // 設定されているキーでのみ監視。未設定ならポーリング自体スキップ
+      const sessionKey = appState?.settings?.authKey;
+      if (!sessionKey) return;
+
       const res = await fetch('/api/db', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -332,6 +334,9 @@ function renderSettings() {
   document.getElementById('setting-stats-mode').value = appState.settings.statsMode || 'basic';
   document.getElementById('setting-auto-copy').value = appState.settings.autoCopy || 'false';
   document.getElementById('setting-app-pw').value = localStorage.getItem('rimly_app_pw') || '082655';
+  
+  const authKeyEl = document.getElementById('setting-auth-key');
+  if (authKeyEl) authKeyEl.value = appState.settings.authKey || '';
 
   const btnPw = document.getElementById('btn-save-pw');
   if (btnPw) {
@@ -354,6 +359,10 @@ function renderSettings() {
     appState.settings.dbKey = document.getElementById('setting-db-key').value.trim();
     appState.settings.statsMode = document.getElementById('setting-stats-mode').value;
     appState.settings.autoCopy = document.getElementById('setting-auto-copy').value;
+    
+    const authKeyEl = document.getElementById('setting-auth-key');
+    if (authKeyEl) appState.settings.authKey = authKeyEl.value.trim().toUpperCase();
+
     localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
 
     await loadData();
