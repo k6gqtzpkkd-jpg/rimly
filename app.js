@@ -224,30 +224,36 @@ function setupPassword() {
     }
     
     try {
-      // 設定されているキーでのみ監視。未設定ならポーリング自体スキップ
-      const sessionKey = appState?.settings?.authKey;
-      if (!sessionKey) return;
-
-      const res = await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'get_auth', session_id: sessionKey })
-      });
-      const json = await res.json();
+      // 設定されているキーでのみ監視。複数キー対応
+      const sessionStr = appState?.settings?.authKey;
+      if (!sessionStr) return;
       
-      if (json.success && json.is_unlocked) {
-        // iPhone側で解除が行われた！
-        clearInterval(pollInterval);
-        document.getElementById('pw-error').style.color = '#00e676';
-        document.getElementById('pw-error').textContent = '✅ リモート解除完了！';
+      const sessionKeys = sessionStr.split(',').map(k => k.trim()).filter(Boolean);
+      if (sessionKeys.length === 0) return;
+
+      for (const sk of sessionKeys) {
+        const res = await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_auth', session_id: sk })
+        });
+        const json = await res.json();
         
-        // パスワードのドットを全部緑にする演出
-        ds.forEach(d => { d.classList.add('filled'); d.style.background = '#00e676'; d.style.boxShadow = '0 0 10px #00e676'; });
-        
-        setTimeout(() => {
-          document.getElementById('password-screen').classList.remove('active');
-          document.getElementById('app-screen').classList.add('active');
-        }, 800);
+        if (json.success && json.is_unlocked) {
+          // iPhone側で解除が行われた！
+          clearInterval(pollInterval);
+          document.getElementById('pw-error').style.color = '#00e676';
+          document.getElementById('pw-error').textContent = '✅ リモート解除完了！';
+          
+          // パスワードのドットを全部緑にする演出
+          ds.forEach(d => { d.classList.add('filled'); d.style.background = '#00e676'; d.style.boxShadow = '0 0 10px #00e676'; });
+          
+          setTimeout(() => {
+            document.getElementById('password-screen').classList.remove('active');
+            document.getElementById('app-screen').classList.add('active');
+          }, 800);
+          break; // 1つ解除されたらもう十分なのでfor文抜ける
+        }
       }
     } catch (e) {
       // ネットワークがない場合などは無視してポーリングを続ける
@@ -347,6 +353,17 @@ function renderSettings() {
       }
       localStorage.setItem('rimly_app_pw', newPw);
       showAlert('パスワードを「' + newPw + '」に変更しました！次回の起動時から有効になります。');
+    };
+  }
+
+  const btnAuthKey = document.getElementById('btn-save-auth-key');
+  if (btnAuthKey) {
+    btnAuthKey.onclick = () => {
+      const authKeyEl = document.getElementById('setting-auth-key');
+      appState.settings.authKey = authKeyEl.value.trim().toUpperCase();
+      localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+      document.getElementById('auth-key-status-msg').textContent = '連携キーを適用しました！';
+      setTimeout(() => { document.getElementById('auth-key-status-msg').textContent = ''; }, 3000);
     };
   }
 

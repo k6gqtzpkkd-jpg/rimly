@@ -373,10 +373,12 @@
 
           <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
             <label style="color:var(--text-primary); font-weight:800;">📱 リモート連携キー (Rimly Key専用)</label>
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">iPhone側のRimly Keyアプリ画面下に表示されている「同期IDキー」を入力して「適用」を押してください。</p>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">iPhone版に表示されている「同期IDキー」を入力してください。<br/>※複数端末を使う場合は <code>KEY_1, KEY_2</code> のようにカンマ区切りで入力可能です。</p>
             <div style="display:flex; gap:10px;">
               <input type="text" id="setting-auth-key" class="glow-input" placeholder="例: KEY_XXXXXX" />
+              <button class="ctrl-btn btn-outline-glow" id="btn-save-auth-key" style="white-space:nowrap;">適 用</button>
             </div>
+            <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="auth-key-status-msg"></p>
           </div>
         </div>
       </div>
