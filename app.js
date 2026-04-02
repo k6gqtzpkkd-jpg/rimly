@@ -39,8 +39,20 @@ async function loadData() {
   // チームデータはオフラインでも絶対に消えないよう【常に完全本体保存】で即座に読み込む
   try {
     const profileKey = appState.settings.dbKey || 'default';
-    const scopedTeams = localStorage.getItem(`rimly_teams_${profileKey}`);
-    appState.teamsDB = JSON.parse(scopedTeams || localStorage.getItem('rimly_v4_teams') || '[]');
+    let scopedTeams = localStorage.getItem(`rimly_teams_${profileKey}`);
+    
+    // セキュリティ対策：全く新しい他人がログインした場合は空（[]）からスタートさせる。
+    // ただしアップデート直後の「最初の人（あなた）」だけは、過去のデータを引き継ぐ。
+    if (!scopedTeams) {
+      if (localStorage.getItem('rimly_v4_teams') && !localStorage.getItem('legacy_teams_migrated')) {
+        scopedTeams = localStorage.getItem('rimly_v4_teams');
+        localStorage.setItem('legacy_teams_migrated', 'true');
+      } else {
+        scopedTeams = '[]';
+      }
+    }
+    
+    appState.teamsDB = JSON.parse(scopedTeams);
     appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
   } catch (e) { appState.teamsDB = []; }
 
@@ -64,8 +76,17 @@ async function loadData() {
   if (mode === 'local' || mode === 'hybrid') {
     try {
       const profileKey = appState.settings.dbKey || 'default';
-      const scopedHistory = localStorage.getItem(`rimly_history_${profileKey}`);
-      appState.historyDB = JSON.parse(scopedHistory || localStorage.getItem('rimly_v4_history') || '[]');
+      let scopedHistory = localStorage.getItem(`rimly_history_${profileKey}`);
+      
+      if (!scopedHistory) {
+        if (localStorage.getItem('rimly_v4_history') && !localStorage.getItem('legacy_history_migrated')) {
+          scopedHistory = localStorage.getItem('rimly_v4_history');
+          localStorage.setItem('legacy_history_migrated', 'true');
+        } else {
+          scopedHistory = '[]';
+        }
+      }
+      appState.historyDB = JSON.parse(scopedHistory);
     } catch (e) { }
   } else {
     appState.historyDB = [];
