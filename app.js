@@ -1184,16 +1184,26 @@ if (btnCameraOcr && ocrFileInput) {
       const lines = rawText.split('\n');
       let extractedCount = 0;
       
-      // 無視するキーワード
-      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', '中学校', '高校', '大学', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計'];
+      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計', '監督', 'マネージャー', '役員'];
 
-      lines.forEach(line => {
-        // 選手名の抽出 (名字と名前の間のスペースを許容、または連続する2文字以上の日本語)
-        const nameMatch = line.match(/([一-龯ぁ-んァ-ヶ]{1,5}\s+[一-龯ぁ-んァ-ヶ]{1,5})|([一-龯ぁ-んァ-ヶ]{2,10})/);
-        if (nameMatch) {
-          let name = nameMatch[0].trim();
-          if (ignoreWords.some(w => name.includes(w))) return; // スキップ
+      for (const line of lines) {
+        if (extractedCount >= 15) break; 
+        if (ignoreWords.some(w => line.includes(w))) continue;
 
+        let name = "";
+        
+        // 厳格な判定: 「名字 スペース 名前」という構成ならほぼ確実に選手
+        const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
+        if (strongMatch) {
+          name = strongMatch[0].trim();
+        } 
+        // 緩い判定: スペースがなくてもテキストのどこかに番号（1〜15）などがあれば選手行と推定する
+        else if (line.match(/\d+/)) {
+          const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
+          if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
+        }
+
+        if (name.length > 1) {
           let uniformNo = "";
           const nameIndex = line.indexOf(name);
           const afterName = line.substring(nameIndex + name.length);
@@ -1211,15 +1221,12 @@ if (btnCameraOcr && ocrFileInput) {
             }
           }
           
-          // 名前が2文字以上なら追加（背番号が見つからなくても追加して手入力を促す）
-          if (name.length > 1) {
-            appState.game[actTeamTarget].players.push({
-              id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
-            });
-            extractedCount++;
-          }
+          appState.game[actTeamTarget].players.push({
+            id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+          });
+          extractedCount++;
         }
-      });
+      }
 
       overlay.remove();
       redrawPlayerEditList();
@@ -1688,24 +1695,37 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       let extractedCount = 0;
       let parsedTeamName = "";
       
-      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', '中学校', '高校', '大学', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計'];
+      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計', '監督', 'マネージャー', '役員'];
 
-      lines.forEach(line => {
-        // チーム名の抽出
+      for (const line of lines) {
+        if (extractedCount >= 15) break; 
+        if (ignoreWords.some(w => line.includes(w))) continue;
+
+        // チーム名の抽出 (無視リストに引っかかっていない行で行う)
         if (line.includes('中') || line.includes('高') || line.includes('クラブ') || line.includes('大')) {
           if (!parsedTeamName) {
-            const tNameMatch = line.match(/[一-龯ぁ-んァ-ヶ]{3,}/);
-            if (tNameMatch && !ignoreWords.some(w => tNameMatch[0] === w)) {
+            const tNameMatch = line.match(/[一-龯ぁ-んァ-ヶー]{3,}/);
+            if (tNameMatch) {
               parsedTeamName = tNameMatch[0];
+              continue; // チーム名と思われる行は選手としては処理しない
             }
           }
         }
 
-        const nameMatch = line.match(/([一-龯ぁ-んァ-ヶ]{1,5}\s+[一-龯ぁ-んァ-ヶ]{1,5})|([一-龯ぁ-んァ-ヶ]{2,10})/);
-        if (nameMatch) {
-          let name = nameMatch[0].trim();
-          if (ignoreWords.some(w => name.includes(w))) return; 
+        let name = "";
+        
+        // 厳格な判定: 「名字 スペース 名前」という構成ならほぼ確実に選手
+        const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
+        if (strongMatch) {
+          name = strongMatch[0].trim();
+        } 
+        // 緩い判定: スペースがなくてもテキストのどこかに番号などがあれば選手行と推定
+        else if (line.match(/\d+/)) {
+          const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
+          if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
+        }
 
+        if (name.length > 1) {
           let uniformNo = "";
           const nameIndex = line.indexOf(name);
           const afterName = line.substring(nameIndex + name.length);
@@ -1723,14 +1743,12 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
             }
           }
           
-          if (name.length > 1) {
-            activeEditTeamData.players.push({
-              id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
-            });
-            extractedCount++;
-          }
+          activeEditTeamData.players.push({
+            id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+          });
+          extractedCount++;
         }
-      });
+      }
 
       if(parsedTeamName && (!document.getElementById('mte-name').value || document.getElementById('mte-name').value === '新規チーム')) {
         document.getElementById('mte-name').value = parsedTeamName;
