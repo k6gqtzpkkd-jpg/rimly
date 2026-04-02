@@ -38,7 +38,9 @@ async function loadData() {
 
   // チームデータはオフラインでも絶対に消えないよう【常に完全本体保存】で即座に読み込む
   try {
-    appState.teamsDB = JSON.parse(localStorage.getItem('rimly_v4_teams') || '[]');
+    const profileKey = appState.settings.dbKey || 'default';
+    const scopedTeams = localStorage.getItem(`rimly_teams_${profileKey}`);
+    appState.teamsDB = JSON.parse(scopedTeams || localStorage.getItem('rimly_v4_teams') || '[]');
     appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
   } catch (e) { appState.teamsDB = []; }
 
@@ -61,7 +63,9 @@ async function loadData() {
 
   if (mode === 'local' || mode === 'hybrid') {
     try {
-      appState.historyDB = JSON.parse(localStorage.getItem('rimly_v4_history') || '[]');
+      const profileKey = appState.settings.dbKey || 'default';
+      const scopedHistory = localStorage.getItem(`rimly_history_${profileKey}`);
+      appState.historyDB = JSON.parse(scopedHistory || localStorage.getItem('rimly_v4_history') || '[]');
     } catch (e) { }
   } else {
     appState.historyDB = [];
@@ -102,12 +106,15 @@ async function loadData() {
 
 async function saveData() {
   const mode = appState.settings.storageMode;
+  const profileKey = appState.settings.dbKey || 'default';
 
   // チームはどんな設定でも常に本体を最優先で安全保存
+  localStorage.setItem(`rimly_teams_${profileKey}`, JSON.stringify(appState.teamsDB));
+  // 念のため旧型式にもバックアップ保存しておく（互換性維持）
   localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB));
 
   if (mode === 'local' || mode === 'hybrid') {
-    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB));
+    localStorage.setItem(`rimly_history_${profileKey}`, JSON.stringify(appState.historyDB));
   }
 
   // DB保存は試合履歴（History）のみに特化させる
@@ -242,8 +249,15 @@ function setupPassword() {
         if (json.success && json.is_unlocked) {
           // iPhone側で解除が行われた！
           clearInterval(pollInterval);
+          
+          // 💡 ここがマルチユーザーの切り替えの要！
+          // 解除に使ったキーをそのままこの端末のアクティブなユーザーとしてセットし、そのユーザーのデータを読み込む
+          appState.settings.dbKey = sk;
+          localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+          await loadData(); // その人のチーム情報や履歴に画面を切り替える
+          
           document.getElementById('pw-error').style.color = '#00e676';
-          document.getElementById('pw-error').textContent = '✅ リモート解除完了！';
+          document.getElementById('pw-error').textContent = `✅ 解除完了 (ユーザー: ${sk.substring(0,8)})`;
           
           // パスワードのドットを全部緑にする演出
           ds.forEach(d => { d.classList.add('filled'); d.style.background = '#00e676'; d.style.boxShadow = '0 0 10px #00e676'; });
@@ -251,7 +265,7 @@ function setupPassword() {
           setTimeout(() => {
             document.getElementById('password-screen').classList.remove('active');
             document.getElementById('app-screen').classList.add('active');
-          }, 800);
+          }, 1000);
           break; // 1つ解除されたらもう十分なのでfor文抜ける
         }
       }
