@@ -1635,6 +1635,116 @@ document.getElementById('mte-add-btn').onclick = () => {
   document.getElementById('mte-pname').value = '';
 };
 
+// 📷 写真から自動登録 (チーム登録エディタ用)
+const btnCameraOcrEdit = document.getElementById('btn-camera-ocr-edit');
+const ocrFileInputEdit = document.getElementById('ocr-file-input-edit');
+
+if (btnCameraOcrEdit && ocrFileInputEdit) {
+  btnCameraOcrEdit.onclick = () => ocrFileInputEdit.click();
+  ocrFileInputEdit.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.style.zIndex = '999999';
+    overlay.innerHTML = '<div class="modal-box" style="text-align:center; padding:30px;"><div class="spinner" style="margin: 0 auto; margin-bottom:20px; border-top-color:#00e676;"></div><p id="ocr-status-edit" style="color:var(--text-primary); font-size:16px; font-weight:bold;">AIで文字を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※端末の性能によっては10秒〜20秒かかります</span></p></div>';
+    document.body.appendChild(overlay);
+
+    try {
+      if (!window.Tesseract) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      const worker = await Tesseract.createWorker({
+        logger: m => {
+          if(m.status === 'recognizing text' && document.getElementById('ocr-status-edit')) {
+            document.getElementById('ocr-status-edit').innerHTML = `名簿画像を読み取り中... <br/><strong style="color:#00e676; font-size:24px;">${Math.round(m.progress * 100)}%</strong>`;
+          }
+        }
+      });
+      await worker.loadLanguage('jpn');
+      await worker.initialize('jpn');
+      
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      const lines = text.split('\n');
+      let extractedCount = 0;
+      let parsedTeamName = "";
+      
+      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', '中学校', '高校', '大学', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計'];
+
+      lines.forEach(line => {
+        // チーム名の抽出
+        if (line.includes('中') || line.includes('高') || line.includes('クラブ') || line.includes('大')) {
+          if (!parsedTeamName) {
+            const tNameMatch = line.match(/[一-龯ぁ-んァ-ヶ]{3,}/);
+            if (tNameMatch && !ignoreWords.some(w => tNameMatch[0] === w)) {
+              parsedTeamName = tNameMatch[0];
+            }
+          }
+        }
+
+        const nameMatch = line.match(/([一-龯ぁ-んァ-ヶ]{1,5}\s+[一-龯ぁ-んァ-ヶ]{1,5})|([一-龯ぁ-んァ-ヶ]{2,10})/);
+        if (nameMatch) {
+          let name = nameMatch[0].trim();
+          if (ignoreWords.some(w => name.includes(w))) return; 
+
+          let uniformNo = "";
+          const nameIndex = line.indexOf(name);
+          const afterName = line.substring(nameIndex + name.length);
+          const numsAfter = afterName.match(/\d+/g);
+          
+          if (numsAfter) {
+            let validNums = numsAfter.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
+            if (validNums.length > 0) uniformNo = validNums[0];
+          } else {
+            const beforeName = line.substring(0, nameIndex);
+            const numsBefore = beforeName.match(/\d+/g);
+            if (numsBefore) {
+              let validNums = numsBefore.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
+              if (validNums.length > 0) uniformNo = validNums[validNums.length - 1];
+            }
+          }
+          
+          if (name.length > 1 && uniformNo !== "") {
+            activeEditTeamData.players.push({
+              id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+            });
+            extractedCount++;
+          }
+        }
+      });
+
+      if(parsedTeamName && (!document.getElementById('mte-name').value || document.getElementById('mte-name').value === '新規チーム')) {
+        document.getElementById('mte-name').value = parsedTeamName;
+      }
+
+      overlay.remove();
+      renderTeamEditorPlayers();
+      
+      if(extractedCount > 0) {
+        showAlert(`✅ 画像から ${extractedCount} 名の選手を自動追加しました！\n背番号などに誤りがないか確認してください。`);
+      } else {
+        showAlert('選手名をうまく検出できませんでした。もう少し明るく真っ直ぐ撮影してみてください。');
+      }
+
+    } catch (err) {
+      overlay.remove();
+      console.error(err);
+      showAlert('画像の読み取りに失敗しました。オフライン時や、電波が不安定な場合は動作しないことがあります。');
+    }
+    ocrFileInputEdit.value = '';
+  };
+}
+
 document.getElementById('mte-save-team').onclick = () => {
   activeEditTeamData.name = document.getElementById('mte-name').value.trim() || '未定チーム';
 
