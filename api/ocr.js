@@ -58,10 +58,13 @@ module.exports = async (req, res) => {
     const response = await result.response;
     let text = response.text();
     
-    // Markdown code blocks cleanup
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Markdown code blocks cleanup and robust JSON extraction
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Gemini did not return valid JSON: ' + text);
+    }
     
-    const data = JSON.parse(text);
+    const data = JSON.parse(jsonMatch[0]);
     return res.status(200).json(data);
 
   } catch (error) {

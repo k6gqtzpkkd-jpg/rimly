@@ -1152,20 +1152,36 @@ if (btnCameraOcr && ocrFileInput) {
     overlay.innerHTML = '<div class="modal-box" style="text-align:center; padding:30px;"><div class="spinner" style="margin: 0 auto; margin-bottom:20px; border-top-color:#00e676;"></div><p id="ocr-status" style="color:var(--text-primary); font-size:16px; font-weight:bold;">AIで文字を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※端末の性能によっては10秒〜20秒かかります</span></p></div>';
     document.body.appendChild(overlay);
 
-    document.body.appendChild(overlay);
-
     try {
-      // FileReaderでBase64に変換
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
+      // 1. 画像を読み込んでリサイズする（ペイロード制限回避と速度向上のため）
+      const base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1600; // OCRには十分な解像度
+            let width = img.width;
+            let height = img.height;
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8)); // 画質を少し落として軽量化
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const base64Image = await base64Promise;
 
       if (document.getElementById('ocr-status')) {
-        document.getElementById('ocr-status').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※約5〜10秒かかります</span>';
+        document.getElementById('ocr-status').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※画像サイズを最適化して送信中</span>';
       }
 
       const response = await fetch('/api/ocr', {
@@ -1175,8 +1191,8 @@ if (btnCameraOcr && ocrFileInput) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Server error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Server error');
       }
 
       const data = await response.json();
@@ -1208,9 +1224,9 @@ if (btnCameraOcr && ocrFileInput) {
       overlay.remove();
       console.error(err);
       if (err.message.includes('GOOGLE_API_KEY')) {
-        showAlert('エラー: Gemini APIキーが設定されていません。Vercelの環境変数に GOOGLE_API_KEY を設定してください。');
+        showAlert('エラー: Gemini APIキーが設定されていません。Vercelの環境変数に GOOGLE_API_KEY を設定してください。設定後、反映には再デプロイが必要な場合があります。');
       } else {
-        showAlert('Gemini AIでの解析に失敗しました。時間をおいて試すか、手動で入力してください。');
+        showAlert(`Gemini AIでの解析に失敗しました。\n理由: ${err.message}`);
       }
     }
     ocrFileInput.value = '';
@@ -1636,16 +1652,34 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
     document.body.appendChild(overlay);
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
+      const base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1600;
+            let width = img.width;
+            let height = img.height;
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const base64Image = await base64Promise;
 
       if (document.getElementById('ocr-status-edit')) {
-        document.getElementById('ocr-status-edit').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※約5〜10秒かかります</span>';
+        document.getElementById('ocr-status-edit').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※画像サイズを最適化して送信中</span>';
       }
 
       const response = await fetch('/api/ocr', {
@@ -1655,8 +1689,8 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Server error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Server error');
       }
 
       const data = await response.json();
@@ -1693,7 +1727,7 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       if (err.message.includes('GOOGLE_API_KEY')) {
         showAlert('エラー: Gemini APIキーが設定されていません。Vercelの環境変数に GOOGLE_API_KEY を設定してください。');
       } else {
-        showAlert('Gemini AIでの解析に失敗しました。');
+        showAlert(`Gemini AIでの解析に失敗しました。\n理由: ${err.message}`);
       }
     }
     ocrFileInputEdit.value = '';
