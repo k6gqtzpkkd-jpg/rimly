@@ -17,7 +17,36 @@ module.exports = async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash" });
+    
+    // 動的に利用可能なモデルを取得し、「flash」か「pro」を含むモデルを自動選択する
+    // (将来のモデルバージョンアップで1.5-flash等のハードコードがNot Foundになるのを防ぐため)
+    let selectedModelId = "gemini-1.5-flash"; // デフォルト
+    try {
+      // genAIの生APIを叩いてモデル一覧を取得（REST API経由）
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        if (listData.models && Array.isArray(listData.models)) {
+          // generateContentをサポートしているモデルをフィルタ
+          const validModels = listData.models.filter(m => 
+            m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
+          );
+          // flashモデルを優先、なければproモデル、なければ最初のモデル
+          const flashModel = validModels.find(m => m.name.toLowerCase().includes('flash'));
+          const proModel = validModels.find(m => m.name.toLowerCase().includes('pro'));
+          
+          if (flashModel) selectedModelId = flashModel.name.replace('models/', '');
+          else if (proModel) selectedModelId = proModel.name.replace('models/', '');
+          else if (validModels.length > 0) selectedModelId = validModels[0].name.replace('models/', '');
+          
+          console.log("Dynamically selected model:", selectedModelId);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch models list, falling back to default", e);
+    }
+
+    const model = genAI.getGenerativeModel({ model: selectedModelId });
 
     const prompt = `
       バスケットボールのチーム名簿の画像です。

@@ -4,6 +4,6 @@
   "description": "Rimly Score Manager",
   "dependencies": {
     "pg": "^8.11.3",
-    "@google/generative-ai": "^0.11.4"
+    "@google/generative-ai": "latest"
   }
 }
