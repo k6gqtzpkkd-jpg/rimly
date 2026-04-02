@@ -457,7 +457,11 @@
 <div class="modal-overlay" id="overlay-manage-players">
   <div class="modal-box" id="modal-manage-players">
     <div class="modal-header">
-      <h3 class="modal-title" id="mmp-title">選手管理</h3>
+      <h3 class="modal-title" id="mmp-title" style="flex:1;">選手管理</h3>
+      <button class="ctrl-btn btn-outline-glow" id="btn-camera-ocr" style="border-color:#00e676; color:#00e676; padding:6px 10px; font-size:12px; display:flex; align-items:center; gap:4px; margin-right:15px; box-shadow: 0 0 10px rgba(0,230,118,0.2);">
+        <span style="font-size:16px;">📷</span> 写真で自動追加
+      </button>
+      <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none;" />
       <button class="modal-close">✕</button>
     </div>
     <div class="modal-body">

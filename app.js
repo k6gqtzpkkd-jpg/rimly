@@ -1135,6 +1135,106 @@ document.getElementById('mmp-add-btn').onclick = () => {
   document.getElementById('mmp-name').value = '';
 };
 
+// 📷 写真から自動登録 (Tesseract OCR)
+const btnCameraOcr = document.getElementById('btn-camera-ocr');
+const ocrFileInput = document.getElementById('ocr-file-input');
+
+if (btnCameraOcr && ocrFileInput) {
+  btnCameraOcr.onclick = () => ocrFileInput.click();
+  ocrFileInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Loading UI
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.style.zIndex = '999999';
+    overlay.innerHTML = '<div class="modal-box" style="text-align:center; padding:30px;"><div class="spinner" style="margin: 0 auto; margin-bottom:20px; border-top-color:#00e676;"></div><p id="ocr-status" style="color:var(--text-primary); font-size:16px; font-weight:bold;">AIで文字を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※端末の性能によっては10秒〜20秒かかります</span></p></div>';
+    document.body.appendChild(overlay);
+
+    try {
+      if (!window.Tesseract) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      const worker = await Tesseract.createWorker({
+        logger: m => {
+          if(m.status === 'recognizing text' && document.getElementById('ocr-status')) {
+            document.getElementById('ocr-status').innerHTML = `名簿画像を読み取り中... <br/><strong style="color:#00e676; font-size:24px;">${Math.round(m.progress * 100)}%</strong>`;
+          }
+        }
+      });
+      await worker.loadLanguage('jpn');
+      await worker.initialize('jpn');
+      
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+
+      const lines = text.split('\n');
+      let extractedCount = 0;
+      
+      // 無視するキーワード
+      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', '中学校', '高校', '大学', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計'];
+
+      lines.forEach(line => {
+        // 選手名の抽出 (名字と名前の間のスペースを許容、または連続する2文字以上の日本語)
+        const nameMatch = line.match(/([一-龯ぁ-んァ-ヶ]{1,5}\s+[一-龯ぁ-んァ-ヶ]{1,5})|([一-龯ぁ-んァ-ヶ]{2,10})/);
+        if (nameMatch) {
+          let name = nameMatch[0].trim();
+          if (ignoreWords.some(w => name.includes(w))) return; // スキップ
+
+          let uniformNo = "";
+          const nameIndex = line.indexOf(name);
+          const afterName = line.substring(nameIndex + name.length);
+          const numsAfter = afterName.match(/\d+/g);
+          
+          if (numsAfter) {
+            let validNums = numsAfter.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
+            if (validNums.length > 0) uniformNo = validNums[0];
+          } else {
+            const beforeName = line.substring(0, nameIndex);
+            const numsBefore = beforeName.match(/\d+/g);
+            if (numsBefore) {
+              let validNums = numsBefore.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
+              if (validNums.length > 0) uniformNo = validNums[validNums.length - 1];
+            }
+          }
+          
+          // 背番号が取得できていて、名前が2文字以上なら追加
+          if (name.length > 1 && uniformNo !== "") {
+            appState.game[actTeamTarget].players.push({
+              id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+            });
+            extractedCount++;
+          }
+        }
+      });
+
+      overlay.remove();
+      redrawPlayerEditList();
+      renderScore();
+      
+      if(extractedCount > 0) {
+        showAlert(`✅ 画像から ${extractedCount} 名の選手を自動追加しました！\n背番号などに誤りがないか確認してください。`);
+      } else {
+        showAlert('選手名をうまく検出できませんでした。もう少し明るく真っ直ぐ撮影してみてください。');
+      }
+
+    } catch (err) {
+      overlay.remove();
+      console.error(err);
+      showAlert('画像の読み取りに失敗しました。オフライン時や、電波が不安定な場合は動作しないことがあります。');
+    }
+    ocrFileInput.value = ''; // Reset
+  };
+}
+
 function redrawPlayerEditList() {
   const list = document.getElementById('mmp-list');
   list.innerHTML = '';
