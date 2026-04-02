@@ -1176,7 +1176,12 @@ if (btnCameraOcr && ocrFileInput) {
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
-      const lines = text.split('\n');
+      let rawText = text;
+      // 全角数字を半角に、全角スペースを半角に変換
+      rawText = rawText.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      rawText = rawText.replace(/　/g, ' ');
+      
+      const lines = rawText.split('\n');
       let extractedCount = 0;
       
       // 無視するキーワード
@@ -1206,8 +1211,8 @@ if (btnCameraOcr && ocrFileInput) {
             }
           }
           
-          // 背番号が取得できていて、名前が2文字以上なら追加
-          if (name.length > 1 && uniformNo !== "") {
+          // 名前が2文字以上なら追加（背番号が見つからなくても追加して手入力を促す）
+          if (name.length > 1) {
             appState.game[actTeamTarget].players.push({
               id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
             });
@@ -1675,7 +1680,11 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
-      const lines = text.split('\n');
+      let rawText = text;
+      rawText = rawText.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      rawText = rawText.replace(/　/g, ' ');
+
+      const lines = rawText.split('\n');
       let extractedCount = 0;
       let parsedTeamName = "";
       
@@ -1714,7 +1723,7 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
             }
           }
           
-          if (name.length > 1 && uniformNo !== "") {
+          if (name.length > 1) {
             activeEditTeamData.players.push({
               id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
             });
