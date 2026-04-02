@@ -1152,93 +1152,46 @@ if (btnCameraOcr && ocrFileInput) {
     overlay.innerHTML = '<div class="modal-box" style="text-align:center; padding:30px;"><div class="spinner" style="margin: 0 auto; margin-bottom:20px; border-top-color:#00e676;"></div><p id="ocr-status" style="color:var(--text-primary); font-size:16px; font-weight:bold;">AIで文字を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※端末の性能によっては10秒〜20秒かかります</span></p></div>';
     document.body.appendChild(overlay);
 
+    document.body.appendChild(overlay);
+
     try {
-      if (!window.Tesseract) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+      // FileReaderでBase64に変換
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const base64Image = await base64Promise;
+
+      if (document.getElementById('ocr-status')) {
+        document.getElementById('ocr-status').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※約5〜10秒かかります</span>';
       }
 
-      const worker = await Tesseract.createWorker({
-        logger: m => {
-          if(m.status === 'recognizing text' && document.getElementById('ocr-status')) {
-            document.getElementById('ocr-status').innerHTML = `名簿画像を読み取り中... <br/><strong style="color:#00e676; font-size:24px;">${Math.round(m.progress * 100)}%</strong>`;
-          }
-        }
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
       });
-      await worker.loadLanguage('jpn');
-      await worker.initialize('jpn');
-      await worker.setParameters({
-        tessedit_pageseg_mode: '6' // 表形式やブロックを1つのテキストとして強制し、罫線の誤認識を防ぐ
-      });
-      
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
 
-      let rawText = text;
-      // 全角数字を半角に、全角スペースを半角に変換
-      rawText = rawText.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-      rawText = rawText.replace(/　/g, ' ');
-      
-      const lines = rawText.split('\n');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Server error');
+      }
+
+      const data = await response.json();
       let extractedCount = 0;
-      
-      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計', '監督', 'マネージャー', '役員'];
 
-      for (const line of lines) {
-        if (extractedCount >= 15) break; 
-        if (ignoreWords.some(w => line.includes(w))) continue;
-
-        let name = "";
-        
-        // 厳格な判定: 「名字 スペース 名前」という構成
-        const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
-        if (strongMatch) {
-          name = strongMatch[0].trim();
-        } 
-        // 緩い判定: スペースがなくてもテキストのどこかに番号（1〜15）などがあれば選手行と推定する
-        else if (line.match(/\d+/)) {
-          const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
-          if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
-        }
-
-        // Tesseractの罫線誤認識（「一一 二」「すす」「い 夕」等）を弾く最強のフィルター
-        if (name.length < 2) continue;
-        const strippedName = name.replace(/\s+/g, '');
-        const kanjiCount = (name.match(/[一-龯]/g) || []).length;
-        
-        // 少なくとも漢字が2文字以上あるか、文字長が合計3文字以上ないと名前と認めない
-        if (kanjiCount < 2 && strippedName.length < 3) continue;
-        // 「一」「二」「三」などの漢数字ばかりの場合は罫線の誤認識なので弾く
-        if (/^[一二三四五六七八九十〇\s]+$/.test(name)) continue;
-
-        if (name.length > 1) {
-          let uniformNo = "";
-          const nameIndex = line.indexOf(name);
-          const afterName = line.substring(nameIndex + name.length);
-          const numsAfter = afterName.match(/\d+/g);
-          
-          if (numsAfter) {
-            let validNums = numsAfter.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
-            if (validNums.length > 0) uniformNo = validNums[0];
-          } else {
-            const beforeName = line.substring(0, nameIndex);
-            const numsBefore = beforeName.match(/\d+/g);
-            if (numsBefore) {
-              let validNums = numsBefore.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
-              if (validNums.length > 0) uniformNo = validNums[validNums.length - 1];
-            }
-          }
-          
+      if (data.players && Array.isArray(data.players)) {
+        data.players.forEach(p => {
           appState.game[actTeamTarget].players.push({
-            id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+            id: Date.now() + Math.random(), 
+            num: p.num || "", 
+            name: p.name || "不明選手", 
+            pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
           });
           extractedCount++;
-        }
+        });
       }
 
       overlay.remove();
@@ -1246,17 +1199,21 @@ if (btnCameraOcr && ocrFileInput) {
       renderScore();
       
       if(extractedCount > 0) {
-        showAlert(`✅ 画像から ${extractedCount} 名の選手を自動追加しました！\n背番号などに誤りがないか確認してください。`);
+        showAlert(`✅ Gemini AIにより ${extractedCount} 名の選手を検出し、自動登録しました！`);
       } else {
-        showAlert('選手名をうまく検出できませんでした。もう少し明るく真っ直ぐ撮影してみてください。');
+        showAlert('選手を検出できませんでした。画像を確認してください。');
       }
 
     } catch (err) {
       overlay.remove();
       console.error(err);
-      showAlert('画像の読み取りに失敗しました。オフライン時や、電波が不安定な場合は動作しないことがあります。');
+      if (err.message.includes('GOOGLE_API_KEY')) {
+        showAlert('エラー: Gemini APIキーが設定されていません。Vercelの環境変数に GOOGLE_API_KEY を設定してください。');
+      } else {
+        showAlert('Gemini AIでの解析に失敗しました。時間をおいて試すか、手動で入力してください。');
+      }
     }
-    ocrFileInput.value = ''; // Reset
+    ocrFileInput.value = '';
   };
 }
 
@@ -1676,118 +1633,68 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
     overlay.innerHTML = '<div class="modal-box" style="text-align:center; padding:30px;"><div class="spinner" style="margin: 0 auto; margin-bottom:20px; border-top-color:#00e676;"></div><p id="ocr-status-edit" style="color:var(--text-primary); font-size:16px; font-weight:bold;">AIで文字を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※端末の性能によっては10秒〜20秒かかります</span></p></div>';
     document.body.appendChild(overlay);
 
+    document.body.appendChild(overlay);
+
     try {
-      if (!window.Tesseract) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const base64Image = await base64Promise;
+
+      if (document.getElementById('ocr-status-edit')) {
+        document.getElementById('ocr-status-edit').innerHTML = 'Gemini AI が名簿を解析中...<br/><span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">※約5〜10秒かかります</span>';
       }
 
-      const worker = await Tesseract.createWorker({
-        logger: m => {
-          if(m.status === 'recognizing text' && document.getElementById('ocr-status-edit')) {
-            document.getElementById('ocr-status-edit').innerHTML = `名簿画像を読み取り中... <br/><strong style="color:#00e676; font-size:24px;">${Math.round(m.progress * 100)}%</strong>`;
-          }
-        }
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
       });
-      await worker.loadLanguage('jpn');
-      await worker.initialize('jpn');
-      await worker.setParameters({
-        tessedit_pageseg_mode: '6'
-      });
-      
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
 
-      let rawText = text;
-      rawText = rawText.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-      rawText = rawText.replace(/　/g, ' ');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Server error');
+      }
 
-      const lines = rawText.split('\n');
+      const data = await response.json();
       let extractedCount = 0;
-      let parsedTeamName = "";
-      
-      const ignoreWords = ['タイム', 'クォーター', '選手', '氏名', 'ファウル', 'チーム', 'コーチ', 'スコア', 'オーバー', '背番号', 'Licence', '時間', '合計', '監督', 'マネージャー', '役員'];
 
-      for (const line of lines) {
-        if (extractedCount >= 15) break; 
-        if (ignoreWords.some(w => line.includes(w))) continue;
+      if (data.teamName && (!document.getElementById('mte-name').value || document.getElementById('mte-name').value === '新規チーム')) {
+        document.getElementById('mte-name').value = data.teamName;
+      }
 
-        // チーム名の抽出 (無視リストに引っかかっていない行で行う)
-        if (line.includes('中') || line.includes('高') || line.includes('クラブ') || line.includes('大')) {
-          if (!parsedTeamName) {
-            const tNameMatch = line.match(/[一-龯ぁ-んァ-ヶー]{3,}/);
-            if (tNameMatch) {
-              parsedTeamName = tNameMatch[0];
-              continue; // チーム名と思われる行は選手としては処理しない
-            }
-          }
-        }
-
-        let name = "";
-        
-        const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
-        if (strongMatch) {
-          name = strongMatch[0].trim();
-        } 
-        else if (line.match(/\d+/)) {
-          const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
-          if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
-        }
-
-        if (name.length < 2) continue;
-        const strippedName = name.replace(/\s+/g, '');
-        const kanjiCount = (name.match(/[一-龯]/g) || []).length;
-        
-        if (kanjiCount < 2 && strippedName.length < 3) continue;
-        if (/^[一二三四五六七八九十〇\s]+$/.test(name)) continue;
-
-        if (name.length > 1) {
-          let uniformNo = "";
-          const nameIndex = line.indexOf(name);
-          const afterName = line.substring(nameIndex + name.length);
-          const numsAfter = afterName.match(/\d+/g);
-          
-          if (numsAfter) {
-            let validNums = numsAfter.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
-            if (validNums.length > 0) uniformNo = validNums[0];
-          } else {
-            const beforeName = line.substring(0, nameIndex);
-            const numsBefore = beforeName.match(/\d+/g);
-            if (numsBefore) {
-              let validNums = numsBefore.filter(n => parseInt(n) <= 99 && parseInt(n) >= 0);
-              if (validNums.length > 0) uniformNo = validNums[validNums.length - 1];
-            }
-          }
-          
+      if (data.players && Array.isArray(data.players)) {
+        data.players.forEach(p => {
           activeEditTeamData.players.push({
-            id: Date.now() + Math.random(), num: uniformNo, name: name, pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
+            id: Date.now() + Math.random(), 
+            num: p.num || "", 
+            name: p.name || "不明選手", 
+            pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
           });
           extractedCount++;
-        }
-      }
-
-      if(parsedTeamName && (!document.getElementById('mte-name').value || document.getElementById('mte-name').value === '新規チーム')) {
-        document.getElementById('mte-name').value = parsedTeamName;
+        });
       }
 
       overlay.remove();
       renderTeamEditorPlayers();
       
       if(extractedCount > 0) {
-        showAlert(`✅ 画像から ${extractedCount} 名の選手を自動追加しました！\n背番号などに誤りがないか確認してください。`);
+        showAlert(`✅ Gemini AIにより ${extractedCount} 名の選手を検出し、自動登録しました！`);
       } else {
-        showAlert('選手名をうまく検出できませんでした。もう少し明るく真っ直ぐ撮影してみてください。');
+        showAlert('選手を検出できませんでした。画像を確認してください。');
       }
 
     } catch (err) {
       overlay.remove();
       console.error(err);
-      showAlert('画像の読み取りに失敗しました。オフライン時や、電波が不安定な場合は動作しないことがあります。');
+      if (err.message.includes('GOOGLE_API_KEY')) {
+        showAlert('エラー: Gemini APIキーが設定されていません。Vercelの環境変数に GOOGLE_API_KEY を設定してください。');
+      } else {
+        showAlert('Gemini AIでの解析に失敗しました。');
+      }
     }
     ocrFileInputEdit.value = '';
   };

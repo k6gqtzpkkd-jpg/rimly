@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Rimly Score Manager",
   "dependencies": {
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "@google/generative-ai": "^0.11.4"
   }
 }
