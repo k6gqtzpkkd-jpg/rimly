@@ -1192,7 +1192,9 @@ if (btnCameraOcr && ocrFileInput) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Server error');
+        let fullMsg = errorData.error || 'Server error';
+        if (errorData.details) fullMsg += `\n詳細: ${errorData.details}`;
+        throw new Error(fullMsg);
       }
 
       const data = await response.json();
@@ -1690,7 +1692,9 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Server error');
+        let fullMsg = errorData.error || 'Server error';
+        if (errorData.details) fullMsg += `\n詳細: ${errorData.details}`;
+        throw new Error(fullMsg);
       }
 
       const data = await response.json();

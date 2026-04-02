@@ -68,7 +68,15 @@ module.exports = async (req, res) => {
     return res.status(200).json(data);
 
   } catch (error) {
-    console.error('OCR Error:', error);
-    return res.status(500).json({ error: 'Failed to process OCR', details: error.message });
+    console.error('OCR Error Details:', error);
+    let errorMsg = error.message || 'Unknown error';
+    if (errorMsg.includes('API_KEY_INVALID')) errorMsg = 'APIキーが無効です。コピーミスがないか確認してください。';
+    if (errorMsg.includes('User location is not supported')) errorMsg = '現在の地域(Region)ではGemini APIがサポートされていません。';
+    
+    return res.status(500).json({ 
+      error: 'Failed to process OCR', 
+      details: errorMsg,
+      stack: error.stack // デバッグ用に一応。必要なくなれば消す。
+    });
   }
 };
