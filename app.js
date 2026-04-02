@@ -215,51 +215,6 @@ function setupPassword() {
     else if (e.key === 'Backspace') { pwInput = pwInput.slice(0, -1); updateDots(); document.getElementById('pw-error').textContent = ''; }
   });
 
-  // 👇 ==== 追加：生体認証解除ボタンを画面に作る処理 ==== 👇
-  try {
-    if (window.PublicKeyCredential) {
-      const bioBtn = document.createElement('button');
-      bioBtn.className = 'ctrl-btn btn-outline-glow';
-      bioBtn.style.cssText = 'width: 100%; margin-top: 25px; padding: 15px; font-size: 16px; border-radius: 12px; border-color: var(--orange);';
-      bioBtn.innerHTML = '👆 生体認証（Face ID / 指紋）でロック解除';
-
-      bioBtn.onclick = async () => {
-        const storedId = localStorage.getItem('rimly_bio_id');
-        if (!storedId) {
-          document.getElementById('pw-error').textContent = '未登録です。設定タブから生体認証を登録してください。';
-          return;
-        }
-        try {
-          const credId = Uint8Array.from(atob(storedId), c => c.charCodeAt(0));
-          const challenge = new Uint8Array(32);
-          window.crypto.getRandomValues(challenge);
-
-          await navigator.credentials.get({
-            publicKey: {
-              challenge: challenge,
-              allowCredentials: [{ type: "public-key", id: credId }],
-              userVerification: "required"
-            }
-          });
-          // 🎉 認証成功でロック解除！
-          document.getElementById('password-screen').classList.remove('active');
-          document.getElementById('app-screen').classList.add('active');
-        } catch (e) {
-          document.getElementById('pw-error').textContent = '生体認証がキャンセルされたか、失敗しました';
-        }
-      };
-
-      // パスワード入力画面の最後に追加
-      const pwScreen = document.getElementById('password-screen');
-      if (pwScreen) pwScreen.appendChild(bioBtn);
-
-      // 既に登録済みなら、アプリを開いた瞬間に自動でFace IDを呼び出す
-      if (localStorage.getItem('rimly_bio_id')) {
-        setTimeout(() => bioBtn.click(), 500);
-      }
-    }
-  } catch (e) { console.error('Bio Auth not supported', e) }
-
   // 🌍 ▼ iPhone(NFC)からの遠隔ロック解除を監視（ポーリング）する機能 ▼ 🌍
   let pollInterval = setInterval(async () => {
     // 既にパスワード画面が消えていれば監視終了

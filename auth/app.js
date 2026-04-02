@@ -75,7 +75,7 @@ async function unlockSystem() {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionKey = urlParams.get('key') || 'global_admin';
 
-    const res = await fetch('../api/db', {
+    const res = await fetch('/api/db', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
