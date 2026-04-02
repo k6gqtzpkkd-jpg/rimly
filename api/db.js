@@ -107,7 +107,8 @@ module.exports = async function handler(req, res) {
 
     if (body.action === 'get_auth') {
       const result = await p.query(
-        `SELECT is_unlocked FROM rimly_auth_sessions WHERE session_id = $1`,
+        `SELECT is_unlocked FROM rimly_auth_sessions 
+         WHERE session_id = $1 AND updated_at >= NOW() - INTERVAL '2 minutes'`,
         [body.session_id || 'global_admin']
       );
       if (result.rows[0] && result.rows[0].is_unlocked) {
