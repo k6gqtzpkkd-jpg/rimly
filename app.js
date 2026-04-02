@@ -1212,6 +1212,18 @@ if (btnCameraOcr && ocrFileInput) {
         });
       }
 
+      if (data.coaches && Array.isArray(data.coaches)) {
+        data.coaches.forEach(c => {
+          appState.game[actTeamTarget].players.push({
+            id: Date.now() + Math.random(), 
+            num: c.num || "コーチ", 
+            name: c.name || "先生", 
+            pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, isCoach: true
+          });
+          extractedCount++;
+        });
+      }
+
       overlay.remove();
       redrawPlayerEditList();
       renderScore();
@@ -1326,7 +1338,11 @@ document.querySelectorAll('.foul-play').forEach(btn => {
     document.getElementById('modal-foul-action').parentElement.classList.remove('open');
     // Foul warnings
     if (isFoulOut(p)) {
-      setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場しました！`), 200);
+      setTimeout(() => showAlert(`🚫 ${p.name} (#${p.num}) が退場処分となりました！`), 200);
+    } else if (p.isCoach || p.num === 'コーチ' || p.num === 'A.コーチ') {
+      if (p.pf === 1 || (p.tf || 0) === 1) {
+        setTimeout(() => showAlert(`⚠️ ${p.name} がファウル1回目！あと1回で退場（ディスクォリファイング）です`), 200);
+      }
     } else if (type === 'T' && (p.tf || 0) === 1) {
       setTimeout(() => showAlert(`⚠️ ${p.name} (#${p.num}) がテクニカルファウル1回目！あと1回で退場です`), 200);
     } else if (p.pf === 4) {
@@ -1716,6 +1732,18 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
         });
       }
 
+      if (data.coaches && Array.isArray(data.coaches)) {
+        data.coaches.forEach(c => {
+          activeEditTeamData.players.push({
+            id: Date.now() + Math.random(), 
+            num: c.num || "コーチ", 
+            name: c.name || "先生", 
+            pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, isCoach: true
+          });
+          extractedCount++;
+        });
+      }
+
       overlay.remove();
       renderTeamEditorPlayers();
       
@@ -1961,6 +1989,9 @@ function closeDialog() {
 function isFoulOut(p) {
   const tud = (p.tud || 0);
   const tf = (p.tf || 0);
+  if (p.isCoach || p.num === 'コーチ' || p.num === 'A.コーチ' || p.num === '監督') {
+    return p.pf >= 2 || tf >= 2 || tud >= 2 || (p.df || 0) >= 1;
+  }
   return p.pf >= 6 || tf >= 2 || tud >= 2 || (p.df || 0) >= 1;
 }
 
