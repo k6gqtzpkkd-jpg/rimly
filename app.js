@@ -1172,6 +1172,9 @@ if (btnCameraOcr && ocrFileInput) {
       });
       await worker.loadLanguage('jpn');
       await worker.initialize('jpn');
+      await worker.setParameters({
+        tessedit_pageseg_mode: '6' // 表形式やブロックを1つのテキストとして強制し、罫線の誤認識を防ぐ
+      });
       
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
@@ -1192,7 +1195,7 @@ if (btnCameraOcr && ocrFileInput) {
 
         let name = "";
         
-        // 厳格な判定: 「名字 スペース 名前」という構成ならほぼ確実に選手
+        // 厳格な判定: 「名字 スペース 名前」という構成
         const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
         if (strongMatch) {
           name = strongMatch[0].trim();
@@ -1202,6 +1205,16 @@ if (btnCameraOcr && ocrFileInput) {
           const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
           if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
         }
+
+        // Tesseractの罫線誤認識（「一一 二」「すす」「い 夕」等）を弾く最強のフィルター
+        if (name.length < 2) continue;
+        const strippedName = name.replace(/\s+/g, '');
+        const kanjiCount = (name.match(/[一-龯]/g) || []).length;
+        
+        // 少なくとも漢字が2文字以上あるか、文字長が合計3文字以上ないと名前と認めない
+        if (kanjiCount < 2 && strippedName.length < 3) continue;
+        // 「一」「二」「三」などの漢数字ばかりの場合は罫線の誤認識なので弾く
+        if (/^[一二三四五六七八九十〇\s]+$/.test(name)) continue;
 
         if (name.length > 1) {
           let uniformNo = "";
@@ -1683,6 +1696,9 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       });
       await worker.loadLanguage('jpn');
       await worker.initialize('jpn');
+      await worker.setParameters({
+        tessedit_pageseg_mode: '6'
+      });
       
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
@@ -1714,16 +1730,21 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
 
         let name = "";
         
-        // 厳格な判定: 「名字 スペース 名前」という構成ならほぼ確実に選手
         const strongMatch = line.match(/[一-龯ぁ-んァ-ヶー]{1,6}\s+[一-龯ぁ-んァ-ヶー]{1,6}/);
         if (strongMatch) {
           name = strongMatch[0].trim();
         } 
-        // 緩い判定: スペースがなくてもテキストのどこかに番号などがあれば選手行と推定
         else if (line.match(/\d+/)) {
           const fallbackMatch = line.match(/[一-龯ぁ-んァ-ヶー]{2,10}/);
           if (fallbackMatch && fallbackMatch[0].length >= 2) name = fallbackMatch[0].trim();
         }
+
+        if (name.length < 2) continue;
+        const strippedName = name.replace(/\s+/g, '');
+        const kanjiCount = (name.match(/[一-龯]/g) || []).length;
+        
+        if (kanjiCount < 2 && strippedName.length < 3) continue;
+        if (/^[一二三四五六七八九十〇\s]+$/.test(name)) continue;
 
         if (name.length > 1) {
           let uniformNo = "";
