@@ -1834,7 +1834,7 @@ document.getElementById('btn-clear-history').onclick = () => {
 };
 
 // AI GRAPHICS
-function openAI(h) {
+async function openAI(h) {
   const box = document.getElementById('ai-content-box');
 
   const hP = h.score.home, aP = h.score.away;
@@ -1844,7 +1844,7 @@ function openAI(h) {
   const hFT = h.home.players.reduce((s, p) => s + p.pt, 0), aFT = h.away.players.reduce((s, p) => s + p.pt, 0);
 
   const wT = (hP > aP) ? `<span class="text-orange">${h.home.name}</span>` : (aP > hP ? `<span class="text-blue">${h.away.name}</span>` : '引き分け');
-  const txt = `総得点 ${hP + aP} 点のゲームは、${wT} の勝利で幕を閉じました。グラフを見てチームスタッツを比較しましょう。`;
+  const txt = `総得点 ${hP + aP} 点のゲームは、${wT} の勝利で幕を閉じました。スタッツ比較とAIの分析を見てみましょう。`;
 
   const uiBar = (title, vH, vA) => {
     const tot = (vH + vA) || 1; const wH = (vH / tot) * 100; const wA = (vA / tot) * 100;
@@ -1875,10 +1875,50 @@ function openAI(h) {
     ${uiBar('2-POINTS', h2, a2)}
     ${uiBar('FREE THROWS', hFT, aFT)}
     ${uiBar('FOULS', hF, aF)}
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
+      <div class="ai-bar-title" style="margin-bottom: 15px;">✨ GEMINI MATCH ANALYSIS</div>
+      <div id="gemini-analysis-result">
+        <div style="text-align:center; padding: 20px;">
+          <div style="color: var(--text-secondary); font-size: 13px;">Gemini AI が試合データを分析中です...</div>
+        </div>
+      </div>
+    </div>
   `;
 
   document.getElementById('modal-ai-analysis').parentElement.classList.add('open');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matchData: h })
+    });
+
+    const data = await res.json();
+    const resultBox = document.getElementById('gemini-analysis-result');
+    if (!resultBox) return; // モーダルが閉じられた場合
+
+    if (!res.ok) throw new Error(data.details || data.error || '解析に失敗しました');
+
+    resultBox.innerHTML = `
+      <div style="line-height: 1.6; font-size: 14px; color: var(--text-primary);">
+        ${data.analysis}
+      </div>
+    `;
+  } catch (err) {
+    const resultBox = document.getElementById('gemini-analysis-result');
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div style="color: var(--red); padding: 10px; text-align: center; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; background: rgba(239,68,68,0.05);">
+          ⚠️ 分析エラー<br>
+          <span style="font-size:12px; opacity:0.8;">${err.message}</span>
+        </div>
+      `;
+    }
+  }
 }
+
 
 // Global modal close bind
 document.querySelectorAll('.modal-close').forEach(b => {
