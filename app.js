@@ -2681,31 +2681,6 @@ function setupFlipUI(tm) {
   wrapper.appendChild(inner);
 }
 
-// ================================================================
-// カードフリップ – ゼッケン / ユニフォーム切替
-// ================================================================
-const _flipState = { home: false, away: false };
-
-window.flipRosterView = function (tm) {
-  _flipState[tm] = !_flipState[tm];
-  const inner = document.getElementById(`flip-inner-${tm}`);
-  const btn = document.getElementById(`flip-btn-${tm}`);
-  const icon = document.getElementById(`flip-icon-${tm}`);
-  const label = document.getElementById(`flip-label-${tm}`);
-
-  if (_flipState[tm]) {
-    inner.classList.add('is-flipped');
-    btn.classList.add('active');
-    icon.textContent = '🏷️';
-    label.textContent = 'ゼッケン';
-    renderUniformGrid(tm);
-  } else {
-    inner.classList.remove('is-flipped');
-    btn.classList.remove('active');
-    icon.textContent = '👕';
-    label.textContent = 'ユニフォーム';
-  }
-};
 
 function renderUniformGrid(tm) {
   const grid = document.getElementById(`uniform-grid-${tm}`);
@@ -2759,4 +2734,179 @@ function renderUniformGrid(tm) {
     grid.appendChild(card);
   });
 }
+// ================================================================
+// カードフリップ – ゼッケン / ユニフォーム切替（安定版）
+// ================================================================
+const _flipState = { home: false, away: false };
+
+function setupFlipUI(tm) {
+  const table = document.getElementById(`roster-${tm}-table`);
+  if (!table) return;
+  const rosterPanel = table.closest('.player-roster');
+  if (!rosterPanel) return;
+  const rosterHeader = rosterPanel.querySelector('.roster-header');
+
+  // フリップボタン追加（1度だけ）
+  if (rosterHeader && !rosterHeader.querySelector('.btn-flip-view')) {
+    const flipBtn = document.createElement('button');
+    flipBtn.className = 'btn-flip-view';
+    flipBtn.id = `flip-btn-${tm}`;
+    flipBtn.innerHTML = `<span id="flip-icon-${tm}">👕</span><span id="flip-label-${tm}"> ユニフォーム</span>`;
+    flipBtn.onclick = () => flipRosterView(tm);
+    const firstBtn = rosterHeader.querySelector('button');
+    if (firstBtn) firstBtn.before(flipBtn);
+  }
+
+  // ユニフォームグリッドdivを追加（1度だけ）
+  if (!document.getElementById(`uniform-grid-wrap-${tm}`)) {
+    const scrollDiv = table.parentElement;
+    const wrap = document.createElement('div');
+    wrap.id = `uniform-grid-wrap-${tm}`;
+    wrap.style.display = 'none';
+    wrap.innerHTML = `<div class="uniform-grid" id="uniform-grid-${tm}"></div>`;
+    scrollDiv.after(wrap);
+  }
+}
+
+window.flipRosterView = function (tm) {
+  const nowUniform = !_flipState[tm];
+  _flipState[tm] = nowUniform;
+
+  const table = document.getElementById(`roster-${tm}-table`);
+  if (!table) return;
+  const tableWrap = table.parentElement;
+  const gridWrap = document.getElementById(`uniform-grid-wrap-${tm}`);
+  const btn = document.getElementById(`flip-btn-${tm}`);
+  const icon = document.getElementById(`flip-icon-${tm}`);
+  const label = document.getElementById(`flip-label-${tm}`);
+
+  const fromEl = nowUniform ? tableWrap : gridWrap;
+  const toEl = nowUniform ? gridWrap : tableWrap;
+
+  // フリップアウト
+  fromEl.classList.add('flip-anim-out');
+
+  setTimeout(() => {
+    fromEl.style.display = 'none';
+    fromEl.classList.remove('flip-anim-out');
+
+    if (nowUniform) renderUniformGrid(tm);
+
+    toEl.style.display = '';
+    toEl.classList.add('flip-anim-in');
+    setTimeout(() => toEl.classList.remove('flip-anim-in'), 320);
+  }, 280);
+
+  // ボタン更新
+  if (btn) btn.classList.toggle('active', nowUniform);
+  if (icon) icon.textContent = nowUniform ? '🏷️' : '👕';
+  if (label) label.textContent = nowUniform ? ' ゼッケン' : ' ユニフォーム';
+};
+
+function renderUniformGrid(tm) {
+  const grid = document.getElementById(`uniform-grid-${tm}`);
+  if (!grid) return;
+  grid.innerHTML = '';
+  const g = appState.game;
+  if (!g || !g[tm] || !g[tm].players) return;
+
+  // チームDB から保存されたcolorModeとdefaultViewを取得
+  const dbTeam = appState.teamsDB
+    ? appState.teamsDB.find(t => t.name === g[tm].name)
+    : null;
+  const colorMode = g[tm].colorMode
+    || (dbTeam && dbTeam.colorMode)
+    || 'dark';
+
+  const styleClass = `style-${colorMode}-${tm}`;
+
+  g[tm].players.filter(p => p.isOnCourt).forEach(p => {
+    const card = document.createElement('div');
+    card.className = `uniform-card ${styleClass}`;
+
+    let dotClass = '';
+    if ((p.pf || 0) >= 5) dotClass = 'danger';
+    else if ((p.pf || 0) >= 4) dotClass = 'warn';
+
+    card.innerHTML = `
+      <div class="uniform-num">${p.num}</div>
+      <div class="uniform-name">${p.name}</div>
+      ${(p.pts || 0) > 0 ? `<div class="uniform-pts-badge">${p.pts}pts</div>` : ''}
+      ${dotClass ? `<div class="uniform-foul-dot ${dotClass}"></div>` : ''}
+    `;
+
+    card.onclick = () => {
+      if (typeof isFoulOut === 'function' && isFoulOut(p)) {
+        if (typeof showPop === 'function') showPop('退場しています');
+        return;
+      }
+      if (typeof openActionSheet === 'function') openActionSheet(p.id, tm);
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ================================================================
+// チーム登録モーダルに「デフォルト表示」「ユニフォーム色」を追加
+// ================================================================
+(function injectTeamEditorFields() {
+  const modalBody = document.querySelector('#modal-team-editor .modal-body');
+  if (!modalBody || document.getElementById('mte-view-selector')) return;
+
+  const nameGroup = modalBody.querySelector('.setup-form-group');
+  if (!nameGroup) return;
+
+  const selector = document.createElement('div');
+  selector.id = 'mte-view-selector';
+  selector.className = 'team-view-selector';
+  selector.innerHTML = `
+    <label>デフォルト表示</label>
+    <div class="toggle-switch" id="mte-view-toggle">
+      <button class="ts-btn active ts-orange" data-val="zekken">🏷️ ゼッケン</button>
+      <button class="ts-btn" data-val="uniform">👕 ユニフォーム</button>
+    </div>
+    <label style="margin-top:10px;">ユニフォームの色</label>
+    <div class="toggle-switch" id="mte-color-toggle">
+      <button class="ts-btn active ts-orange" data-val="dark">濃色</button>
+      <button class="ts-btn" data-val="light">淡色</button>
+    </div>
+  `;
+  nameGroup.after(selector);
+
+  // トグル動作
+  ['mte-view-toggle', 'mte-color-toggle'].forEach(toggleId => {
+    const el = document.getElementById(toggleId);
+    if (!el) return;
+    el.querySelectorAll('.ts-btn').forEach(btn => {
+      btn.onclick = () => {
+        el.querySelectorAll('.ts-btn').forEach(b => b.classList.remove('active', 'ts-orange'));
+        btn.classList.add('active', 'ts-orange');
+      };
+    });
+  });
+})();
+
+// 保存ボタンに追加情報を含める
+const _mteOrigSave = document.getElementById('mte-save-team');
+if (_mteOrigSave) {
+  const _mteOrigClick = _mteOrigSave.onclick;
+  _mteOrigSave.onclick = function (e) {
+    const viewActive = document.querySelector('#mte-view-toggle .active');
+    const colorActive = document.querySelector('#mte-color-toggle .active');
+    const defaultView = viewActive ? viewActive.dataset.val : 'zekken';
+    const colorMode = colorActive ? colorActive.dataset.val : 'dark';
+    const teamName = (document.getElementById('mte-name')?.value || '').trim();
+
+    // チームDBを更新（保存前に値をセット）
+    if (appState.teamsDB) {
+      const team = appState.teamsDB.find(t => t.name === teamName);
+      if (team) {
+        team.defaultView = defaultView;
+        team.colorMode = colorMode;
+      }
+    }
+    if (_mteOrigClick) _mteOrigClick.call(this, e);
+  };
+}
+
 

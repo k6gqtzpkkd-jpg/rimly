@@ -101,37 +101,194 @@ body {
   animation: scanning 1.5s infinite;
 }
 
-/*====カードフリップ====*/
+/* ================================================================
+   CARD FLIP ANIMATION – ゼッケン / ユニフォーム切替（安定版）
+   ================================================================ */
 
-/*3D空間*/
-.flip-container {
-  prespective: 1000px;
+@keyframes flipHideLeft {
+  0% {
+    transform: perspective(900px) rotateY(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: perspective(900px) rotateY(-90deg);
+    opacity: 0;
+  }
 }
-/*カード本体(裏表)*/
-.flip-card {
+
+@keyframes flipShowRight {
+  0% {
+    transform: perspective(900px) rotateY(90deg);
+    opacity: 0;
+  }
+
+  100% {
+    transform: perspective(900px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.flip-anim-out {
+  animation: flipHideLeft 0.28s ease forwards;
+  pointer-events: none;
+}
+
+.flip-anim-in {
+  animation: flipShowRight 0.28s ease forwards;
+}
+
+.uniform-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding: 16px 0;
+  min-height: 120px;
+}
+
+.uniform-card {
+  width: 88px;
+  height: 118px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
   position: relative;
-  width: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.6s ease;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
 }
 
-/*フリップ状態*/
-.flip-card.flipped {
-  transform: rotateY(180deg);
+.uniform-card:active {
+  transform: scale(0.91);
 }
 
-/*裏表共通のスタイル*/
-.flip-front,
-.flip-back {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+.uniform-card:hover {
+  transform: translateY(-3px) scale(1.05);
 }
 
-/*裏　先 180°回転*/
-.flip-back {
+.uniform-card.style-dark-home {
+  background: linear-gradient(160deg, #FF6B00 0%, #c24200 100%);
+  border: 1px solid rgba(255, 107, 0, 0.5);
+}
+
+.uniform-card.style-dark-away {
+  background: linear-gradient(160deg, #3B82F6 0%, #1447c2 100%);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.uniform-card.style-light-home {
+  background: linear-gradient(160deg, #fff 0%, #ddd 100%);
+  border: 2px solid rgba(255, 107, 0, 0.6);
+}
+
+.uniform-card.style-light-away {
+  background: linear-gradient(160deg, #fff 0%, #ddd 100%);
+  border: 2px solid rgba(59, 130, 246, 0.6);
+}
+
+.uniform-num {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 48px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.uniform-card.style-light-home .uniform-num,
+.uniform-card.style-light-away .uniform-num {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.uniform-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uniform-card.style-light-home .uniform-name,
+.uniform-card.style-light-away .uniform-name {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.uniform-pts-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  transform: rotateY(180deg);
+  top: 5px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.uniform-foul-dot {
+  position: absolute;
+  bottom: 6px;
+  right: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.uniform-foul-dot.warn {
+  background: #facc15;
+}
+
+.uniform-foul-dot.danger {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.btn-flip-view {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+}
+
+.btn-flip-view:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+
+.btn-flip-view.active {
+  background: var(--orange-dim);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+/* チーム登録 デフォルト表示セレクター */
+.team-view-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.team-view-selector label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
 }
