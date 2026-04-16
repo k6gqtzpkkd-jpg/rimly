@@ -941,6 +941,8 @@ const safeIsFoulOut = (p) => {
 
 function renderTableRoster(tm) {
   try {
+    setupFlipUI(tm);
+
     const table = document.getElementById(`roster-${tm}-table`);
     if (!table) return;
     const thead = table.querySelector('thead');
@@ -2626,6 +2628,59 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 });
+// ================================================================
+// ボタンとフリップ構造を自動で差し込む
+// ================================================================
+function setupFlipUI(tm) {
+  const table = document.getElementById(`roster-${tm}-table`);
+  if (!table) return;
+
+  // すでにセットアップ済みなら何もしない
+  if (table.closest('.roster-flip-inner')) return;
+
+  const scrollDiv = table.parentElement; // overflow-x:auto のdiv
+  const rosterHeader = scrollDiv.previousElementSibling; // roster-header div
+  if (!rosterHeader) return;
+
+  // ─── フリップボタンを追加 ───
+  if (!rosterHeader.querySelector('.btn-flip-view')) {
+    const flipBtn = document.createElement('button');
+    flipBtn.className = 'btn-flip-view';
+    flipBtn.id = `flip-btn-${tm}`;
+    flipBtn.style.marginRight = '8px';
+    flipBtn.innerHTML = '<span id="flip-icon-' + tm + '">👕</span> <span id="flip-label-' + tm + '">ユニフォーム</span>';
+    flipBtn.onclick = () => flipRosterView(tm);
+
+    // 先頭のボタンの前に挿入
+    const firstBtn = rosterHeader.querySelector('button');
+    if (firstBtn) firstBtn.before(flipBtn);
+  }
+
+  // ─── フリップ構造を組み立て ───
+  const wrapper = document.createElement('div');
+  wrapper.className = 'roster-flip-wrapper';
+
+  const inner = document.createElement('div');
+  inner.className = 'roster-flip-inner';
+  inner.id = `flip-inner-${tm}`;
+
+  const front = document.createElement('div');
+  front.className = 'roster-flip-front';
+  front.style.cssText = 'overflow-x:auto; overflow-y:auto; max-height:60vh;';
+
+  const back = document.createElement('div');
+  back.className = 'roster-flip-back';
+  back.innerHTML = `<div class="uniform-grid" id="uniform-grid-${tm}"></div>`;
+
+  // scrollDivをfrontの中に移動
+  const parent = scrollDiv.parentElement;
+  parent.insertBefore(wrapper, scrollDiv);
+  front.appendChild(scrollDiv);
+  inner.appendChild(front);
+  inner.appendChild(back);
+  wrapper.appendChild(inner);
+}
+
 // ================================================================
 // カードフリップ – ゼッケン / ユニフォーム切替
 // ================================================================
