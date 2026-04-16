@@ -1,4 +1,4 @@
-大じょ第const { Pool } = require('pg');
+const { Pool } = require('pg');
 
 let pool;
 function getPool() {
@@ -12,13 +12,13 @@ function getPool() {
   return pool;
 }
 
-exports.handler = async function(event, context) {
+exports.handler = async function (event, context) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'OPTIONS, POST'
   };
-  
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -52,7 +52,7 @@ exports.handler = async function(event, context) {
       await p.query(
         `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_key) DO UPDATE SET teams = EXCLUDED.teams, history = EXCLUDED.history, updated_at = NOW()`,
-         [req.user_key, JSON.stringify(req.teams), JSON.stringify(req.history)]
+        [req.user_key, JSON.stringify(req.teams), JSON.stringify(req.history)]
       );
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
@@ -74,7 +74,7 @@ exports.handler = async function(event, context) {
     }
 
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action' }) };
-  } catch(e) {
+  } catch (e) {
     console.error('DB Error:', e);
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
   }

@@ -2735,7 +2735,7 @@ function renderUniformGrid(tm) {
   });
 }
 // ================================================================
-// カードフリップ – ゼッケン / ユニフォーム切替（安定版）
+// カードフリップ – ゼッケン / ユニフォーム切替
 // ================================================================
 const _flipState = { home: false, away: false };
 
@@ -2751,57 +2751,163 @@ function setupFlipUI(tm) {
     const flipBtn = document.createElement('button');
     flipBtn.className = 'btn-flip-view';
     flipBtn.id = `flip-btn-${tm}`;
-    flipBtn.innerHTML = `<span id="flip-icon-${tm}">👕</span><span id="flip-label-${tm}"> ユニフォーム</span>`;
+    flipBtn.innerHTML = `<span id="flip-icon-${tm}">👕</span><span id="flip-label-${tm}">ユニフォーム</span>`;
     flipBtn.onclick = () => flipRosterView(tm);
     const firstBtn = rosterHeader.querySelector('button');
     if (firstBtn) firstBtn.before(flipBtn);
   }
 
-  // ユニフォームグリッドdivを追加（1度だけ）
-  if (!document.getElementById(`uniform-grid-wrap-${tm}`)) {
-    const scrollDiv = table.parentElement;
-    const wrap = document.createElement('div');
-    wrap.id = `uniform-grid-wrap-${tm}`;
-    wrap.style.display = 'none';
-    wrap.innerHTML = `<div class="uniform-grid" id="uniform-grid-${tm}"></div>`;
-    scrollDiv.after(wrap);
+  // フリップラッパー + ユニフォームグリッド（1度だけ）
+  if (!document.getElementById(`flip-wrap-${tm}`)) {
+    const tableWrap = table.parentElement;
+    const panelBody = tableWrap.parentElement;
+
+    const flipWrap = document.createElement('div');
+    flipWrap.id = `flip-wrap-${tm}`;
+
+    const gridWrap = document.createElement('div');
+    gridWrap.id = `uniform-grid-wrap-${tm}`;
+    gridWrap.style.display = 'none';
+    gridWrap.innerHTML = `<div class="uniform-grid" id="uniform-grid-${tm}"></div>`;
+
+    panelBody.insertBefore(flipWrap, tableWrap);
+    flipWrap.appendChild(tableWrap);
+    flipWrap.appendChild(gridWrap);
   }
 }
 
 window.flipRosterView = function (tm) {
-  const nowUniform = !_flipState[tm];
-  _flipState[tm] = nowUniform;
+  _flipState[tm] = !_flipState[tm];
+  const nowUniform = _flipState[tm];
+
+  const flipWrap = document.getElementById(`flip-wrap-${tm}`);
+  if (!flipWrap) return;
 
   const table = document.getElementById(`roster-${tm}-table`);
-  if (!table) return;
-  const tableWrap = table.parentElement;
+  const tableWrap = table ? table.parentElement : null;
   const gridWrap = document.getElementById(`uniform-grid-wrap-${tm}`);
+
+  // ① 前半：くるっと90度まで
+  flipWrap.style.animation = 'flipFirstHalf 0.25s ease-in forwards';
+
+  setTimeout(() => {
+    // ② 中間でコンテンツ切替
+    if (nowUniform) {
+      if (tableWrap) tableWrap.style.display = 'none';
+      if (gridWrap) { gridWrap.style.display = ''; renderUniformGrid(tm); }
+    } else {
+      if (gridWrap) gridWrap.style.display = 'none';
+      if (tableWrap) tableWrap.style.display = '';
+    }
+    // ③ 後半：-90度から0度へ
+    flipWrap.style.animation = 'none';
+    flipWrap.offsetHeight; // reflow
+    flipWrap.style.animation = 'flipSecondHalf 0.25s ease-out forwards';
+    setTimeout(() => { flipWrap.style.animation = ''; }, 260);
+  }, 250);
+
   const btn = document.getElementById(`flip-btn-${tm}`);
   const icon = document.getElementById(`flip-icon-${tm}`);
   const label = document.getElementById(`flip-label-${tm}`);
-
-  const fromEl = nowUniform ? tableWrap : gridWrap;
-  const toEl = nowUniform ? gridWrap : tableWrap;
-
-  // フリップアウト
-  fromEl.classList.add('flip-anim-out');
-
-  setTimeout(() => {
-    fromEl.style.display = 'none';
-    fromEl.classList.remove('flip-anim-out');
-
-    if (nowUniform) renderUniformGrid(tm);
-
-    toEl.style.display = '';
-    toEl.classList.add('flip-anim-in');
-    setTimeout(() => toEl.classList.remove('flip-anim-in'), 320);
-  }, 280);
-
-  // ボタン更新
   if (btn) btn.classList.toggle('active', nowUniform);
   if (icon) icon.textContent = nowUniform ? '🏷️' : '👕';
-  if (label) label.textContent = nowUniform ? ' ゼッケン' : ' ユニフォーム';
+  if (label) label.textContent = nowUniform ? 'ゼッケン' : 'ユニフォーム';
 };
+
+// ユニフォームカードをタップしたときのアクションシート
+function openUniformCardAction(p, tm) {
+  const existing = document.getElementById('uniform-action-popup');
+  if (existing) existing.remove();
+
+  if (typeof isFoulOut === 'function' && isFoulOut(p)) {
+    if (typeof showPop === 'function') showPop('退場しています');
+    return;
+  }
+
+  const popup = document.createElement('div');
+  popup.id = 'uniform-action-popup';
+  popup.style.cssText = `
+    position:fixed; top:50%; left:50%;
+    transform:translate(-50%,-50%) scale(0.85);
+    animation: uaIn 0.18s ease forwards;
+    background:#141820; border:1px solid rgba(255,255,255,0.12);
+    border-radius:20px; padding:24px; z-index:999999;
+    width:282px; box-shadow:0 24px 70px rgba(0,0,0,0.85);
+  `;
+
+  // アニメーション追加
+  if (!document.getElementById('ua-keyframe-style')) {
+    const s = document.createElement('style');
+    s.id = 'ua-keyframe-style';
+    s.textContent = `
+      @keyframes uaIn {
+        from { transform:translate(-50%,-50%) scale(0.82); opacity:0; }
+        to   { transform:translate(-50%,-50%) scale(1);    opacity:1; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  const clr = tm === 'home' ? 'var(--orange)' : 'var(--blue)';
+  const clrGlow = tm === 'home' ? 'var(--orange-glow)' : 'var(--blue-glow)';
+  const gradBg = tm === 'home'
+    ? 'linear-gradient(135deg,#FF6B00,#c24200)'
+    : 'linear-gradient(135deg,#3B82F6,#1447c2)';
+
+  popup.innerHTML = `
+    <div style="text-align:center;margin-bottom:18px;">
+      <div style="font-family:'Bebas Neue',cursive;font-size:52px;color:${clr};
+        text-shadow:0 0 24px ${clrGlow};line-height:1;">#${p.num}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">${p.name}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+        ${p.pts || 0} pts &nbsp;/&nbsp; ${p.pf || 0} fouls
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      <button id="ua-3p" style="padding:16px 4px;background:${gradBg};border:none;
+        border-radius:12px;color:#fff;font-size:24px;font-weight:900;cursor:pointer;
+        font-family:'Bebas Neue',cursive;box-shadow:0 0 18px ${clrGlow};">+3</button>
+      <button id="ua-2p" style="padding:16px 4px;background:${gradBg};border:none;
+        border-radius:12px;color:#fff;font-size:24px;font-weight:900;cursor:pointer;
+        font-family:'Bebas Neue',cursive;box-shadow:0 0 18px ${clrGlow};">+2</button>
+      <button id="ua-ft" style="padding:16px 4px;background:transparent;
+        border:2px solid ${clr};border-radius:12px;color:${clr};font-size:16px;
+        font-weight:900;cursor:pointer;font-family:'Bebas Neue',cursive;">FT</button>
+    </div>
+    <button id="ua-foul" style="width:100%;padding:11px;background:rgba(239,68,68,0.12);
+      border:1px solid rgba(239,68,68,0.35);border-radius:10px;color:var(--red);
+      font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;
+      font-family:'Inter','Noto Sans JP',sans-serif;">🔴 ファウル記録</button>
+    <button id="ua-cancel" style="width:100%;padding:10px;background:transparent;
+      border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:var(--text-secondary);
+      font-size:14px;cursor:pointer;font-family:'Inter','Noto Sans JP',sans-serif;">キャンセル</button>
+  `;
+
+  document.body.appendChild(popup);
+
+  const close = () => popup.remove();
+  const scoreAnd = (val, type) => {
+    addScore(tm, p.id, val, type);
+    close();
+    if (_flipState[tm]) renderUniformGrid(tm);
+  };
+
+  document.getElementById('ua-3p').onclick = () => scoreAnd(3, '3P');
+  document.getElementById('ua-2p').onclick = () => scoreAnd(2, '2P');
+  document.getElementById('ua-ft').onclick = () => scoreAnd(1, '1P');
+  document.getElementById('ua-foul').onclick = () => {
+    if (typeof openActionSheet === 'function') openActionSheet(p.id, tm);
+    close();
+  };
+  document.getElementById('ua-cancel').onclick = close;
+
+  setTimeout(() => {
+    const handler = (e) => {
+      if (!popup.contains(e.target)) { close(); document.removeEventListener('click', handler); }
+    };
+    document.addEventListener('click', handler);
+  }, 100);
+}
 
 function renderUniformGrid(tm) {
   const grid = document.getElementById(`uniform-grid-${tm}`);
@@ -2810,14 +2916,8 @@ function renderUniformGrid(tm) {
   const g = appState.game;
   if (!g || !g[tm] || !g[tm].players) return;
 
-  // チームDB から保存されたcolorModeとdefaultViewを取得
-  const dbTeam = appState.teamsDB
-    ? appState.teamsDB.find(t => t.name === g[tm].name)
-    : null;
-  const colorMode = g[tm].colorMode
-    || (dbTeam && dbTeam.colorMode)
-    || 'dark';
-
+  const dbTeam = appState.teamsDB ? appState.teamsDB.find(t => t.name === g[tm].name) : null;
+  const colorMode = g[tm].colorMode || (dbTeam && dbTeam.colorMode) || 'dark';
   const styleClass = `style-${colorMode}-${tm}`;
 
   g[tm].players.filter(p => p.isOnCourt).forEach(p => {
@@ -2834,14 +2934,7 @@ function renderUniformGrid(tm) {
       ${(p.pts || 0) > 0 ? `<div class="uniform-pts-badge">${p.pts}pts</div>` : ''}
       ${dotClass ? `<div class="uniform-foul-dot ${dotClass}"></div>` : ''}
     `;
-
-    card.onclick = () => {
-      if (typeof isFoulOut === 'function' && isFoulOut(p)) {
-        if (typeof showPop === 'function') showPop('退場しています');
-        return;
-      }
-      if (typeof openActionSheet === 'function') openActionSheet(p.id, tm);
-    };
+    card.onclick = () => openUniformCardAction(p, tm);
     grid.appendChild(card);
   });
 }
@@ -2852,7 +2945,6 @@ function renderUniformGrid(tm) {
 (function injectTeamEditorFields() {
   const modalBody = document.querySelector('#modal-team-editor .modal-body');
   if (!modalBody || document.getElementById('mte-view-selector')) return;
-
   const nameGroup = modalBody.querySelector('.setup-form-group');
   if (!nameGroup) return;
 
@@ -2873,9 +2965,8 @@ function renderUniformGrid(tm) {
   `;
   nameGroup.after(selector);
 
-  // トグル動作
-  ['mte-view-toggle', 'mte-color-toggle'].forEach(toggleId => {
-    const el = document.getElementById(toggleId);
+  ['mte-view-toggle', 'mte-color-toggle'].forEach(id => {
+    const el = document.getElementById(id);
     if (!el) return;
     el.querySelectorAll('.ts-btn').forEach(btn => {
       btn.onclick = () => {
@@ -2886,7 +2977,6 @@ function renderUniformGrid(tm) {
   });
 })();
 
-// 保存ボタンに追加情報を含める
 const _mteOrigSave = document.getElementById('mte-save-team');
 if (_mteOrigSave) {
   const _mteOrigClick = _mteOrigSave.onclick;
@@ -2896,17 +2986,10 @@ if (_mteOrigSave) {
     const defaultView = viewActive ? viewActive.dataset.val : 'zekken';
     const colorMode = colorActive ? colorActive.dataset.val : 'dark';
     const teamName = (document.getElementById('mte-name')?.value || '').trim();
-
-    // チームDBを更新（保存前に値をセット）
     if (appState.teamsDB) {
       const team = appState.teamsDB.find(t => t.name === teamName);
-      if (team) {
-        team.defaultView = defaultView;
-        team.colorMode = colorMode;
-      }
+      if (team) { team.defaultView = defaultView; team.colorMode = colorMode; }
     }
     if (_mteOrigClick) _mteOrigClick.call(this, e);
   };
 }
-
-
