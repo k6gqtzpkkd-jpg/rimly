@@ -274,18 +274,36 @@ body {
 
 .btn-flip-view.active {
   /* ================================================================
-   CARD FLIP ANIMATION
+   CARD FLIP – ゼッケン / ユニフォーム切替
    ================================================================ */
 
-  @keyframes flipFirstHalf {
-    from {
-      transform: perspective(700px) rotateY(0deg);
-    }
-
-    to {
-      transform: perspective(700px) rotateY(90deg);
-    }
+  /* ユニフォームモード – 番号セルをジャージ風に */
+  .player-roster.uniform-mode-home .td-num {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 28px;
+    background: linear-gradient(150deg, #FF6B00, #c24200);
+    color: #fff !important;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 46px;
+    padding: 6px 8px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 3px 14px var(--orange-glow);
   }
+
+  .player-roster.uniform-mode-away .td-num {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 28px;
+    background: linear-gradient(150deg, #3B82F6, #1447c2);
+    color: #fff !important;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 46px;
+    padding: 6px 8px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 3px 14px var(--blue-glow);
+  }
+
 
   @keyframes flipSecondHalf {
     from {

@@ -2735,7 +2735,7 @@ function renderUniformGrid(tm) {
   });
 }
 // ================================================================
-// カードフリップ – ゼッケン / ユニフォーム切替
+// カードフリップ – ゼッケン / ユニフォーム切替（完全修正版）
 // ================================================================
 const _flipState = { home: false, away: false };
 
@@ -2745,34 +2745,33 @@ function setupFlipUI(tm) {
   const rosterPanel = table.closest('.player-roster');
   if (!rosterPanel) return;
   const rosterHeader = rosterPanel.querySelector('.roster-header');
+  if (!rosterHeader) return;
 
-  // フリップボタン追加（1度だけ）
-  if (rosterHeader && !rosterHeader.querySelector('.btn-flip-view')) {
-    const flipBtn = document.createElement('button');
-    flipBtn.className = 'btn-flip-view';
-    flipBtn.id = `flip-btn-${tm}`;
-    flipBtn.innerHTML = `<span id="flip-icon-${tm}">👕</span><span id="flip-label-${tm}">ユニフォーム</span>`;
-    flipBtn.onclick = () => flipRosterView(tm);
-    const firstBtn = rosterHeader.querySelector('button');
-    if (firstBtn) firstBtn.before(flipBtn);
+  // 古いフリップ構造をクリーンアップ
+  const oldFlipWrap = document.getElementById(`flip-wrap-${tm}`);
+  if (oldFlipWrap) {
+    const children = [...oldFlipWrap.children];
+    const parent = oldFlipWrap.parentElement;
+    children.forEach(child => parent.insertBefore(child, oldFlipWrap));
+    oldFlipWrap.remove();
   }
+  const oldGrid = document.getElementById(`uniform-grid-wrap-${tm}`);
+  if (oldGrid) oldGrid.remove();
 
-  // フリップラッパー + ユニフォームグリッド（1度だけ）
-  if (!document.getElementById(`flip-wrap-${tm}`)) {
-    const tableWrap = table.parentElement;
-    const panelBody = tableWrap.parentElement;
+  // フリップボタン追加（1度だけ・既存ボタンと同じスタイル）
+  if (!rosterHeader.querySelector('.btn-flip-view')) {
+    const isHome = (tm === 'home');
+    const flipBtn = document.createElement('button');
+    flipBtn.className = `btn-sm ${isHome ? 'btn-outline-orange' : 'btn-outline-blue'} btn-flip-view`;
+    flipBtn.id = `flip-btn-${tm}`;
+    flipBtn.textContent = '👕 ユニフォーム';
+    flipBtn.style.marginRight = '6px';
+    flipBtn.onclick = () => flipRosterView(tm);
 
-    const flipWrap = document.createElement('div');
-    flipWrap.id = `flip-wrap-${tm}`;
-
-    const gridWrap = document.createElement('div');
-    gridWrap.id = `uniform-grid-wrap-${tm}`;
-    gridWrap.style.display = 'none';
-    gridWrap.innerHTML = `<div class="uniform-grid" id="uniform-grid-${tm}"></div>`;
-
-    panelBody.insertBefore(flipWrap, tableWrap);
-    flipWrap.appendChild(tableWrap);
-    flipWrap.appendChild(gridWrap);
+    // 既存ボタンの前に挿入
+    const existingBtns = rosterHeader.querySelectorAll('button:not(.btn-flip-view)');
+    if (existingBtns.length > 0) existingBtns[0].before(flipBtn);
+    else rosterHeader.appendChild(flipBtn);
   }
 }
 
@@ -2780,216 +2779,28 @@ window.flipRosterView = function (tm) {
   _flipState[tm] = !_flipState[tm];
   const nowUniform = _flipState[tm];
 
-  const flipWrap = document.getElementById(`flip-wrap-${tm}`);
-  if (!flipWrap) return;
-
   const table = document.getElementById(`roster-${tm}-table`);
-  const tableWrap = table ? table.parentElement : null;
-  const gridWrap = document.getElementById(`uniform-grid-wrap-${tm}`);
-
-  // ① 前半：くるっと90度まで
-  flipWrap.style.animation = 'flipFirstHalf 0.25s ease-in forwards';
-
-  setTimeout(() => {
-    // ② 中間でコンテンツ切替
-    if (nowUniform) {
-      if (tableWrap) tableWrap.style.display = 'none';
-      if (gridWrap) { gridWrap.style.display = ''; renderUniformGrid(tm); }
-    } else {
-      if (gridWrap) gridWrap.style.display = 'none';
-      if (tableWrap) tableWrap.style.display = '';
-    }
-    // ③ 後半：-90度から0度へ
-    flipWrap.style.animation = 'none';
-    flipWrap.offsetHeight; // reflow
-    flipWrap.style.animation = 'flipSecondHalf 0.25s ease-out forwards';
-    setTimeout(() => { flipWrap.style.animation = ''; }, 260);
-  }, 250);
-
+  if (!table) return;
+  const panel = table.closest('.player-roster');
+  if (!panel) return;
   const btn = document.getElementById(`flip-btn-${tm}`);
-  const icon = document.getElementById(`flip-icon-${tm}`);
-  const label = document.getElementById(`flip-label-${tm}`);
-  if (btn) btn.classList.toggle('active', nowUniform);
-  if (icon) icon.textContent = nowUniform ? '🏷️' : '👕';
-  if (label) label.textContent = nowUniform ? 'ゼッケン' : 'ユニフォーム';
-};
 
-// ユニフォームカードをタップしたときのアクションシート
-function openUniformCardAction(p, tm) {
-  const existing = document.getElementById('uniform-action-popup');
-  if (existing) existing.remove();
-
-  if (typeof isFoulOut === 'function' && isFoulOut(p)) {
-    if (typeof showPop === 'function') showPop('退場しています');
-    return;
-  }
-
-  const popup = document.createElement('div');
-  popup.id = 'uniform-action-popup';
-  popup.style.cssText = `
-    position:fixed; top:50%; left:50%;
-    transform:translate(-50%,-50%) scale(0.85);
-    animation: uaIn 0.18s ease forwards;
-    background:#141820; border:1px solid rgba(255,255,255,0.12);
-    border-radius:20px; padding:24px; z-index:999999;
-    width:282px; box-shadow:0 24px 70px rgba(0,0,0,0.85);
-  `;
-
-  // アニメーション追加
-  if (!document.getElementById('ua-keyframe-style')) {
-    const s = document.createElement('style');
-    s.id = 'ua-keyframe-style';
-    s.textContent = `
-      @keyframes uaIn {
-        from { transform:translate(-50%,-50%) scale(0.82); opacity:0; }
-        to   { transform:translate(-50%,-50%) scale(1);    opacity:1; }
-      }
-    `;
-    document.head.appendChild(s);
-  }
-
-  const clr = tm === 'home' ? 'var(--orange)' : 'var(--blue)';
-  const clrGlow = tm === 'home' ? 'var(--orange-glow)' : 'var(--blue-glow)';
-  const gradBg = tm === 'home'
-    ? 'linear-gradient(135deg,#FF6B00,#c24200)'
-    : 'linear-gradient(135deg,#3B82F6,#1447c2)';
-
-  popup.innerHTML = `
-    <div style="text-align:center;margin-bottom:18px;">
-      <div style="font-family:'Bebas Neue',cursive;font-size:52px;color:${clr};
-        text-shadow:0 0 24px ${clrGlow};line-height:1;">#${p.num}</div>
-      <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-top:2px;">${p.name}</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-        ${p.pts || 0} pts &nbsp;/&nbsp; ${p.pf || 0} fouls
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      <button id="ua-3p" style="padding:16px 4px;background:${gradBg};border:none;
-        border-radius:12px;color:#fff;font-size:24px;font-weight:900;cursor:pointer;
-        font-family:'Bebas Neue',cursive;box-shadow:0 0 18px ${clrGlow};">+3</button>
-      <button id="ua-2p" style="padding:16px 4px;background:${gradBg};border:none;
-        border-radius:12px;color:#fff;font-size:24px;font-weight:900;cursor:pointer;
-        font-family:'Bebas Neue',cursive;box-shadow:0 0 18px ${clrGlow};">+2</button>
-      <button id="ua-ft" style="padding:16px 4px;background:transparent;
-        border:2px solid ${clr};border-radius:12px;color:${clr};font-size:16px;
-        font-weight:900;cursor:pointer;font-family:'Bebas Neue',cursive;">FT</button>
-    </div>
-    <button id="ua-foul" style="width:100%;padding:11px;background:rgba(239,68,68,0.12);
-      border:1px solid rgba(239,68,68,0.35);border-radius:10px;color:var(--red);
-      font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;
-      font-family:'Inter','Noto Sans JP',sans-serif;">🔴 ファウル記録</button>
-    <button id="ua-cancel" style="width:100%;padding:10px;background:transparent;
-      border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:var(--text-secondary);
-      font-size:14px;cursor:pointer;font-family:'Inter','Noto Sans JP',sans-serif;">キャンセル</button>
-  `;
-
-  document.body.appendChild(popup);
-
-  const close = () => popup.remove();
-  const scoreAnd = (val, type) => {
-    addScore(tm, p.id, val, type);
-    close();
-    if (_flipState[tm]) renderUniformGrid(tm);
-  };
-
-  document.getElementById('ua-3p').onclick = () => scoreAnd(3, '3P');
-  document.getElementById('ua-2p').onclick = () => scoreAnd(2, '2P');
-  document.getElementById('ua-ft').onclick = () => scoreAnd(1, '1P');
-  document.getElementById('ua-foul').onclick = () => {
-    if (typeof openActionSheet === 'function') openActionSheet(p.id, tm);
-    close();
-  };
-  document.getElementById('ua-cancel').onclick = close;
+  // ===== カードめくりアニメーション =====
+  // ① 前半：0度 → 90度（カードが横向きに）
+  panel.style.transition = 'transform 0.3s ease-in';
+  panel.style.transform = 'perspective(800px) rotateY(90deg)';
 
   setTimeout(() => {
-    const handler = (e) => {
-      if (!popup.contains(e.target)) { close(); document.removeEventListener('click', handler); }
-    };
-    document.addEventListener('click', handler);
-  }, 100);
-}
+    // ② 90度=見えない瞬間にモード切替
+    panel.classList.toggle('uniform-mode-' + tm, nowUniform);
 
-function renderUniformGrid(tm) {
-  const grid = document.getElementById(`uniform-grid-${tm}`);
-  if (!grid) return;
-  grid.innerHTML = '';
-  const g = appState.game;
-  if (!g || !g[tm] || !g[tm].players) return;
+    if (btn) btn.textContent = nowUniform ? '🏷️ ゼッケン' : '👕 ユニフォーム';
 
-  const dbTeam = appState.teamsDB ? appState.teamsDB.find(t => t.name === g[tm].name) : null;
-  const colorMode = g[tm].colorMode || (dbTeam && dbTeam.colorMode) || 'dark';
-  const styleClass = `style-${colorMode}-${tm}`;
-
-  g[tm].players.filter(p => p.isOnCourt).forEach(p => {
-    const card = document.createElement('div');
-    card.className = `uniform-card ${styleClass}`;
-
-    let dotClass = '';
-    if ((p.pf || 0) >= 5) dotClass = 'danger';
-    else if ((p.pf || 0) >= 4) dotClass = 'warn';
-
-    card.innerHTML = `
-      <div class="uniform-num">${p.num}</div>
-      <div class="uniform-name">${p.name}</div>
-      ${(p.pts || 0) > 0 ? `<div class="uniform-pts-badge">${p.pts}pts</div>` : ''}
-      ${dotClass ? `<div class="uniform-foul-dot ${dotClass}"></div>` : ''}
-    `;
-    card.onclick = () => openUniformCardAction(p, tm);
-    grid.appendChild(card);
-  });
-}
-
-// ================================================================
-// チーム登録モーダルに「デフォルト表示」「ユニフォーム色」を追加
-// ================================================================
-(function injectTeamEditorFields() {
-  const modalBody = document.querySelector('#modal-team-editor .modal-body');
-  if (!modalBody || document.getElementById('mte-view-selector')) return;
-  const nameGroup = modalBody.querySelector('.setup-form-group');
-  if (!nameGroup) return;
-
-  const selector = document.createElement('div');
-  selector.id = 'mte-view-selector';
-  selector.className = 'team-view-selector';
-  selector.innerHTML = `
-    <label>デフォルト表示</label>
-    <div class="toggle-switch" id="mte-view-toggle">
-      <button class="ts-btn active ts-orange" data-val="zekken">🏷️ ゼッケン</button>
-      <button class="ts-btn" data-val="uniform">👕 ユニフォーム</button>
-    </div>
-    <label style="margin-top:10px;">ユニフォームの色</label>
-    <div class="toggle-switch" id="mte-color-toggle">
-      <button class="ts-btn active ts-orange" data-val="dark">濃色</button>
-      <button class="ts-btn" data-val="light">淡色</button>
-    </div>
-  `;
-  nameGroup.after(selector);
-
-  ['mte-view-toggle', 'mte-color-toggle'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.querySelectorAll('.ts-btn').forEach(btn => {
-      btn.onclick = () => {
-        el.querySelectorAll('.ts-btn').forEach(b => b.classList.remove('active', 'ts-orange'));
-        btn.classList.add('active', 'ts-orange');
-      };
-    });
-  });
-})();
-
-const _mteOrigSave = document.getElementById('mte-save-team');
-if (_mteOrigSave) {
-  const _mteOrigClick = _mteOrigSave.onclick;
-  _mteOrigSave.onclick = function (e) {
-    const viewActive = document.querySelector('#mte-view-toggle .active');
-    const colorActive = document.querySelector('#mte-color-toggle .active');
-    const defaultView = viewActive ? viewActive.dataset.val : 'zekken';
-    const colorMode = colorActive ? colorActive.dataset.val : 'dark';
-    const teamName = (document.getElementById('mte-name')?.value || '').trim();
-    if (appState.teamsDB) {
-      const team = appState.teamsDB.find(t => t.name === teamName);
-      if (team) { team.defaultView = defaultView; team.colorMode = colorMode; }
-    }
-    if (_mteOrigClick) _mteOrigClick.call(this, e);
-  };
-}
+    // ③ 後半：-90度 → 0度（裏側から回って戻る）
+    panel.style.transition = 'none';
+    panel.style.transform = 'perspective(800px) rotateY(-90deg)';
+    void panel.offsetHeight; // リフロー強制
+    panel.style.transition = 'transform 0.3s ease-out';
+    panel.style.transform = '';
+  }, 300);
+};
