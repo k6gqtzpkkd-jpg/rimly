@@ -40,7 +40,7 @@ async function loadData() {
   try {
     const profileKey = appState.settings.dbKey || 'default';
     let scopedTeams = localStorage.getItem(`rimly_teams_${profileKey}`);
-    
+
     // セキュリティ対策：全く新しい他人がログインした場合は空（[]）からスタートさせる。
     // ただしアップデート直後の「最初の人（あなた）」だけは、過去のデータを引き継ぐ。
     if (!scopedTeams) {
@@ -51,7 +51,7 @@ async function loadData() {
         scopedTeams = '[]';
       }
     }
-    
+
     appState.teamsDB = JSON.parse(scopedTeams);
     appState.teamsDB = appState.teamsDB.filter(t => t.name !== 'HOME TEAM' && t.name !== 'AWAY TEAM' && t.name !== 'HOME' && t.name !== 'AWAY');
   } catch (e) { appState.teamsDB = []; }
@@ -77,7 +77,7 @@ async function loadData() {
     try {
       const profileKey = appState.settings.dbKey || 'default';
       let scopedHistory = localStorage.getItem(`rimly_history_${profileKey}`);
-      
+
       if (!scopedHistory) {
         if (localStorage.getItem('rimly_v4_history') && !localStorage.getItem('legacy_history_migrated')) {
           scopedHistory = localStorage.getItem('rimly_v4_history');
@@ -250,12 +250,12 @@ function setupPassword() {
       clearInterval(pollInterval);
       return;
     }
-    
+
     try {
       // 設定されているキーでのみ監視。複数キー対応
       const sessionStr = appState?.settings?.authKey;
       if (!sessionStr) return;
-      
+
       const sessionKeys = sessionStr.split(',').map(k => k.trim()).filter(Boolean);
       if (sessionKeys.length === 0) return;
 
@@ -266,23 +266,23 @@ function setupPassword() {
           body: JSON.stringify({ action: 'get_auth', session_id: sk })
         });
         const json = await res.json();
-        
+
         if (json.success && json.is_unlocked) {
           // iPhone側で解除が行われた！
           clearInterval(pollInterval);
-          
+
           // 💡 ここがマルチユーザーの切り替えの要！
           // 解除に使ったキーをそのままこの端末のアクティブなユーザーとしてセットし、そのユーザーのデータを読み込む
           appState.settings.dbKey = sk;
           localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
           await loadData(); // その人のチーム情報や履歴に画面を切り替える
-          
+
           document.getElementById('pw-error').style.color = '#00e676';
-          document.getElementById('pw-error').textContent = `✅ 解除完了 (ユーザー: ${sk.substring(0,8)})`;
-          
+          document.getElementById('pw-error').textContent = `✅ 解除完了 (ユーザー: ${sk.substring(0, 8)})`;
+
           // パスワードのドットを全部緑にする演出
           ds.forEach(d => { d.classList.add('filled'); d.style.background = '#00e676'; d.style.boxShadow = '0 0 10px #00e676'; });
-          
+
           setTimeout(() => {
             document.getElementById('password-screen').classList.remove('active');
             document.getElementById('app-screen').classList.add('active');
@@ -375,7 +375,7 @@ function renderSettings() {
   document.getElementById('setting-stats-mode').value = appState.settings.statsMode || 'basic';
   document.getElementById('setting-auto-copy').value = appState.settings.autoCopy || 'false';
   document.getElementById('setting-app-pw').value = localStorage.getItem('rimly_app_pw') || '082655';
-  
+
   const authKeyEl = document.getElementById('setting-auth-key');
   if (authKeyEl) authKeyEl.value = appState.settings.authKey || '';
 
@@ -411,7 +411,7 @@ function renderSettings() {
     appState.settings.dbKey = document.getElementById('setting-db-key').value.trim();
     appState.settings.statsMode = document.getElementById('setting-stats-mode').value;
     appState.settings.autoCopy = document.getElementById('setting-auto-copy').value;
-    
+
     const authKeyEl = document.getElementById('setting-auth-key');
     if (authKeyEl) appState.settings.authKey = authKeyEl.value.trim().toUpperCase();
 
@@ -1203,9 +1203,9 @@ if (btnCameraOcr && ocrFileInput) {
       if (data.players && Array.isArray(data.players)) {
         data.players.forEach(p => {
           appState.game[actTeamTarget].players.push({
-            id: Date.now() + Math.random(), 
-            num: p.num || "", 
-            name: p.name || "不明選手", 
+            id: Date.now() + Math.random(),
+            num: p.num || "",
+            name: p.name || "不明選手",
             pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
           });
           extractedCount++;
@@ -1215,9 +1215,9 @@ if (btnCameraOcr && ocrFileInput) {
       if (data.coaches && Array.isArray(data.coaches)) {
         data.coaches.forEach(c => {
           appState.game[actTeamTarget].players.push({
-            id: Date.now() + Math.random(), 
-            num: c.num || "コーチ", 
-            name: c.name || "先生", 
+            id: Date.now() + Math.random(),
+            num: c.num || "コーチ",
+            name: c.name || "先生",
             pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, isCoach: true
           });
           extractedCount++;
@@ -1227,8 +1227,8 @@ if (btnCameraOcr && ocrFileInput) {
       overlay.remove();
       redrawPlayerEditList();
       renderScore();
-      
-      if(extractedCount > 0) {
+
+      if (extractedCount > 0) {
         showAlert(`✅ Gemini AIにより ${extractedCount} 名の選手を検出し、自動登録しました！`);
       } else {
         showAlert('選手を検出できませんでした。画像を確認してください。');
@@ -1723,9 +1723,9 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       if (data.players && Array.isArray(data.players)) {
         data.players.forEach(p => {
           activeEditTeamData.players.push({
-            id: Date.now() + Math.random(), 
-            num: p.num || "", 
-            name: p.name || "不明選手", 
+            id: Date.now() + Math.random(),
+            num: p.num || "",
+            name: p.name || "不明選手",
             pts: 0, p3: 0, p2: 0, pt: 0, pf: 0
           });
           extractedCount++;
@@ -1735,9 +1735,9 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
       if (data.coaches && Array.isArray(data.coaches)) {
         data.coaches.forEach(c => {
           activeEditTeamData.players.push({
-            id: Date.now() + Math.random(), 
-            num: c.num || "コーチ", 
-            name: c.name || "先生", 
+            id: Date.now() + Math.random(),
+            num: c.num || "コーチ",
+            name: c.name || "先生",
             pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, isCoach: true
           });
           extractedCount++;
@@ -1746,8 +1746,8 @@ if (btnCameraOcrEdit && ocrFileInputEdit) {
 
       overlay.remove();
       renderTeamEditorPlayers();
-      
-      if(extractedCount > 0) {
+
+      if (extractedCount > 0) {
         showAlert(`✅ Gemini AIにより ${extractedCount} 名の選手を検出し、自動登録しました！`);
       } else {
         showAlert('選手を検出できませんでした。画像を確認してください。');
@@ -2626,3 +2626,82 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 });
+// ================================================================
+// カードフリップ – ゼッケン / ユニフォーム切替
+// ================================================================
+const _flipState = { home: false, away: false };
+
+window.flipRosterView = function (tm) {
+  _flipState[tm] = !_flipState[tm];
+  const inner = document.getElementById(`flip-inner-${tm}`);
+  const btn = document.getElementById(`flip-btn-${tm}`);
+  const icon = document.getElementById(`flip-icon-${tm}`);
+  const label = document.getElementById(`flip-label-${tm}`);
+
+  if (_flipState[tm]) {
+    inner.classList.add('is-flipped');
+    btn.classList.add('active');
+    icon.textContent = '🏷️';
+    label.textContent = 'ゼッケン';
+    renderUniformGrid(tm);
+  } else {
+    inner.classList.remove('is-flipped');
+    btn.classList.remove('active');
+    icon.textContent = '👕';
+    label.textContent = 'ユニフォーム';
+  }
+};
+
+function renderUniformGrid(tm) {
+  const grid = document.getElementById(`uniform-grid-${tm}`);
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const g = appState.game;
+  if (!g || !g[tm] || !g[tm].players) return;
+
+  const isHome = (tm === 'home');
+  const colorMode = g[tm].colorMode || 'dark'; // 'dark' or 'light'
+
+  g[tm].players.filter(p => p.isOnCourt).forEach(p => {
+    const card = document.createElement('div');
+    let cardClass = isHome ? 'home-card' : 'away-card';
+    // ユニフォームの濃淡に応じてクラスを変える
+    if (colorMode === 'light') cardClass = 'light-card';
+    else if (colorMode === 'dark') cardClass = 'dark-card';
+
+    card.className = `uniform-card ${cardClass}`;
+
+    // ファウル警告ドット
+    let dotClass = '';
+    if (p.pf >= 5) dotClass = 'danger';
+    else if (p.pf >= 4) dotClass = 'warn';
+
+    card.innerHTML = `
+      <div class="uniform-num">${p.num}</div>
+      <div class="uniform-name">${p.name}</div>
+      ${p.pts > 0 ? `<div class="uniform-pts-badge">${p.pts}pts</div>` : ''}
+      ${dotClass ? `<div class="uniform-foul-dot ${dotClass}"></div>` : ''}
+    `;
+
+    // タップで得点入力（フリップ中でも使える）
+    card.onclick = () => {
+      if (typeof isFoulOut === 'function' && isFoulOut(p)) {
+        showPop('退場しています');
+        return;
+      }
+      // 簡易アクションシート
+      const choice = window.confirm(`#${p.num} ${p.name}\n\nOK → 2P　キャンセル → 3P`);
+      if (choice) {
+        addScore(tm, p.id, 2, '2P');
+      } else {
+        addScore(tm, p.id, 3, '3P');
+      }
+      // グリッドを更新
+      if (_flipState[tm]) renderUniformGrid(tm);
+    };
+
+    grid.appendChild(card);
+  });
+}
+

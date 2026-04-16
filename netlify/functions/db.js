@@ -1,4 +1,4 @@
-const { Pool } = require('pg');
+大じょ第const { Pool } = require('pg');
 
 let pool;
 function getPool() {
