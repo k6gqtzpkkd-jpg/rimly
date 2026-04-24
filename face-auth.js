@@ -22,10 +22,10 @@ class RimlyFaceAuth {
     // 検知設定
     this.CONFIG = {
       MATCH_THRESHOLD: 0.6,
-      LIVENESS_TIMEOUT: 5000,
+      LIVENESS_TIMEOUT: 6000,
       DIRECTION_THRESHOLD: 12,
-      DETECTION_INTERVAL: 150,
-      MIN_CONFIDENCE: 0.5,
+      DETECTION_INTERVAL: 100,
+      MIN_CONFIDENCE: 0.35,
       MODEL_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
     };
 
@@ -182,7 +182,7 @@ class RimlyFaceAuth {
 
     // 安定した検出のために複数フレームで平均を取る
     const descriptors = [];
-    const SAMPLES = 5;
+    const SAMPLES = 3;
     let attempts = 0;
     const MAX_ATTEMPTS = 40; // 最大試行回数
 
@@ -197,7 +197,7 @@ class RimlyFaceAuth {
         descriptors.push(detection.descriptor);
         if (onStatus) onStatus(`顔をスキャン中... (${descriptors.length}/${SAMPLES})`);
       }
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 100));
     }
 
     if (descriptors.length < SAMPLES) {
@@ -278,10 +278,10 @@ class RimlyFaceAuth {
           this.stopDetectionLoop();
           if (onStatus) onStatus(`✅ ${match.face.name} さんの顔を認識しました！`);
           
-          // 少し待ってからLivenessへ
+          // 少し待ってからLivenessへ（高速化）
           setTimeout(() => {
             this.startLivenessCheck(onStatus, onSuccess, onFail, onForcePIN);
-          }, 800);
+          }, 200);
         } else {
           if (onStatus) onStatus('認識中... (一致する顔が見つかりません)');
         }
@@ -351,112 +351,122 @@ class RimlyFaceAuth {
     const faceOverlay = document.getElementById('face-auth-overlay');
     
     if (instructionEl) instructionEl.style.display = 'block';
-    if (arrowEl) arrowEl.textContent = direction.emoji;
-    if (textEl) textEl.textContent = `顔を「${direction.label}」に向けてください`;
+    if (arrowEl) arrowEl.textContent = '⏳';
+    if (textEl) textEl.textContent = `準備中... 顔を動かさずにお待ちください`;
     if (faceOverlay) faceOverlay.classList.add('liveness-mode');
     
-    // 基準位置を取得
-    let baseNose = null;
-    let baseFaceWidth = null;
-    const baseDetection = await faceapi
-      .detectSingleFace(this.videoEl, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: this.CONFIG.MIN_CONFIDENCE }))
-      .withFaceLandmarks(true);
-    
-    if (baseDetection) {
-      const lm = baseDetection.landmarks;
-      const nose = lm.getNose();
-      const jaw = lm.getJawOutline();
-      baseNose = { x: nose[3].x, y: nose[3].y };
-      baseFaceWidth = Math.abs(jaw[16].x - jaw[0].x);
-    }
+    // 1.5秒待機してから基準位置を取得・判定開始
+    setTimeout(async () => {
+      if (!this.isRunning) return;
 
-    if (!baseNose) {
-      if (onStatus) onStatus('基準位置の取得に失敗しました。もう一度お試しください。');
-      this.failCount++;
-      if (this.failCount >= this.MAX_FAILS) {
-        if (onForcePIN) onForcePIN();
-      } else {
-        if (onFail) onFail(this.failCount, '生体検知に失敗しました');
-      }
-      return;
-    }
+      if (arrowEl) arrowEl.textContent = direction.emoji;
+      if (textEl) textEl.textContent = `GO! 顔を「${direction.label}」に向けてください`;
 
-    // カウントダウンタイマー
-    let timeLeft = 5;
-    if (timerEl) timerEl.textContent = timeLeft;
-    const countdown = setInterval(() => {
-      timeLeft--;
-      if (timerEl) timerEl.textContent = timeLeft;
-      if (timeLeft <= 0) clearInterval(countdown);
-    }, 1000);
-
-    this.isRunning = true;
-    let livenessSuccess = false;
-
-    // 検出ループ
-    this.detectionLoop = setInterval(async () => {
-      if (!this.isRunning || livenessSuccess) return;
-
-      try {
-        const det = await faceapi
-          .detectSingleFace(this.videoEl, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: this.CONFIG.MIN_CONFIDENCE }))
-          .withFaceLandmarks(true);
-
-        if (!det) return;
-
-        this.drawDetection(det);
-
-        const lm = det.landmarks;
+      // 基準位置を取得
+      let baseNose = null;
+      let baseFaceWidth = null;
+      const baseDetection = await faceapi
+        .detectSingleFace(this.videoEl, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: this.CONFIG.MIN_CONFIDENCE }))
+        .withFaceLandmarks(true);
+      
+      if (baseDetection) {
+        const lm = baseDetection.landmarks;
         const nose = lm.getNose();
-        const currentNose = { x: nose[3].x, y: nose[3].y };
+        const jaw = lm.getJawOutline();
+        baseNose = { x: nose[3].x, y: nose[3].y };
+        baseFaceWidth = Math.abs(jaw[16].x - jaw[0].x);
+      }
 
-        // 相対移動量を顔の幅で正規化
-        const normDx = (currentNose.x - baseNose.x) / (baseFaceWidth || 1);
-        const normDy = (currentNose.y - baseNose.y) / (baseFaceWidth || 1);
-
-        const threshold = 0.08; // 正規化された閾値
-
-        // 方向判定
-        let detectedDir = null;
-        if (Math.abs(normDx) > threshold || Math.abs(normDy) > threshold) {
-          detectedDir = this.classifyDirection(normDx, normDy);
+      if (!baseNose) {
+        if (onStatus) onStatus('基準位置の取得に失敗しました。もう一度お試しください。');
+        this.failCount++;
+        if (this.failCount >= this.MAX_FAILS) {
+          if (onForcePIN) onForcePIN();
+        } else {
+          if (onFail) onFail(this.failCount, '生体検知に失敗しました');
         }
+        return;
+      }
 
-        if (detectedDir && detectedDir.key === direction.key) {
-          livenessSuccess = true;
+      // カウントダウンタイマー (6秒)
+      let timeLeft = 6;
+      if (timerEl) timerEl.textContent = timeLeft;
+      const countdown = setInterval(() => {
+        timeLeft--;
+        if (timerEl) timerEl.textContent = timeLeft;
+        if (timeLeft <= 0) clearInterval(countdown);
+      }, 1000);
+
+      this.isRunning = true;
+      let livenessSuccess = false;
+
+      // 検出ループ
+      this.detectionLoop = setInterval(async () => {
+        if (!this.isRunning || livenessSuccess) return;
+
+        try {
+          const det = await faceapi
+            .detectSingleFace(this.videoEl, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: this.CONFIG.MIN_CONFIDENCE }))
+            .withFaceLandmarks(true);
+
+          if (!det) return;
+
+          this.drawDetection(det);
+
+          const lm = det.landmarks;
+          const nose = lm.getNose();
+          const currentNose = { x: nose[3].x, y: nose[3].y };
+
+          // 相対移動量を顔の幅で正規化
+          const normDx = (currentNose.x - baseNose.x) / (baseFaceWidth || 1);
+          const normDy = (currentNose.y - baseNose.y) / (baseFaceWidth || 1);
+
+          const threshold = 0.08; // 正規化された閾値
+
+          // 方向判定
+          let detectedDir = null;
+          if (Math.abs(normDx) > threshold || Math.abs(normDy) > threshold) {
+            detectedDir = this.classifyDirection(normDx, normDy);
+          }
+
+          if (detectedDir && detectedDir.key === direction.key) {
+            livenessSuccess = true;
+            this.stopDetectionLoop();
+            clearInterval(countdown);
+            
+            if (instructionEl) instructionEl.style.display = 'none';
+            if (faceOverlay) faceOverlay.classList.remove('liveness-mode');
+            if (onStatus) onStatus('✅ 認証成功！ロックを解除します...');
+            
+            setTimeout(() => {
+              if (onSuccess) onSuccess(this.matchedUser);
+            }, 100);
+          }
+        } catch (e) {
+          console.error('Liveness detection error:', e);
+        }
+      }, this.CONFIG.DETECTION_INTERVAL);
+
+      // タイムアウト
+      this.livenessTimer = setTimeout(() => {
+        if (!livenessSuccess) {
           this.stopDetectionLoop();
           clearInterval(countdown);
           
           if (instructionEl) instructionEl.style.display = 'none';
           if (faceOverlay) faceOverlay.classList.remove('liveness-mode');
-          if (onStatus) onStatus('✅ 認証成功！ロックを解除します...');
           
-          setTimeout(() => {
-            if (onSuccess) onSuccess(this.matchedUser);
-          }, 600);
+          this.failCount++;
+          if (this.failCount >= this.MAX_FAILS) {
+            if (onForcePIN) onForcePIN();
+          } else {
+            if (onFail) onFail(this.failCount, '時間切れ - 顔の動きが検出できませんでした');
+          }
         }
-      } catch (e) {
-        console.error('Liveness detection error:', e);
-      }
-    }, this.CONFIG.DETECTION_INTERVAL);
+      }, this.CONFIG.LIVENESS_TIMEOUT);
 
-    // タイムアウト
-    this.livenessTimer = setTimeout(() => {
-      if (!livenessSuccess) {
-        this.stopDetectionLoop();
-        clearInterval(countdown);
-        
-        if (instructionEl) instructionEl.style.display = 'none';
-        if (faceOverlay) faceOverlay.classList.remove('liveness-mode');
-        
-        this.failCount++;
-        if (this.failCount >= this.MAX_FAILS) {
-          if (onForcePIN) onForcePIN();
-        } else {
-          if (onFail) onFail(this.failCount, '時間切れ - 顔の動きが検出できませんでした');
-        }
-      }
-    }, this.CONFIG.LIVENESS_TIMEOUT);
+    }, 1500); // 1.5秒待機
+
   }
 
   // 移動ベクトルを8方向に分類
