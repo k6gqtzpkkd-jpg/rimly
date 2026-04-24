@@ -82,27 +82,6 @@
     </div>
   </div>
 
-  <!-- 顔登録モーダル -->
-  <div class="face-register-overlay" id="face-register-overlay">
-    <div class="face-register-modal">
-      <div class="face-register-header">
-        <h3>🔐 顔の登録</h3>
-        <button class="modal-close" id="btn-close-face-register">✕</button>
-      </div>
-      <div class="face-register-body">
-        <div class="face-register-camera">
-          <video id="face-register-video" autoplay playsinline muted></video>
-          <canvas id="face-register-canvas"></canvas>
-          <div class="face-guide-ring"></div>
-        </div>
-        <div class="face-register-form">
-          <input type="text" id="face-register-name" class="glow-input" placeholder="ユーザー名を入力" />
-          <button class="ctrl-btn btn-save" id="btn-do-register-face" style="width:100%;">📸 この顔を登録する</button>
-        </div>
-        <div class="face-register-status" id="face-register-status"></div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- ================================================================ APP SCREEN -->
@@ -662,6 +641,28 @@
       <p style="margin-bottom:12px; color:var(--text-secondary); font-size:14px; font-weight:600;">下のテキストをコピーしてLINEやメモ帳で共有できます。</p>
       <textarea id="match-export-text" class="glow-input" style="width:100%; height:300px; font-size:12px; resize:vertical; font-family:'Inter','Noto Sans JP',monospace; line-height:1.6;" readonly></textarea>
       <button class="ctrl-btn btn-save mt-4" style="width:100%;" id="btn-copy-match-export">📋 コピーする</button>
+    </div>
+  </div>
+</div>
+
+<!-- 顔登録モーダル (body直下 - ロック画面・設定画面の両方からアクセス可能) -->
+<div class="face-register-overlay" id="face-register-overlay">
+  <div class="face-register-modal">
+    <div class="face-register-header">
+      <h3>🔐 顔の登録</h3>
+      <button class="modal-close" id="btn-close-face-register">✕</button>
+    </div>
+    <div class="face-register-body">
+      <div class="face-register-camera">
+        <video id="face-register-video" autoplay playsinline muted></video>
+        <canvas id="face-register-canvas"></canvas>
+        <div class="face-guide-ring"></div>
+      </div>
+      <div class="face-register-form">
+        <input type="text" id="face-register-name" class="glow-input" placeholder="ユーザー名を入力" />
+        <button class="ctrl-btn btn-save" id="btn-do-register-face" style="width:100%;">📸 この顔を登録する</button>
+      </div>
+      <div class="face-register-status" id="face-register-status"></div>
     </div>
   </div>
 </div>

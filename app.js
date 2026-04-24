@@ -2494,75 +2494,8 @@ function openMatchExport(h) {
   document.getElementById('match-export-text').value = generateMatchExportText(h);
   document.getElementById('overlay-match-export').classList.add('open');
 }
-// --- 生体認証の登録機能 ---
-async function registerBiometrics() {
-  if (!window.PublicKeyCredential) {
-    alert('お使いの端末・ブラウザは生体認証に対応していません。');
-    return;
-  }
-  try {
-    const challenge = new Uint8Array(32);
-    const userId = new Uint8Array(16);
-    window.crypto.getRandomValues(challenge);
-    window.crypto.getRandomValues(userId);
+// (旧 生体認証ログインセクションは顔認証に統合済みのため削除)
 
-    const cred = await navigator.credentials.create({
-      publicKey: {
-        challenge: challenge,
-        rp: { name: "RIMLY", id: location.hostname },
-        user: { id: userId, name: "rimly_user", displayName: "Rimly User" },
-        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
-        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
-        timeout: 60000
-      }
-    });
-
-    const rawId = btoa(String.fromCharCode.apply(null, new Uint8Array(cred.rawId)));
-    localStorage.setItem('rimly_bio_id', rawId);
-    alert('✅ 生体認証（Face ID / Touch ID等）を登録しました！\n次回からパスワードの代わりに顔や指紋でロック解除できます。');
-  } catch (e) {
-    console.error(e);
-    alert('登録がキャンセルされたか、システムに拒否されました。');
-  }
-}
-// --- 設定画面に「生体認証の登録ボタン」を自動で作り出す魔法のコード（修正版） ---
-function addBiometricButton() {
-  const settingsTab = document.getElementById('tab-content-settings');
-  if (!settingsTab) return;
-
-  // すでにボタンがあれば重複して作らないようにする
-  if (document.getElementById('bio-reg-section')) return;
-
-  const bioSection = document.createElement('div');
-  bioSection.id = 'bio-reg-section';
-  bioSection.className = 'setup-form-group mt-4';
-  bioSection.style.cssText = 'border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;';
-
-  bioSection.innerHTML = `
-      <label style="color:var(--text-primary); font-weight:800;">生体認証ログイン</label>
-      <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Face ID や Touch ID（指紋）を登録すると、次回からパスワードを入力せずに起動できます。</p>
-      <button class="ctrl-btn btn-outline-glow" style="width:100%; padding:15px; font-size:16px;">
-        👆 この端末の生体認証（指紋/顔）を登録する
-      </button>
-    `;
-
-  // ボタンの機能として、登録関数を紐づけ
-  bioSection.querySelector('button').onclick = typeof registerBiometrics !== 'undefined' ? registerBiometrics : () => alert('エラー：登録機能が見つかりません');
-
-  // パスワード変更枠の下に自動で挿入する
-  const pwInput = document.getElementById('setting-app-pw');
-  if (pwInput && pwInput.parentNode && pwInput.parentNode.parentNode) {
-    pwInput.parentNode.parentNode.after(bioSection);
-  } else {
-    const card = settingsTab.querySelector('.team-setup-card');
-    if (card) card.appendChild(bioSection);
-  }
-}
-
-// 待たずに今すぐ実行してボタンを表示する
-addBiometricButton();
-// 念のため、1秒後にもう一度ボタンがあるかチェックしてダメ押しを作る
-setTimeout(addBiometricButton, 1000);
 
 // --- 🎤 音声入力アシスタント機能（完全版） ---
 window.addEventListener('DOMContentLoaded', () => {
@@ -2886,6 +2819,12 @@ window.flipRosterView = function (tm) {
     // 登録済みの顔がある場合、管理リンクを表示
     if (rimlyFaceAuth.hasRegisteredFaces()) {
       if (faceManageLink) faceManageLink.style.display = 'block';
+      // ✅ 自動で顔認証を起動（登録済みの顔がある場合のみ）
+      setTimeout(() => {
+        if (document.getElementById('password-screen').classList.contains('active')) {
+          btnFaceAuth.click();
+        }
+      }, 800);
     }
     // 設定画面のリスト描画
     renderFaceUserList();
