@@ -25,8 +25,12 @@ class RimlyFaceAuth {
       DETECTION_INTERVAL: 150, // 軽量化のため少し広げる
       MIN_CONFIDENCE: 0.35,
       INPUT_SIZE: 160,         // 【軽量化】モデルの入力サイズを最小にして爆速化（デフォルト416）
+      ENABLE_SCAN_EFFECT: true,// リッチなスキャンエフェクト（重い場合は false で四角枠のみ）
       MODEL_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
     };
+
+    this.lastDetection = null;
+    this.renderLoopId = null;
   }
 
   // =========================================================
@@ -121,6 +125,7 @@ class RimlyFaceAuth {
   // =========================================================
   async startCamera(videoElement) {
     this.videoEl = videoElement;
+    this.lastDetection = null;
     try {
       this.currentStream = await navigator.mediaDevices.getUserMedia({
         // 【軽量化】カメラ解像度を下げてブラウザの負荷を減らす
@@ -129,6 +134,9 @@ class RimlyFaceAuth {
       this.videoEl.srcObject = this.currentStream;
       await new Promise(r => { this.videoEl.onloadedmetadata = r; });
       await this.videoEl.play();
+      
+      this.startRenderLoop();
+      
       return true;
     } catch (e) {
       console.error('Camera error:', e);
@@ -137,12 +145,38 @@ class RimlyFaceAuth {
   }
 
   stopCamera() {
+    this.stopRenderLoop();
     if (this.currentStream) {
       this.currentStream.getTracks().forEach(t => t.stop());
       this.currentStream = null;
     }
     if (this.videoEl) this.videoEl.srcObject = null;
     this.stopDetectionLoop();
+  }
+
+  startRenderLoop() {
+    this.stopRenderLoop();
+    const loop = () => {
+      if (this.lastDetection && this.isRunning) {
+        this.drawDetection(this.lastDetection);
+      } else if (this.canvasEl) {
+        const ctx = this.canvasEl.getContext('2d');
+        ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
+      }
+      this.renderLoopId = requestAnimationFrame(loop);
+    };
+    this.renderLoopId = requestAnimationFrame(loop);
+  }
+
+  stopRenderLoop() {
+    if (this.renderLoopId) {
+      cancelAnimationFrame(this.renderLoopId);
+      this.renderLoopId = null;
+    }
+    if (this.canvasEl) {
+      const ctx = this.canvasEl.getContext('2d');
+      ctx.clearRect(0, 0, this.canvasEl.width, this.canvasEl.height);
+    }
   }
 
   stopDetectionLoop() {
@@ -253,11 +287,12 @@ class RimlyFaceAuth {
 
         if (!detection) {
           if (onStatus) onStatus('顔が見つかりません... カメラを見てください');
+          this.lastDetection = null;
           return;
         }
 
-        // 顔検出フレーム描画（軽量化のため四角い枠のみ）
-        this.drawDetection(detection);
+        // 検出結果を保持して、アニメーションループに任せる
+        this.lastDetection = detection;
 
         const match = this.findBestMatch(detection.descriptor);
         if (match) {
@@ -302,12 +337,80 @@ class RimlyFaceAuth {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     const resized = faceapi.resizeResults(detection, displaySize);
-    
-    // カスタム描画 - オレンジの枠（ドットは描画しない）
     const box = resized.detection.box;
-    ctx.strokeStyle = '#FF6B00';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    if (!this.CONFIG.ENABLE_SCAN_EFFECT) {
+      // 軽量化モード：シンプルなオレンジの枠
+      ctx.strokeStyle = '#FF6B00';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
+      return;
+    }
+
+    // リッチモード：顔の形（輪郭）に合わせてクリップし、スキャンドットを走らせる
+    ctx.save();
+    
+    // 顔の輪郭を取得
+    if (resized.landmarks) {
+      const jaw = resized.landmarks.getJawOutline();
+      const leftBrow = resized.landmarks.getLeftEyeBrow();
+      const rightBrow = resized.landmarks.getRightEyeBrow();
+      
+      // パスを作成（アゴのライン → 右眉 → 左眉 → アゴの始点）
+      ctx.beginPath();
+      ctx.moveTo(jaw[0].x, jaw[0].y);
+      for(let i=1; i<jaw.length; i++) ctx.lineTo(jaw[i].x, jaw[i].y);
+      
+      // アゴの右端から右眉の右端へ
+      ctx.lineTo(rightBrow[rightBrow.length-1].x, rightBrow[rightBrow.length-1].y);
+      for(let i=rightBrow.length-2; i>=0; i--) ctx.lineTo(rightBrow[i].x, rightBrow[i].y);
+      
+      // 左眉へ
+      for(let i=leftBrow.length-1; i>=0; i--) ctx.lineTo(leftBrow[i].x, leftBrow[i].y);
+      
+      ctx.closePath();
+
+      // 薄いオレンジの輪郭線を描画
+      ctx.strokeStyle = 'rgba(255, 107, 0, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // ここから先は顔の内部だけを描画領域（クリップ）にする
+      ctx.clip();
+    }
+
+    // ドットのスキャンライン
+    const time = Date.now();
+    const speed = 6; // スキャンスピード
+    
+    // 縦のドット列（左から右へ）
+    const scanX = (time / speed) % box.width + box.x;
+    
+    // 横のドット列（上から下へ）
+    const scanY = (time / speed) % box.height + box.y;
+
+    ctx.fillStyle = '#FF6B00';
+    ctx.shadowColor = '#FF6B00';
+    ctx.shadowBlur = 8; // 発光効果
+
+    const dotSpacing = 12; // ドットの間隔
+    const dotRadius = 2.5;
+
+    // 縦ラインを描画
+    for(let y = box.y; y < box.y + box.height; y += dotSpacing) {
+      ctx.beginPath();
+      ctx.arc(scanX, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 横ラインを描画
+    for(let x = box.x; x < box.x + box.width; x += dotSpacing) {
+      ctx.beginPath();
+      ctx.arc(x, scanY, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
   // =========================================================
