@@ -2885,7 +2885,7 @@ window.flipRosterView = function (tm) {
       // onSuccess
       (matchedUser) => {
         if (progressFill) progressFill.style.width = '100%';
-        faceOverlay.classList.remove('scanning', 'liveness-mode');
+        faceOverlay.classList.remove('scanning');
         faceOverlay.classList.add('matched');
         faceStatus.textContent = '✅ ロック解除！';
 
@@ -2894,7 +2894,7 @@ window.flipRosterView = function (tm) {
       },
       // onFail
       (failCount, reason) => {
-        faceOverlay.classList.remove('scanning', 'matched', 'liveness-mode');
+        faceOverlay.classList.remove('scanning', 'matched');
         faceStatus.textContent = `❌ ${reason} (${failCount}/${rimlyFaceAuth.MAX_FAILS})`;
         if (progressFill) progressFill.style.width = '0%';
         updateFailDots();
@@ -2931,11 +2931,9 @@ window.flipRosterView = function (tm) {
 
   function closeFaceAuth() {
     rimlyFaceAuth.stopCamera();
-    faceOverlay.classList.remove('active', 'scanning', 'matched', 'liveness-mode');
+    faceOverlay.classList.remove('active', 'scanning', 'matched');
     if (pwContainer) pwContainer.style.display = '';
     if (progressFill) progressFill.style.width = '0%';
-    const livenessInst = document.getElementById('liveness-instruction');
-    if (livenessInst) livenessInst.style.display = 'none';
   }
 
   // =========================================================
