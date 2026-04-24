@@ -2844,3 +2844,366 @@ window.flipRosterView = function (tm) {
     panel.style.transform = '';
   }, 300);
 };
+
+// ================================================================
+// 🔐 FACE AUTH UI INTEGRATION
+// 顔認証のUIイベント接続・画面遷移制御
+// ================================================================
+(function setupFaceAuthUI() {
+
+  // --- 要素取得 ---
+  const btnFaceAuth      = document.getElementById('btn-face-auth');
+  const faceOverlay      = document.getElementById('face-auth-overlay');
+  const btnFaceBack      = document.getElementById('btn-face-back');
+  const faceVideo        = document.getElementById('face-video');
+  const faceCanvas       = document.getElementById('face-canvas');
+  const faceStatus       = document.getElementById('face-status');
+  const progressFill     = document.getElementById('face-progress-fill');
+  const faceManageLink   = document.getElementById('face-manage-link');
+  const pwContainer      = document.querySelector('.pw-container');
+
+  // 登録モーダル
+  const registerOverlay  = document.getElementById('face-register-overlay');
+  const registerVideo    = document.getElementById('face-register-video');
+  const registerName     = document.getElementById('face-register-name');
+  const btnDoRegister    = document.getElementById('btn-do-register-face');
+  const btnCloseRegister = document.getElementById('btn-close-face-register');
+  const registerStatus   = document.getElementById('face-register-status');
+
+  // 設定タブ内
+  const btnRegSettings   = document.getElementById('btn-register-face-settings');
+  const faceUserList     = document.getElementById('face-user-list');
+
+  // ロック画面の顔管理ボタン
+  const btnFaceManagePw  = document.getElementById('btn-face-manage-pw');
+
+  if (!btnFaceAuth || !faceOverlay) return; // 要素がなければ何もしない
+
+  let registerStream = null; // 登録用カメラストリーム
+
+  // --- 顔認証エンジン初期化 ---
+  rimlyFaceAuth.init().then(() => {
+    // 登録済みの顔がある場合、管理リンクを表示
+    if (rimlyFaceAuth.hasRegisteredFaces()) {
+      if (faceManageLink) faceManageLink.style.display = 'block';
+    }
+    // 設定画面のリスト描画
+    renderFaceUserList();
+  }).catch(e => console.error('Face auth init error:', e));
+
+  // =========================================================
+  // 顔認証ボタン → カメラ起動 → 認証開始
+  // =========================================================
+  btnFaceAuth.addEventListener('click', async () => {
+    if (!rimlyFaceAuth.hasRegisteredFaces()) {
+      // 登録がなければ登録モーダルを開く
+      if (typeof showAlert === 'function') {
+        await showAlert('顔が登録されていません。\n先に顔を登録してください。');
+      }
+      openFaceRegisterModal();
+      return;
+    }
+
+    // PINパッドを隠して顔認証オーバーレイを表示
+    if (pwContainer) pwContainer.style.display = 'none';
+    faceOverlay.classList.add('active');
+    faceOverlay.classList.add('scanning');
+    faceOverlay.classList.remove('matched', 'liveness-mode');
+    updateFailDots();
+
+    // ステータス
+    faceStatus.textContent = 'カメラを起動中...';
+    if (progressFill) progressFill.style.width = '10%';
+
+    // カメラ起動
+    rimlyFaceAuth.canvasEl = faceCanvas;
+    const cameraOk = await rimlyFaceAuth.startCamera(faceVideo);
+    if (!cameraOk) {
+      faceStatus.textContent = '❌ カメラの起動に失敗しました';
+      if (progressFill) progressFill.style.width = '0%';
+      return;
+    }
+
+    if (progressFill) progressFill.style.width = '30%';
+
+    // 認証開始
+    rimlyFaceAuth.authenticate(
+      // onStatus
+      (msg) => {
+        faceStatus.textContent = msg;
+        if (msg.includes('認識しました')) {
+          faceOverlay.classList.remove('scanning');
+          faceOverlay.classList.add('matched');
+          if (progressFill) progressFill.style.width = '70%';
+        }
+        if (msg.includes('モデル')) {
+          if (progressFill) progressFill.style.width = '20%';
+        }
+        if (msg.includes('認識しています')) {
+          if (progressFill) progressFill.style.width = '50%';
+        }
+      },
+      // onSuccess
+      (matchedUser) => {
+        if (progressFill) progressFill.style.width = '100%';
+        faceOverlay.classList.remove('scanning', 'liveness-mode');
+        faceOverlay.classList.add('matched');
+        faceStatus.textContent = '✅ ロック解除！';
+
+        // 成功エフェクト表示
+        showFaceUnlockSuccess(matchedUser);
+      },
+      // onFail
+      (failCount, reason) => {
+        faceOverlay.classList.remove('scanning', 'matched', 'liveness-mode');
+        faceStatus.textContent = `❌ ${reason} (${failCount}/${rimlyFaceAuth.MAX_FAILS})`;
+        if (progressFill) progressFill.style.width = '0%';
+        updateFailDots();
+
+        // 再試行
+        setTimeout(() => {
+          faceOverlay.classList.add('scanning');
+          rimlyFaceAuth.authenticate(
+            (msg) => { faceStatus.textContent = msg; },
+            (user) => {
+              if (progressFill) progressFill.style.width = '100%';
+              showFaceUnlockSuccess(user);
+            },
+            (fc, r) => {
+              faceStatus.textContent = `❌ ${r} (${fc}/${rimlyFaceAuth.MAX_FAILS})`;
+              updateFailDots();
+              if (fc >= rimlyFaceAuth.MAX_FAILS) forcePINFallback();
+            },
+            () => forcePINFallback()
+          );
+        }, 1500);
+      },
+      // onForcePIN
+      () => forcePINFallback()
+    );
+  });
+
+  // =========================================================
+  // PINに戻るボタン
+  // =========================================================
+  btnFaceBack.addEventListener('click', () => {
+    closeFaceAuth();
+  });
+
+  function closeFaceAuth() {
+    rimlyFaceAuth.stopCamera();
+    faceOverlay.classList.remove('active', 'scanning', 'matched', 'liveness-mode');
+    if (pwContainer) pwContainer.style.display = '';
+    if (progressFill) progressFill.style.width = '0%';
+    const livenessInst = document.getElementById('liveness-instruction');
+    if (livenessInst) livenessInst.style.display = 'none';
+  }
+
+  // =========================================================
+  // PIN強制フォールバック
+  // =========================================================
+  function forcePINFallback() {
+    closeFaceAuth();
+    rimlyFaceAuth.resetFailCount();
+    updateFailDots();
+    const pwError = document.getElementById('pw-error');
+    if (pwError) {
+      pwError.style.color = '#EF4444';
+      pwError.textContent = '顔認証に3回失敗しました。PINを入力してください。';
+      setTimeout(() => { pwError.textContent = ''; }, 5000);
+    }
+  }
+
+  // =========================================================
+  // 失敗ドットの更新
+  // =========================================================
+  function updateFailDots() {
+    for (let i = 0; i < 3; i++) {
+      const dot = document.getElementById(`fail-dot-${i}`);
+      if (dot) {
+        if (i < rimlyFaceAuth.failCount) dot.classList.add('failed');
+        else dot.classList.remove('failed');
+      }
+    }
+  }
+
+  // =========================================================
+  // ロック解除成功エフェクト
+  // =========================================================
+  function showFaceUnlockSuccess(matchedUser) {
+    rimlyFaceAuth.stopCamera();
+
+    // 成功オーバーレイを作成
+    const successDiv = document.createElement('div');
+    successDiv.className = 'face-unlock-success';
+    successDiv.innerHTML = `
+      <div class="face-unlock-icon">🔓</div>
+      <div class="face-unlock-text">UNLOCKED</div>
+      <div class="face-unlock-user">ようこそ、${matchedUser.name} さん</div>
+    `;
+    faceOverlay.appendChild(successDiv);
+
+    // 1.2秒後にメイン画面へ遷移
+    setTimeout(() => {
+      faceOverlay.classList.remove('active', 'scanning', 'matched');
+      successDiv.remove();
+      if (pwContainer) pwContainer.style.display = '';
+      rimlyFaceAuth.resetFailCount();
+      
+      // ロック解除！
+      document.getElementById('password-screen').classList.remove('active');
+      document.getElementById('app-screen').classList.add('active');
+    }, 1200);
+  }
+
+  // =========================================================
+  // 顔登録モーダル
+  // =========================================================
+  function openFaceRegisterModal() {
+    if (!registerOverlay) return;
+    registerOverlay.classList.add('active');
+    if (registerName) registerName.value = '';
+    if (registerStatus) registerStatus.textContent = '';
+
+    // 登録用カメラ起動
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    }).then(stream => {
+      registerStream = stream;
+      if (registerVideo) {
+        registerVideo.srcObject = stream;
+        registerVideo.play();
+      }
+    }).catch(() => {
+      if (registerStatus) registerStatus.textContent = '❌ カメラの起動に失敗しました';
+    });
+  }
+
+  function closeFaceRegisterModal() {
+    if (registerStream) {
+      registerStream.getTracks().forEach(t => t.stop());
+      registerStream = null;
+    }
+    if (registerVideo) registerVideo.srcObject = null;
+    if (registerOverlay) registerOverlay.classList.remove('active');
+  }
+
+  // 登録ボタン
+  if (btnDoRegister) {
+    btnDoRegister.addEventListener('click', async () => {
+      const name = registerName ? registerName.value.trim() : '';
+      if (!name) {
+        if (registerStatus) registerStatus.textContent = 'ユーザー名を入力してください';
+        return;
+      }
+
+      btnDoRegister.disabled = true;
+      btnDoRegister.textContent = '登録中...';
+
+      try {
+        // face-api.jsのモデルとカメラを一時的にface-auth側で使う
+        rimlyFaceAuth.videoEl = registerVideo;
+        rimlyFaceAuth.canvasEl = document.getElementById('face-register-canvas');
+
+        const record = await rimlyFaceAuth.registerFace(name, (msg) => {
+          if (registerStatus) registerStatus.textContent = msg;
+        });
+
+        if (registerStatus) registerStatus.textContent = `✅ ${record.name} の顔を登録しました！`;
+        if (faceManageLink) faceManageLink.style.display = 'block';
+        renderFaceUserList();
+
+        setTimeout(() => closeFaceRegisterModal(), 1200);
+      } catch (e) {
+        if (registerStatus) registerStatus.textContent = '❌ ' + e.message;
+      } finally {
+        btnDoRegister.disabled = false;
+        btnDoRegister.textContent = '📸 この顔を登録する';
+      }
+    });
+  }
+
+  // 閉じるボタン
+  if (btnCloseRegister) {
+    btnCloseRegister.addEventListener('click', closeFaceRegisterModal);
+  }
+
+  // 設定タブの登録ボタン
+  if (btnRegSettings) {
+    btnRegSettings.addEventListener('click', () => {
+      openFaceRegisterModal();
+    });
+  }
+
+  // ロック画面の管理ボタン（PINを先に解除しないと触れない）
+  if (btnFaceManagePw) {
+    btnFaceManagePw.addEventListener('click', () => {
+      openFaceRegisterModal();
+    });
+  }
+
+  // =========================================================
+  // 設定画面：登録済み顔リストの描画
+  // =========================================================
+  function renderFaceUserList() {
+    if (!faceUserList) return;
+
+    const faces = rimlyFaceAuth.getRegisteredFaces();
+    if (faces.length === 0) {
+      faceUserList.innerHTML = '<div class="face-user-empty">登録済みの顔はありません</div>';
+      return;
+    }
+
+    faceUserList.innerHTML = '';
+    faces.forEach(face => {
+      const dateStr = new Date(face.createdAt).toLocaleDateString('ja-JP');
+      const item = document.createElement('div');
+      item.className = 'face-user-item';
+      item.innerHTML = `
+        <div class="face-user-info">
+          <div class="face-user-avatar">😊</div>
+          <div>
+            <div class="face-user-name">${face.name}</div>
+            <div class="face-user-date">登録日: ${dateStr}</div>
+          </div>
+        </div>
+        <button class="face-user-delete" data-face-id="${face.id}">🗑 削除</button>
+      `;
+      faceUserList.appendChild(item);
+    });
+
+    // 削除ボタンのイベント
+    faceUserList.querySelectorAll('.face-user-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const faceId = btn.dataset.faceId;
+        const confirmed = typeof showConfirm === 'function'
+          ? await showConfirm('この顔データを削除しますか？')
+          : confirm('この顔データを削除しますか？');
+        if (confirmed) {
+          await rimlyFaceAuth.deleteFace(faceId);
+          renderFaceUserList();
+          if (!rimlyFaceAuth.hasRegisteredFaces() && faceManageLink) {
+            faceManageLink.style.display = 'none';
+          }
+          if (typeof showPop === 'function') showPop('顔データを削除しました');
+        }
+      });
+    });
+  }
+
+  // 設定タブ切替時にリストを更新
+  const origRenderSettings = window.renderSettings || renderSettings;
+  if (typeof origRenderSettings === 'function') {
+    const _origRS = origRenderSettings;
+    window.renderSettings = function() {
+      _origRS.apply(this, arguments);
+      renderFaceUserList();
+    };
+    // グローバル参照も更新
+    if (typeof renderSettings !== 'undefined') {
+      renderSettings = window.renderSettings;
+    }
+  }
+
+})();
+

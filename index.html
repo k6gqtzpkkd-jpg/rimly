@@ -25,6 +25,15 @@
       <canvas id="rimly-canvas"></canvas>
       <div class="pw-subtitle">Professional Score Manager</div>
     </div>
+
+    <!-- 顔認証ボタン -->
+    <div class="face-auth-entry" id="face-auth-entry">
+      <button class="btn-face-auth" id="btn-face-auth">
+        <span class="face-auth-icon">😊</span>
+        <span>顔認証でロック解除</span>
+      </button>
+    </div>
+
     <div class="pw-dots">
       <div class="dot" id="dot-0"></div><div class="dot" id="dot-1"></div><div class="dot" id="dot-2"></div>
       <div class="dot" id="dot-3"></div><div class="dot" id="dot-4"></div><div class="dot" id="dot-5"></div>
@@ -35,6 +44,63 @@
       <button class="num-btn" data-n="4">4</button><button class="num-btn" data-n="5">5</button><button class="num-btn" data-n="6">6</button>
       <button class="num-btn" data-n="7">7</button><button class="num-btn" data-n="8">8</button><button class="num-btn" data-n="9">9</button>
       <div></div><button class="num-btn" data-n="0">0</button><button class="num-btn num-clear" id="pw-clear">C</button>
+    </div>
+
+    <!-- 顔登録管理リンク -->
+    <div class="face-manage-link" id="face-manage-link" style="display:none;">
+      <button class="btn-face-manage" id="btn-face-manage-pw">⚙️ 顔の登録 / 管理</button>
+    </div>
+  </div>
+
+  <!-- 顔認証オーバーレイ -->
+  <div class="face-auth-overlay" id="face-auth-overlay">
+    <div class="face-auth-header">
+      <button class="face-back-btn" id="btn-face-back">← PINに戻る</button>
+      <div class="face-fail-dots" id="face-fail-dots">
+        <span class="fail-dot" id="fail-dot-0"></span>
+        <span class="fail-dot" id="fail-dot-1"></span>
+        <span class="fail-dot" id="fail-dot-2"></span>
+      </div>
+    </div>
+    <div class="camera-container" id="camera-container">
+      <video id="face-video" autoplay playsinline muted></video>
+      <canvas id="face-canvas"></canvas>
+      <div class="face-guide-ring" id="face-guide-ring"></div>
+    </div>
+    <div class="face-status" id="face-status">準備中...</div>
+    <div class="face-progress-bar" id="face-progress-bar">
+      <div class="face-progress-fill" id="face-progress-fill"></div>
+    </div>
+    <!-- Liveness指示 -->
+    <div class="liveness-instruction" id="liveness-instruction" style="display:none;">
+      <div class="direction-arrow" id="direction-arrow">⬆️</div>
+      <div class="direction-text" id="direction-text">顔を「上」に向けてください</div>
+      <div class="liveness-timer-ring">
+        <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="timer-bg"/><circle cx="30" cy="30" r="26" class="timer-fill" id="timer-circle"/></svg>
+        <span class="liveness-timer-text" id="liveness-timer">5</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顔登録モーダル -->
+  <div class="face-register-overlay" id="face-register-overlay">
+    <div class="face-register-modal">
+      <div class="face-register-header">
+        <h3>🔐 顔の登録</h3>
+        <button class="modal-close" id="btn-close-face-register">✕</button>
+      </div>
+      <div class="face-register-body">
+        <div class="face-register-camera">
+          <video id="face-register-video" autoplay playsinline muted></video>
+          <canvas id="face-register-canvas"></canvas>
+          <div class="face-guide-ring"></div>
+        </div>
+        <div class="face-register-form">
+          <input type="text" id="face-register-name" class="glow-input" placeholder="ユーザー名を入力" />
+          <button class="ctrl-btn btn-save" id="btn-do-register-face" style="width:100%;">📸 この顔を登録する</button>
+        </div>
+        <div class="face-register-status" id="face-register-status"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -380,6 +446,13 @@
             </div>
             <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="auth-key-status-msg"></p>
           </div>
+
+          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
+            <label style="color:var(--text-primary); font-weight:800;">🔐 顔認証の管理</label>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">顔データはこの端末にのみ保存され、外部に送信されません。複数ユーザーの顔を登録できます。</p>
+            <div id="face-user-list" style="margin-bottom:12px;"></div>
+            <button class="ctrl-btn btn-outline-glow" id="btn-register-face-settings" style="width:100%; border-color:#00e676; color:#00e676;">＋ 新しい顔を登録</button>
+          </div>
         </div>
       </div>
     </div>
@@ -598,6 +671,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="face-auth.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
