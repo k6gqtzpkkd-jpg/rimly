@@ -1023,10 +1023,6 @@ function openSubstitutionModal(mode) {
     const listEl = document.getElementById('sub-list');
     listEl.innerHTML = '';
     const players = g[tm].players || [];
-    // 初期状態で誰もいないなら5名自動チェック
-    if (players.filter(p => p.isOnCourt).length === 0) {
-      players.slice(0, 5).forEach(p => p.isOnCourt = true);
-    }
 
     players.forEach(p => {
       const isOut = safeIsFoulOut(p);
