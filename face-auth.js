@@ -22,9 +22,9 @@ class RimlyFaceAuth {
     // 検知設定
     this.CONFIG = {
       MATCH_THRESHOLD: 0.6,
-      DETECTION_INTERVAL: 150, // 軽量化のため少し広げる
-      MIN_CONFIDENCE: 0.35,
-      INPUT_SIZE: 160,         // 【軽量化】モデルの入力サイズを最小にして爆速化（デフォルト416）
+      DETECTION_INTERVAL: 60, // 【レスポンス向上】150ms -> 60ms に短縮し、見つけた瞬間に即解除
+      MIN_CONFIDENCE: 0.3,
+      INPUT_SIZE: 128,        // 【レスポンス向上】モデル入力をさらに小さくし推論速度を最大化
       ENABLE_SCAN_EFFECT: true,// リッチなスキャンエフェクト（重い場合は false で四角枠のみ）
       MODEL_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
     };

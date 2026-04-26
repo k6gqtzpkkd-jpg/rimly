@@ -2980,7 +2980,7 @@ window.flipRosterView = function (tm) {
     `;
     faceOverlay.appendChild(successDiv);
 
-    // 1.2秒後にメイン画面へ遷移
+    // 0.25秒後にメイン画面へ遷移（ネイティブFace ID並みの速度にするため短縮）
     setTimeout(() => {
       faceOverlay.classList.remove('active', 'scanning', 'matched');
       successDiv.remove();
@@ -2990,7 +2990,7 @@ window.flipRosterView = function (tm) {
       // ロック解除！
       document.getElementById('password-screen').classList.remove('active');
       document.getElementById('app-screen').classList.add('active');
-    }, 1200);
+    }, 250);
   }
 
   // =========================================================
@@ -3004,7 +3004,7 @@ window.flipRosterView = function (tm) {
 
     // 登録用カメラ起動
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+      video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }
     }).then(stream => {
       registerStream = stream;
       if (registerVideo) {
