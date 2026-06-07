@@ -3199,7 +3199,7 @@ function drawCourt(canvas) {
   const W = canvas.width, H = canvas.height;
 
   // 背景（ウッドっぽいグラデーション）
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  const bg = ctx.createLinearGradient(0, 0, W, 0);
   bg.addColorStop(0, '#2a1a0a');
   bg.addColorStop(1, '#1a0f05');
   ctx.fillStyle = bg;
@@ -3211,66 +3211,82 @@ function drawCourt(canvas) {
   ctx.lineCap = 'round';
 
   const m = 20; // マージン
+  const cw = W - m * 2;
+  const ch = H - m * 2;
 
   // 外枠
-  ctx.strokeRect(m, m, W - m * 2, H - m * 2);
+  ctx.strokeRect(m, m, cw, ch);
 
-  // センターライン（横）
-  const cy = H / 2;
-  ctx.beginPath(); ctx.moveTo(m, cy); ctx.lineTo(W - m, cy); ctx.stroke();
+  // センターライン（縦）
+  const cx = W / 2;
+  ctx.beginPath(); ctx.moveTo(cx, m); ctx.lineTo(cx, H - m); ctx.stroke();
 
   // センターサークル
-  const cr = Math.min(W, H) * 0.1;
-  ctx.beginPath(); ctx.arc(W / 2, cy, cr, 0, Math.PI * 2); ctx.stroke();
+  const cr = Math.min(cw, ch) * 0.15;
+  ctx.beginPath(); ctx.arc(cx, H / 2, cr, 0, Math.PI * 2); ctx.stroke();
 
-  // ゴールのサイズ
-  const paintW = W * 0.38;
-  const paintH = H * 0.22;
-  const threeR = W * 0.38;
+  // ゴールのサイズ (横向き)
+  const paintW = cw * 0.2;
+  const paintH = ch * 0.38;
+  const threeR = Math.min(cw, ch) * 0.45;
 
-  // ---- 上のゴール（HOME）----
-  const topY = m;
+  const centerY = H / 2;
+
+  // ---- 左のゴール（HOME）----
+  const leftX = m;
   // ペイントエリア
-  ctx.strokeRect(W / 2 - paintW / 2, topY, paintW, paintH);
-  // フリースローライン
+  ctx.strokeRect(leftX, centerY - paintH / 2, paintW, paintH);
+  // フリースローラインの半円（右側に出る）
   ctx.beginPath();
-  ctx.moveTo(W / 2 - paintW / 2, topY + paintH);
-  ctx.lineTo(W / 2 + paintW / 2, topY + paintH);
+  ctx.arc(leftX + paintW, centerY, paintH / 2, -Math.PI / 2, Math.PI / 2);
   ctx.stroke();
   // 3ポイントライン
   ctx.beginPath();
-  ctx.arc(W / 2, topY, threeR, 0.1 * Math.PI, 0.9 * Math.PI);
+  ctx.arc(leftX, centerY, threeR, -Math.PI * 0.35, Math.PI * 0.35);
   ctx.stroke();
   // ゴール点
   ctx.beginPath();
-  ctx.arc(W / 2, topY + H * 0.03, 5, 0, Math.PI * 2);
+  ctx.arc(leftX + cw * 0.04, centerY, 5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,200,130,0.7)';
   ctx.fill();
 
-  // ---- 下のゴール（AWAY）----
-  const botY = H - m;
+  // ---- 右のゴール（AWAY）----
+  const rightX = W - m;
   ctx.strokeStyle = 'rgba(255,200,130,0.55)';
-  ctx.strokeRect(W / 2 - paintW / 2, botY - paintH, paintW, paintH);
+  // ペイントエリア
+  ctx.strokeRect(rightX - paintW, centerY - paintH / 2, paintW, paintH);
+  // フリースローラインの半円（左側に出る）
   ctx.beginPath();
-  ctx.moveTo(W / 2 - paintW / 2, botY - paintH);
-  ctx.lineTo(W / 2 + paintW / 2, botY - paintH);
+  ctx.arc(rightX - paintW, centerY, paintH / 2, Math.PI / 2, Math.PI * 1.5);
   ctx.stroke();
+  // 3ポイントライン
   ctx.beginPath();
-  ctx.arc(W / 2, botY, threeR, 1.1 * Math.PI, 1.9 * Math.PI);
+  ctx.arc(rightX, centerY, threeR, Math.PI * 0.65, Math.PI * 1.35);
   ctx.stroke();
+  // ゴール点
   ctx.beginPath();
-  ctx.arc(W / 2, botY - H * 0.03, 5, 0, Math.PI * 2);
+  ctx.arc(rightX - cw * 0.04, centerY, 5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,200,130,0.7)';
   ctx.fill();
 
   // HOME / AWAY ラベル
   ctx.fillStyle = 'rgba(255,107,0,0.4)';
-  ctx.font = `bold ${Math.max(11, W * 0.03)}px "Inter"`;
+  ctx.font = `bold ${Math.max(12, ch * 0.06)}px "Inter"`;
   ctx.textAlign = 'center';
-  ctx.fillText('HOME', W / 2, topY + paintH + H * 0.07);
+  ctx.textBaseline = 'middle';
+  
+  ctx.save();
+  ctx.translate(leftX + paintW + cw * 0.05, centerY);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('HOME', 0, 0);
+  ctx.restore();
 
   ctx.fillStyle = 'rgba(59,130,246,0.4)';
-  ctx.fillText('AWAY', W / 2, botY - paintH - H * 0.03);
+  ctx.save();
+  ctx.translate(rightX - paintW - cw * 0.05, centerY);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillText('AWAY', 0, 0);
+  ctx.restore();
 }
 
 /* --- チーム選択 --- */
@@ -3336,11 +3352,11 @@ function addPlayerToCourt(id, num, name, team) {
   const wrap = document.getElementById('tactics-court-wrap');
   const rect = wrap.getBoundingClientRect();
 
-  // スタートポジション（コート中央付近にランダム配置）
-  const startX = rect.width * 0.3 + Math.random() * rect.width * 0.4;
-  const startY = team === 'home'
-    ? rect.height * 0.2 + Math.random() * rect.height * 0.2
-    : rect.height * 0.6 + Math.random() * rect.height * 0.2;
+  // スタートポジション（横向きコートなので、左がHOME・右がAWAY）
+  const startY = rect.height * 0.3 + Math.random() * rect.height * 0.4;
+  const startX = team === 'home'
+    ? rect.width * 0.15 + Math.random() * rect.width * 0.2
+    : rect.width * 0.65 + Math.random() * rect.width * 0.2;
 
   const playerEl = document.createElement('div');
   playerEl.className = `tact-player ${team}`;
