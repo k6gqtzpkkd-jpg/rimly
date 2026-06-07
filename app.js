@@ -3338,10 +3338,6 @@ function renderTacticsPalette() {
 
     if (!isOnCourt) {
       el.addEventListener('click', () => addPlayerToCourt(p.id, p.num, p.name || '', team));
-      el.addEventListener('touchend', e => {
-        e.preventDefault();
-        addPlayerToCourt(p.id, p.num, p.name || '', team);
-      }, { passive: false });
     }
     list.appendChild(el);
   });
@@ -3362,7 +3358,6 @@ function renderTacticsPalette() {
   };
 
   customEl.addEventListener('click', handleCustomAdd);
-  customEl.addEventListener('touchend', handleCustomAdd, { passive: false });
   list.appendChild(customEl);
 }
 
