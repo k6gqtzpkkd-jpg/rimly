@@ -66,6 +66,8 @@
       <video id="face-video" autoplay playsinline muted></video>
       <canvas id="face-canvas"></canvas>
       <div class="face-guide-ring" id="face-guide-ring"></div>
+      <div class="scan-line-horizontal"></div>
+      <div class="scan-line-vertical"></div>
     </div>
     <div class="face-status" id="face-status">準備中...</div>
     <div class="face-progress-bar" id="face-progress-bar">
@@ -107,6 +109,10 @@
       <button class="tab-btn" data-tab="history">
         <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
         <span>履歴/AI</span>
+      </button>
+      <button class="tab-btn" data-tab="tactics">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+        <span>作戦板</span>
       </button>
       <button class="tab-btn" data-tab="settings">
         <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.73 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
@@ -184,6 +190,10 @@
           <button class="q-btn" id="q-next">▶</button>
           
           <div class="qbar-actions">
+            <button class="ctrl-btn btn-game-vision" id="btn-open-game-vision" title="AIカメラ自動入力">
+              <span style="font-size:18px;">📷</span>
+              <span class="gv-btn-label">AI入力</span>
+            </button>
             <button class="ctrl-btn btn-danger" id="btn-end-match">試合終了 / 保存</button>
           </div>
         </div>
@@ -351,7 +361,36 @@
       </div>
     </div>
 
-    <!-- 7) SETTINGS TAB -->
+    <!-- 7) TACTICS BOARD TAB -->
+    <div id="tab-content-tactics" class="tab-content">
+      <div class="tactics-container">
+        <!-- ツールバー -->
+        <div class="tactics-toolbar">
+          <div class="tactics-team-selector">
+            <button class="tact-btn tact-btn-home active" id="tact-team-home">🟠 HOME</button>
+            <button class="tact-btn tact-btn-away" id="tact-team-away">🔵 AWAY</button>
+          </div>
+          <div class="tactics-actions">
+            <button class="tact-btn tact-btn-draw" id="tact-draw-mode">✏️ 線を引く</button>
+            <button class="tact-btn tact-btn-erase" id="tact-btn-undo">↩ 戻す</button>
+            <button class="tact-btn tact-btn-danger" id="tact-btn-clear">🗑 リセット</button>
+          </div>
+        </div>
+        <!-- コートエリア -->
+        <div class="tactics-court-wrap" id="tactics-court-wrap">
+          <canvas id="tactics-bg-canvas"></canvas>
+          <canvas id="tactics-draw-canvas"></canvas>
+          <div id="tactics-players" class="tactics-players-layer"></div>
+        </div>
+        <!-- 選手パレット -->
+        <div class="tactics-palette" id="tactics-palette">
+          <div class="tactics-palette-label">タップで選手をコートに追加</div>
+          <div class="tactics-palette-list" id="tactics-palette-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8) SETTINGS TAB -->
     <div id="tab-content-settings" class="tab-content">
       <div class="setup-container">
         <div class="setup-header-text">
@@ -648,12 +687,77 @@
         <video id="face-register-video" autoplay playsinline muted></video>
         <canvas id="face-register-canvas"></canvas>
         <div class="face-guide-ring"></div>
+        <div class="scan-line-horizontal"></div>
+        <div class="scan-line-vertical"></div>
       </div>
       <div class="face-register-form">
         <input type="text" id="face-register-name" class="glow-input" placeholder="ユーザー名を入力" />
         <button class="ctrl-btn btn-save" id="btn-do-register-face" style="width:100%;">📸 この顔を登録する</button>
       </div>
       <div class="face-register-status" id="face-register-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ AI GAME VISION MODAL -->
+<div class="modal-overlay" id="overlay-game-vision" style="z-index: 99990;">
+  <div class="modal-box modal-lg" id="modal-game-vision" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:22px;">📷</span>
+        <span>AI カメラ自動入力</span>
+      </h3>
+      <button class="modal-close" id="btn-close-game-vision">✕</button>
+    </div>
+    <div class="modal-body" style="padding-bottom:0;">
+
+      <!-- カメラ表示エリア -->
+      <div id="game-vision-camera-wrap" style="position:relative; border-radius:12px; overflow:hidden; background:#000; margin-bottom:14px;">
+        <video id="game-vision-video" autoplay playsinline muted style="width:100%; display:block; border-radius:12px;"></video>
+        <canvas id="game-vision-canvas" style="display:none;"></canvas>
+
+        <!-- スキャン枠オーバーレイ -->
+        <div id="game-vision-scan-overlay" style="position:absolute;inset:0;pointer-events:none;display:none;">
+          <div style="position:absolute;inset:0;border:3px solid var(--orange);border-radius:12px;animation:visionPulse 1.5s ease-in-out infinite;"></div>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--orange);font-size:13px;font-weight:800;text-shadow:0 0 10px rgba(255,100,0,0.8);letter-spacing:1px;">AI 解析中...</div>
+        </div>
+      </div>
+
+      <!-- ボタン行 -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <button class="ctrl-btn btn-mega-glow" id="btn-game-vision-capture" style="flex:1;font-size:16px;padding:14px;">
+          📸 撮影して解析
+        </button>
+        <label class="ctrl-btn btn-outline-glow" style="flex:0 0 auto;padding:14px 16px;cursor:pointer;font-size:13px;text-align:center;line-height:1.3;">
+          🖼️<br>写真
+          <input type="file" id="game-vision-file-input" accept="image/*" capture="environment" style="display:none;" />
+        </label>
+      </div>
+
+      <!-- AI解析結果エリア -->
+      <div id="game-vision-result" style="display:none;">
+        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
+          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:700;">🤖 AI の解析結果</div>
+          <div id="game-vision-description" style="font-size:14px;color:var(--text-primary);background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.2);border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.5;"></div>
+
+          <div id="game-vision-events-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <div style="display:flex;gap:10px;padding-bottom:16px;">
+          <button class="ctrl-btn btn-outline-glow" id="btn-game-vision-retry" style="flex:1;">
+            🔄 撮り直す
+          </button>
+          <button class="ctrl-btn btn-mega-glow" id="btn-game-vision-apply" style="flex:2;font-size:15px;" disabled>
+            ✅ 記録を適用する
+          </button>
+        </div>
+      </div>
+
+      <!-- ヒントテキスト -->
+      <div id="game-vision-hint" style="color:var(--text-muted);font-size:12px;text-align:center;padding-bottom:16px;line-height:1.6;">
+        💡 得点やファウルの瞬間を撮影してください。<br>
+        背番号が見えると精度が上がります。
+      </div>
     </div>
   </div>
 </div>

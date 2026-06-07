@@ -22,10 +22,11 @@ class RimlyFaceAuth {
     // 検知設定
     this.CONFIG = {
       MATCH_THRESHOLD: 0.6,
-      DETECTION_INTERVAL: 60, // 【レスポンス向上】150ms -> 60ms に短縮し、見つけた瞬間に即解除
+      DETECTION_INTERVAL: 150, // 負荷軽減のため150msに変更
       MIN_CONFIDENCE: 0.3,
-      INPUT_SIZE: 128,        // 【レスポンス向上】モデル入力をさらに小さくし推論速度を最大化
-      ENABLE_SCAN_EFFECT: true,// リッチなスキャンエフェクト（重い場合は false で四角枠のみ）
+      INPUT_SIZE: 128,
+      ENABLE_SCAN_EFFECT: true,
+
       MODEL_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
     };
 
@@ -276,6 +277,8 @@ class RimlyFaceAuth {
     this.matchedUser = null;
     if (onStatus) onStatus('顔を認識しています...');
 
+    const startTime = Date.now();
+
     this.detectionLoop = setInterval(async () => {
       if (!this.isRunning) return;
 
@@ -295,8 +298,18 @@ class RimlyFaceAuth {
         this.lastDetection = detection;
 
         const match = this.findBestMatch(detection.descriptor);
+        
+        // 認証にかかった時間を計算
+        const elapsed = Date.now() - startTime;
+        
         if (match) {
-          // マッチ成功！即座にロック解除
+          // 最低でも800msはスキャンエフェクトを見せる
+          if (elapsed < 800) {
+            if (onStatus) onStatus('スキャン中...');
+            return; // まだ成功判定を出さない
+          }
+          
+          // マッチ成功！ロック解除
           this.matchedUser = match.face;
           this.stopDetectionLoop();
           if (onStatus) onStatus(`✅ ${match.face.name} さんの顔を認識しました！`);

@@ -1892,15 +1892,7 @@ async function openAI(h) {
       body: JSON.stringify({ matchData: h })
     });
 
-    const contentType = res.headers.get('content-type');
-    let data;
-    if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      throw new Error(res.ok ? 'JSONフォーマットではありません' : 'サーバーエラー (タイムアウト等) が発生しました。もう一度お試しください。');
-    }
-
+    const data = await res.json();
     const resultBox = document.getElementById('gemini-analysis-result');
     if (!resultBox) return; // モーダルが閉じられた場合
 

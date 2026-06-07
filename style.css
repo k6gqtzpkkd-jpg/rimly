@@ -2629,9 +2629,9 @@ button,
 .camera-container {
   position: relative;
   width: 100%;
-  max-width: 320px;
-  height: 240px;
-  border-radius: 16px;
+  max-width: 240px;
+  height: 320px;
+  border-radius: 50%; /* 顔の形（オーバル） */
   overflow: hidden;
   background: #000;
   border: 3px solid rgba(255, 107, 0, 0.3);
@@ -2642,7 +2642,7 @@ button,
 .camera-container video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   transform: scaleX(-1);
 }
 
@@ -2659,7 +2659,7 @@ button,
   position: absolute;
   inset: 15px;
   border: 2px dashed rgba(255, 107, 0, 0.3);
-  border-radius: 8px;
+  border-radius: 50%;
   pointer-events: none;
   animation: guideRingPulse 2s ease-in-out infinite;
 }
@@ -2675,20 +2675,48 @@ button,
   box-shadow: 0 0 60px rgba(255, 107, 0, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.5);
 }
 
-.face-auth-overlay.scanning .camera-container::after {
-  content: '';
+/* --- ドットのスキャンライン追加 --- */
+.scan-line-horizontal {
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(from 0deg, transparent, rgba(255, 107, 0, 0.3), transparent);
-  animation: scanRotate 2s linear infinite;
-  pointer-events: none;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-image: radial-gradient(circle, var(--orange) 40%, transparent 40%);
+  background-size: 10px 4px; /* 横に並んだドット */
+  background-repeat: repeat-x;
+  animation: scanDown 2s linear infinite alternate;
+  display: none;
+  z-index: 5;
 }
 
-@keyframes scanRotate {
-  to { transform: rotate(360deg); }
+.scan-line-vertical {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-image: radial-gradient(circle, var(--orange) 40%, transparent 40%);
+  background-size: 4px 10px; /* 縦に並んだドット */
+  background-repeat: repeat-y;
+  animation: scanRight 2s linear infinite alternate;
+  display: none;
+  z-index: 5;
+}
+
+.face-auth-overlay.scanning .scan-line-horizontal,
+.face-auth-overlay.scanning .scan-line-vertical,
+.face-register-overlay.scanning .scan-line-horizontal,
+.face-register-overlay.scanning .scan-line-vertical {
+  display: block;
+}
+
+@keyframes scanDown {
+  0% { top: 5%; }
+  100% { top: 95%; }
+}
+
+@keyframes scanRight {
+  0% { left: 5%; }
+  100% { left: 95%; }
 }
 
 /* Success state */
@@ -2782,8 +2810,9 @@ button,
 .face-register-camera {
   position: relative;
   width: 100%;
-  height: 240px;
-  border-radius: 16px;
+  max-width: 240px;
+  height: 320px;
+  border-radius: 50%;
   overflow: hidden;
   background: #000;
   border: 3px solid rgba(0, 230, 118, 0.3);
@@ -2793,7 +2822,7 @@ button,
 .face-register-camera video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   transform: scaleX(-1);
 }
 
@@ -2931,4 +2960,522 @@ button,
   font-size: 14px;
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+/* ================================================================
+   TACTICS BOARD – 作戦板
+   ================================================================ */
+
+.tactics-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ツールバー */
+.tactics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tactics-team-selector {
+  display: flex;
+  gap: 6px;
+}
+
+.tactics-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tact-btn {
+  padding: 7px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tact-btn-home {
+  border-color: rgba(255,107,0,0.35);
+  color: var(--orange);
+}
+.tact-btn-home.active {
+  background: rgba(255,107,0,0.18);
+  border-color: var(--orange);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+
+.tact-btn-away {
+  border-color: rgba(59,130,246,0.35);
+  color: var(--blue);
+}
+.tact-btn-away.active {
+  background: rgba(59,130,246,0.18);
+  border-color: var(--blue);
+  box-shadow: 0 0 12px var(--blue-glow);
+}
+
+.tact-btn-draw {
+  border-color: rgba(100,210,255,0.4);
+  color: #64d2ff;
+}
+.tact-btn-draw.active {
+  background: rgba(100,210,255,0.15);
+  border-color: #64d2ff;
+  box-shadow: 0 0 12px rgba(100,210,255,0.3);
+}
+
+.tact-btn-erase {
+  border-color: rgba(255,200,0,0.3);
+  color: #ffc82a;
+}
+.tact-btn-erase:hover {
+  background: rgba(255,200,0,0.1);
+  border-color: #ffc82a;
+}
+
+.tact-btn-danger {
+  border-color: rgba(239,68,68,0.3);
+  color: var(--red);
+}
+.tact-btn-danger:hover {
+  background: var(--red-dim);
+  border-color: var(--red);
+}
+
+/* コートラッパー */
+.tactics-court-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.tactics-court-wrap canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#tactics-bg-canvas { z-index: 1; }
+#tactics-draw-canvas { z-index: 2; }
+
+/* 選手レイヤー */
+.tactics-players-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* 選手コマ */
+.tact-player {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: grab;
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  touch-action: none;
+  transition: box-shadow 0.15s;
+  border: 3px solid rgba(255,255,255,0.25);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  z-index: 10;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tact-player:active { cursor: grabbing; }
+
+.tact-player.home {
+  background: radial-gradient(circle at 35% 35%, #FF8C35, #c24200);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(255,107,0,0.5), 0 0 0 2px rgba(255,107,0,0.5);
+}
+
+.tact-player.away {
+  background: radial-gradient(circle at 35% 35%, #60a5fa, #1447c2);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(59,130,246,0.5), 0 0 0 2px rgba(59,130,246,0.5);
+}
+
+.tact-player.selected {
+  box-shadow: 0 0 0 4px #fff, 0 4px 20px rgba(255,255,255,0.4) !important;
+  z-index: 20;
+}
+
+.tact-player .tact-player-name {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  pointer-events: none;
+}
+
+/* 選手パレット（ベンチ）*/
+.tactics-palette {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.tactics-palette-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.tactics-palette-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tact-palette-item {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 18px;
+  cursor: pointer;
+  border: 2.5px solid rgba(255,255,255,0.2);
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tact-palette-item:active {
+  transform: scale(0.88);
+}
+
+.tact-palette-item.home {
+  background: radial-gradient(circle at 35% 35%, #FF8C35, #c24200);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(255,107,0,0.4);
+}
+
+.tact-palette-item.away {
+  background: radial-gradient(circle at 35% 35%, #60a5fa, #1447c2);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(59,130,246,0.4);
+}
+
+.tact-palette-item.on-court {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tact-palette-item.on-court::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-family: sans-serif;
+  background: rgba(0,0,0,0.45);
+  border-radius: 50%;
+  color: #fff;
+}
+
+/* 描画モード中のカーソル */
+.tactics-court-wrap.draw-mode #tactics-draw-canvas {
+  cursor: crosshair;
+}
+
+/* 削除ボタン（選手コマ右上） */
+.tact-player-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 1.5px solid #000;
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 30;
+  line-height: 1;
+  font-weight: 900;
+}
+
+/* ================================================================
+   AI GAME VISION – カメラ自動入力機能
+   ================================================================ */
+
+/* スコアボードのAI入力ボタン */
+.btn-game-vision {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.15), rgba(255, 140, 53, 0.1));
+  border: 1.5px solid rgba(255, 107, 0, 0.5);
+  border-radius: 10px;
+  color: var(--orange);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 0 14px rgba(255, 107, 0, 0.12);
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  white-space: nowrap;
+}
+
+.btn-game-vision:hover {
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.28), rgba(255, 140, 53, 0.2));
+  border-color: var(--orange);
+  box-shadow: 0 0 22px rgba(255, 107, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-game-vision:active {
+  transform: scale(0.95);
+}
+
+/* AI解析中のパルスアニメ */
+@keyframes visionPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.5), inset 0 0 0 0 rgba(255, 107, 0, 0.1); opacity: 0.9; }
+  50% { box-shadow: 0 0 0 8px rgba(255, 107, 0, 0), inset 0 0 20px rgba(255, 107, 0, 0.08); opacity: 1; }
+}
+
+/* イベントカード（解析結果表示） */
+.gv-event-card {
+  background: var(--bg-card2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gv-event-card.selected {
+  border-color: var(--orange);
+  box-shadow: 0 0 16px rgba(255, 107, 0, 0.2);
+  background: rgba(255, 107, 0, 0.06);
+}
+
+.gv-event-card.selected-foul {
+  border-color: var(--red);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.gv-event-card.rejected {
+  opacity: 0.35;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.gv-event-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.gv-event-icon.score-icon {
+  background: rgba(255, 107, 0, 0.12);
+}
+
+.gv-event-icon.foul-icon {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.gv-event-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gv-event-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gv-event-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.gv-event-badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+.gv-badge-score {
+  background: rgba(255, 107, 0, 0.18);
+  color: var(--orange);
+  border: 1px solid rgba(255, 107, 0, 0.3);
+}
+
+.gv-badge-foul {
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.gv-badge-unknown {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+/* 確信度バー */
+.gv-confidence-bar {
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.gv-confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.gv-confidence-fill.high { background: #00e676; }
+.gv-confidence-fill.mid  { background: #facc15; }
+.gv-confidence-fill.low  { background: var(--red); }
+
+/* 選択トグルボタン（採用/除外） */
+.gv-toggle-btn {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 16px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.gv-toggle-btn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.gv-toggle-btn.on {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: rgba(255, 107, 0, 0.1);
+}
+
+.gv-toggle-btn.on-foul {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ローディングスピナー */
+.gv-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 0;
+}
+
+.gv-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 107, 0, 0.15);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: gvSpin 0.9s linear infinite;
+}
+
+@keyframes gvSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* キャプチャされた静止画プレビュー */
+#game-vision-preview-img {
+  width: 100%;
+  border-radius: 12px;
+  display: none;
+  margin-bottom: 14px;
+}
+
+/* モバイルではラベル非表示 */
+@media (max-width: 400px) {
+  .gv-btn-label { display: none; }
+  .btn-game-vision { padding: 8px 10px; }
 }
