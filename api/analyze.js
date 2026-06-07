@@ -16,8 +16,28 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing match data' });
     }
 
-    // 高速化のためモデルリストの動的取得を廃止し、gemini-1.5-flashを直指定
-    const selectedModelId = "gemini-1.5-flash";
+    // 環境・地域・APIキーによって利用可能なモデルが異なるため、動的にリストを取得して最適なものを選択する
+    let selectedModelId = "gemini-1.5-flash"; // デフォルト
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        if (listData.models && Array.isArray(listData.models)) {
+          const validModels = listData.models.filter(m =>
+            m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
+          );
+          const flashModel = validModels.find(m => m.name.toLowerCase().includes('flash'));
+          const proModel = validModels.find(m => m.name.toLowerCase().includes('pro'));
+
+          if (flashModel) selectedModelId = flashModel.name.replace('models/', '');
+          else if (proModel) selectedModelId = proModel.name.replace('models/', '');
+          else if (validModels.length > 0) selectedModelId = validModels[0].name.replace('models/', '');
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch models list, falling back to default", e);
+    }
+
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: selectedModelId });
 
