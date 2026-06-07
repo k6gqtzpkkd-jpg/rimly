@@ -365,6 +365,7 @@ function switchTab(t) {
   if (t === 'teams') renderTeamsTab();
   if (t === 'plays' || t === 'fouls') renderLogs();
   if (t === 'settings') renderSettings();
+  if (t === 'tactics') initTacticsBoard();
 
   if (typeof saveActiveMatchState === 'function') saveActiveMatchState();
 }
@@ -2999,25 +3000,19 @@ window.flipRosterView = function (tm) {
     if (registerStatus) registerStatus.textContent = '';
 
     // 登録用カメラ起動
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }
-    }).then(stream => {
-      registerStream = stream;
-      if (registerVideo) {
-        registerVideo.srcObject = stream;
-        registerVideo.play();
+    rimlyFaceAuth.canvasEl = document.getElementById('face-register-canvas');
+    rimlyFaceAuth.startCamera(registerVideo).then(ok => {
+      if (ok) {
+        // 顔スキャン枠を常にプレビュー表示するループを開始
+        rimlyFaceAuth.startPreviewLoop();
+      } else {
+        if (registerStatus) registerStatus.textContent = '❌ カメラの起動に失敗しました';
       }
-    }).catch(() => {
-      if (registerStatus) registerStatus.textContent = '❌ カメラの起動に失敗しました';
     });
   }
 
   function closeFaceRegisterModal() {
-    if (registerStream) {
-      registerStream.getTracks().forEach(t => t.stop());
-      registerStream = null;
-    }
-    if (registerVideo) registerVideo.srcObject = null;
+    rimlyFaceAuth.stopCamera();
     if (registerOverlay) registerOverlay.classList.remove('active');
   }
 
@@ -3034,10 +3029,9 @@ window.flipRosterView = function (tm) {
       btnDoRegister.textContent = '登録中...';
 
       try {
-        // face-api.jsのモデルとカメラを一時的にface-auth側で使う
-        rimlyFaceAuth.videoEl = registerVideo;
-        rimlyFaceAuth.canvasEl = document.getElementById('face-register-canvas');
-
+        // プレビューループを停止して登録処理へ
+        rimlyFaceAuth.stopDetectionLoop();
+        
         const record = await rimlyFaceAuth.registerFace(name, (msg) => {
           if (registerStatus) registerStatus.textContent = msg;
         });
@@ -3140,3 +3134,583 @@ window.flipRosterView = function (tm) {
 
 })();
 
+/* ================================================================
+   TACTICS BOARD (作戦板) ロジック
+   ================================================================ */
+
+let tacticsState = {
+  initialized: false,
+  activeTeam: 'home',       // 'home' | 'away'
+  drawMode: false,
+  playersOnCourt: [],       // { id, num, name, team, x, y, el }
+  strokes: [],              // [{points:[{x,y}], color, width}]
+  currentStroke: null,
+  canvasW: 0,
+  canvasH: 0,
+};
+
+function initTacticsBoard() {
+  const wrap = document.getElementById('tactics-court-wrap');
+  if (!wrap) return;
+
+  // サイズ設定（毎回実行してリサイズに対応）
+  const rect = wrap.getBoundingClientRect();
+  tacticsState.canvasW = rect.width;
+  tacticsState.canvasH = rect.height;
+
+  const bgCanvas = document.getElementById('tactics-bg-canvas');
+  const drawCanvas = document.getElementById('tactics-draw-canvas');
+
+  bgCanvas.width = rect.width;
+  bgCanvas.height = rect.height;
+  drawCanvas.width = rect.width;
+  drawCanvas.height = rect.height;
+
+  drawCourt(bgCanvas);
+
+  // 初回のみイベントをバインド
+  if (!tacticsState.initialized) {
+    tacticsState.initialized = true;
+    setupTacticsEvents();
+  }
+
+  // チームボタン
+  document.getElementById('tact-team-home').onclick = () => setTacticsTeam('home');
+  document.getElementById('tact-team-away').onclick = () => setTacticsTeam('away');
+  document.getElementById('tact-draw-mode').onclick = toggleDrawMode;
+  document.getElementById('tact-btn-undo').onclick = undoLastStroke;
+  document.getElementById('tact-btn-clear').onclick = clearTacticsBoard;
+
+  renderTacticsPalette();
+  redrawStrokes();
+}
+
+/* --- コート描画 --- */
+function drawCourt(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // 背景（ウッドっぽいグラデーション）
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#2a1a0a');
+  bg.addColorStop(1, '#1a0f05');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // コートのラインカラー
+  ctx.strokeStyle = 'rgba(255,200,130,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+
+  const m = 20; // マージン
+
+  // 外枠
+  ctx.strokeRect(m, m, W - m * 2, H - m * 2);
+
+  // センターライン（横）
+  const cy = H / 2;
+  ctx.beginPath(); ctx.moveTo(m, cy); ctx.lineTo(W - m, cy); ctx.stroke();
+
+  // センターサークル
+  const cr = Math.min(W, H) * 0.1;
+  ctx.beginPath(); ctx.arc(W / 2, cy, cr, 0, Math.PI * 2); ctx.stroke();
+
+  // ゴールのサイズ
+  const paintW = W * 0.38;
+  const paintH = H * 0.22;
+  const threeR = W * 0.38;
+
+  // ---- 上のゴール（HOME）----
+  const topY = m;
+  // ペイントエリア
+  ctx.strokeRect(W / 2 - paintW / 2, topY, paintW, paintH);
+  // フリースローライン
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - paintW / 2, topY + paintH);
+  ctx.lineTo(W / 2 + paintW / 2, topY + paintH);
+  ctx.stroke();
+  // 3ポイントライン
+  ctx.beginPath();
+  ctx.arc(W / 2, topY, threeR, 0.1 * Math.PI, 0.9 * Math.PI);
+  ctx.stroke();
+  // ゴール点
+  ctx.beginPath();
+  ctx.arc(W / 2, topY + H * 0.03, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,200,130,0.7)';
+  ctx.fill();
+
+  // ---- 下のゴール（AWAY）----
+  const botY = H - m;
+  ctx.strokeStyle = 'rgba(255,200,130,0.55)';
+  ctx.strokeRect(W / 2 - paintW / 2, botY - paintH, paintW, paintH);
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - paintW / 2, botY - paintH);
+  ctx.lineTo(W / 2 + paintW / 2, botY - paintH);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(W / 2, botY, threeR, 1.1 * Math.PI, 1.9 * Math.PI);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(W / 2, botY - H * 0.03, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,200,130,0.7)';
+  ctx.fill();
+
+  // HOME / AWAY ラベル
+  ctx.fillStyle = 'rgba(255,107,0,0.4)';
+  ctx.font = `bold ${Math.max(11, W * 0.03)}px "Inter"`;
+  ctx.textAlign = 'center';
+  ctx.fillText('HOME', W / 2, topY + paintH + H * 0.07);
+
+  ctx.fillStyle = 'rgba(59,130,246,0.4)';
+  ctx.fillText('AWAY', W / 2, botY - paintH - H * 0.03);
+}
+
+/* --- チーム選択 --- */
+function setTacticsTeam(team) {
+  tacticsState.activeTeam = team;
+  document.getElementById('tact-team-home').classList.toggle('active', team === 'home');
+  document.getElementById('tact-team-away').classList.toggle('active', team === 'away');
+  renderTacticsPalette();
+}
+
+/* --- 描画モード切替 --- */
+function toggleDrawMode() {
+  tacticsState.drawMode = !tacticsState.drawMode;
+  const btn = document.getElementById('tact-draw-mode');
+  btn.classList.toggle('active', tacticsState.drawMode);
+  const wrap = document.getElementById('tactics-court-wrap');
+  wrap.classList.toggle('draw-mode', tacticsState.drawMode);
+}
+
+/* --- パレット（ベンチ）描画 --- */
+function renderTacticsPalette() {
+  const list = document.getElementById('tactics-palette-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const g = appState.game;
+  const team = tacticsState.activeTeam;
+
+  // 試合中かどうかで選手リスト取得先を変える
+  let players = [];
+  if (appState.isGameActive && g[team] && g[team].players.length > 0) {
+    players = g[team].players;
+  } else {
+    // 試合前でもデモ用に番号コマを表示する
+    for (let i = 1; i <= 10; i++) {
+      players.push({ id: `demo_${team}_${i}`, num: i, name: '' });
+    }
+  }
+
+  players.forEach(p => {
+    const isOnCourt = tacticsState.playersOnCourt.some(c => c.id === p.id && c.team === team);
+    const el = document.createElement('div');
+    el.className = `tact-palette-item ${team}${isOnCourt ? ' on-court' : ''}`;
+    el.textContent = p.num;
+    el.dataset.id = p.id;
+    el.dataset.num = p.num;
+    el.dataset.name = p.name || '';
+    el.title = p.name ? `#${p.num} ${p.name}` : `#${p.num}`;
+
+    if (!isOnCourt) {
+      el.addEventListener('click', () => addPlayerToCourt(p.id, p.num, p.name || '', team));
+      el.addEventListener('touchend', e => {
+        e.preventDefault();
+        addPlayerToCourt(p.id, p.num, p.name || '', team);
+      }, { passive: false });
+    }
+    list.appendChild(el);
+  });
+}
+
+/* --- コートに選手を追加 --- */
+function addPlayerToCourt(id, num, name, team) {
+  const wrap = document.getElementById('tactics-court-wrap');
+  const rect = wrap.getBoundingClientRect();
+
+  // スタートポジション（コート中央付近にランダム配置）
+  const startX = rect.width * 0.3 + Math.random() * rect.width * 0.4;
+  const startY = team === 'home'
+    ? rect.height * 0.2 + Math.random() * rect.height * 0.2
+    : rect.height * 0.6 + Math.random() * rect.height * 0.2;
+
+  const playerEl = document.createElement('div');
+  playerEl.className = `tact-player ${team}`;
+  playerEl.style.left = `${startX}px`;
+  playerEl.style.top = `${startY}px`;
+  playerEl.innerHTML = `${num}<span class="tact-player-name">${name}</span>`;
+
+  // 削除ボタン
+  const delBtn = document.createElement('div');
+  delBtn.className = 'tact-player-del';
+  delBtn.textContent = '×';
+  delBtn.addEventListener('click', e => { e.stopPropagation(); removePlayerFromCourt(id, team, playerEl); });
+  delBtn.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); removePlayerFromCourt(id, team, playerEl); }, { passive: false });
+  playerEl.appendChild(delBtn);
+
+  setupPlayerDrag(playerEl);
+
+  document.getElementById('tactics-players').appendChild(playerEl);
+
+  tacticsState.playersOnCourt.push({ id, num, name, team, el: playerEl });
+  renderTacticsPalette(); // パレット更新（✓表示）
+}
+
+/* --- 選手を削除 --- */
+function removePlayerFromCourt(id, team, el) {
+  el.remove();
+  tacticsState.playersOnCourt = tacticsState.playersOnCourt.filter(
+    c => !(c.id === id && c.team === team)
+  );
+  renderTacticsPalette();
+}
+
+/* --- 選手コマのドラッグ（タッチ & マウス共通）--- */
+function setupPlayerDrag(el) {
+  let startX, startY, origLeft, origTop;
+
+  const onStart = (clientX, clientY) => {
+    const wrap = document.getElementById('tactics-court-wrap');
+    const rect = wrap.getBoundingClientRect();
+    origLeft = parseFloat(el.style.left);
+    origTop  = parseFloat(el.style.top);
+    startX = clientX - rect.left;
+    startY = clientY - rect.top;
+    el.classList.add('selected');
+    document.querySelectorAll('.tact-player').forEach(p => {
+      if (p !== el) p.classList.remove('selected');
+    });
+  };
+
+  const onMove = (clientX, clientY) => {
+    const wrap = document.getElementById('tactics-court-wrap');
+    const rect = wrap.getBoundingClientRect();
+    const curX = clientX - rect.left;
+    const curY = clientY - rect.top;
+    const newLeft = origLeft + (curX - startX);
+    const newTop  = origTop  + (curY - startY);
+    // コート境界クランプ
+    el.style.left = `${Math.max(24, Math.min(rect.width - 24, newLeft))}px`;
+    el.style.top  = `${Math.max(24, Math.min(rect.height - 24, newTop))}px`;
+  };
+
+  // Touch
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    onStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    e.preventDefault();
+    onMove(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  el.addEventListener('touchend', () => el.classList.remove('selected'));
+
+  // Mouse
+  el.addEventListener('mousedown', e => {
+    e.preventDefault();
+    onStart(e.clientX, e.clientY);
+    const onMM = ev => onMove(ev.clientX, ev.clientY);
+    const onMU = () => {
+      el.classList.remove('selected');
+      window.removeEventListener('mousemove', onMM);
+      window.removeEventListener('mouseup', onMU);
+    };
+    window.addEventListener('mousemove', onMM);
+    window.addEventListener('mouseup', onMU);
+  });
+}
+
+/* --- フリーハンド描画イベント --- */
+function setupTacticsEvents() {
+  const canvas = document.getElementById('tactics-draw-canvas');
+
+  const getPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    if (e.touches) {
+      return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+    }
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
+  const startDraw = (e) => {
+    if (!tacticsState.drawMode) return;
+    const pos = getPos(e);
+    const color = tacticsState.activeTeam === 'home' ? '#FF6B00' : '#3B82F6';
+    tacticsState.currentStroke = { points: [pos], color, width: 2.5 };
+    redrawStrokes();
+  };
+
+  const continueDraw = (e) => {
+    if (!tacticsState.drawMode || !tacticsState.currentStroke) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    tacticsState.currentStroke.points.push(pos);
+    redrawStrokes();
+  };
+
+  const endDraw = () => {
+    if (!tacticsState.currentStroke) return;
+    if (tacticsState.currentStroke.points.length > 1) {
+      tacticsState.strokes.push(tacticsState.currentStroke);
+    }
+    tacticsState.currentStroke = null;
+    redrawStrokes();
+  };
+
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  continueDraw);
+  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+
+  canvas.addEventListener('touchstart',  startDraw,    { passive: true });
+  canvas.addEventListener('touchmove',   continueDraw, { passive: false });
+  canvas.addEventListener('touchend',    endDraw);
+}
+
+/* --- ストローク再描画 --- */
+function redrawStrokes() {
+  const canvas = document.getElementById('tactics-draw-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const drawStroke = (stroke) => {
+    if (!stroke || stroke.points.length < 2) return;
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = stroke.color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    stroke.points.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  };
+
+  tacticsState.strokes.forEach(drawStroke);
+  if (tacticsState.currentStroke) drawStroke(tacticsState.currentStroke);
+}
+
+/* --- 元に戻す --- */
+function undoLastStroke() {
+  tacticsState.strokes.pop();
+  redrawStrokes();
+}
+
+/* --- リセット --- */
+function clearTacticsBoard() {
+  // 選手コマを全て削除
+  tacticsState.playersOnCourt.forEach(c => c.el.remove());
+  tacticsState.playersOnCourt = [];
+  // 描画をクリア
+  tacticsState.strokes = [];
+  tacticsState.currentStroke = null;
+  redrawStrokes();
+  renderTacticsPalette();
+}
+// ================================================================
+// AI GAME VISION – カメラ自動入力ロジック
+// ================================================================
+function initGameVision() {
+  const openBtn = document.getElementById('btn-open-game-vision');
+  const modal = document.getElementById('overlay-game-vision');
+  const closeBtn = document.getElementById('btn-close-game-vision');
+  const captureBtn = document.getElementById('btn-game-vision-capture');
+  const fileInput = document.getElementById('game-vision-file-input');
+  const video = document.getElementById('game-vision-video');
+  const canvas = document.getElementById('game-vision-canvas');
+  const resultDiv = document.getElementById('game-vision-result');
+  const descriptionEl = document.getElementById('game-vision-description');
+  const eventsList = document.getElementById('game-vision-events-list');
+  const applyBtn = document.getElementById('btn-game-vision-apply');
+  const retryBtn = document.getElementById('btn-game-vision-retry');
+
+  let stream = null;
+  let currentAnalysis = null;
+
+  function startCamera() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(s => { stream = s; video.srcObject = s; video.play(); })
+      .catch(err => alert('カメラ取得失敗: ' + err));
+  }
+
+  function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
+
+  function captureFrame() {
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL('image/jpeg');
+  }
+
+  async function sendToVision(imageData) {
+    // Build player lists from current rosters
+    const homePlayers = Array.from(document.querySelectorAll('#roster-home-table tbody tr')).map(tr => {
+      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
+      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
+      return { num, name };
+    });
+    const awayPlayers = Array.from(document.querySelectorAll('#roster-away-table tbody tr')).map(tr => {
+      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
+      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
+      return { num, name };
+    });
+    const payload = {
+      image: imageData,
+      homePlayers,
+      awayPlayers,
+      homeName: document.getElementById('disp-home-name')?.textContent?.trim(),
+      awayName: document.getElementById('disp-away-name')?.textContent?.trim(),
+      quarter: document.getElementById('period-info')?.textContent?.trim(),
+      homeScore: document.getElementById('home-score')?.textContent?.trim(),
+      awayScore: document.getElementById('away-score')?.textContent?.trim()
+    };
+    const resp = await fetch('/api/game-vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'AI解析失敗');
+    }
+    return await resp.json();
+  }
+
+  function renderEvents(data) {
+    currentAnalysis = data;
+    descriptionEl.textContent = data.description || '';
+    eventsList.innerHTML = '';
+    (data.events || []).forEach((ev, idx) => {
+      const card = document.createElement('div');
+      card.className = 'gv-event-card';
+      const icon = document.createElement('div');
+      icon.className = `gv-event-icon ${ev.type === 'SCORE' ? 'score-icon' : 'foul-icon'}`;
+      icon.textContent = ev.type === 'SCORE' ? '🏀' : '🚩';
+      const info = document.createElement('div');
+      info.className = 'gv-event-info';
+      const title = document.createElement('div');
+      title.className = 'gv-event-title';
+      title.textContent = ev.type === 'SCORE'
+        ? `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.scoreType || ''}`
+        : `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.foulType || ''}`;
+      const sub = document.createElement('div');
+      sub.className = 'gv-event-sub';
+      sub.textContent = `確信度: ${(ev.confidence * 100).toFixed(0)}%`;
+      const badge = document.createElement('div');
+      badge.className = `gv-event-badge ${ev.type === 'SCORE' ? 'gv-badge-score' : 'gv-badge-foul'}`;
+      badge.textContent = ev.type === 'SCORE' ? ev.scoreType : ev.foulType;
+      const confidenceBar = document.createElement('div');
+      confidenceBar.className = 'gv-confidence-bar';
+      const fill = document.createElement('div');
+      fill.className = `gv-confidence-fill ${ev.confidence >= 0.8 ? 'high' : ev.confidence >= 0.5 ? 'mid' : 'low'}`;
+      fill.style.width = `${ev.confidence * 100}%`;
+      confidenceBar.appendChild(fill);
+      info.appendChild(title);
+      info.appendChild(sub);
+      info.appendChild(badge);
+      info.appendChild(confidenceBar);
+      const toggle = document.createElement('button');
+      toggle.className = 'gv-toggle-btn on';
+      toggle.textContent = '✔';
+      toggle.onclick = () => {
+        const sel = card.classList.toggle('selected');
+        toggle.classList.toggle('on', sel);
+        toggle.textContent = sel ? '✔' : '✖';
+      };
+      // If player number unknown, add a "選手選択" button
+      if (!ev.playerNum) {
+        const assignBtn = document.createElement('button');
+        assignBtn.className = 'gv-toggle-btn';
+        assignBtn.textContent = '選手選択';
+        assignBtn.onclick = async () => {
+          const num = prompt('背番号を入力してください（数字）');
+          if (!num) return;
+          // Search both rosters for matching jersey number
+          const allRows = document.querySelectorAll('#roster-home-table tbody tr, #roster-away-table tbody tr');
+          let pid = null;
+          let teamSide = null;
+          allRows.forEach(tr => {
+            const tn = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '');
+            if (tn === num) {
+              pid = tr.dataset.pid || null;
+              teamSide = tr.closest('table').id.includes('home') ? 'home' : 'away';
+            }
+          });
+          if (!pid) {
+            alert('入力した背番号の選手が見つかりません。');
+            return;
+          }
+          // Update event data
+          ev.playerNum = num;
+          // Apply score immediately if selected
+          if (ev.type === 'SCORE') {
+            const points = ev.scoreType === '3P' ? 3 : ev.scoreType === '2P' ? 2 : 1;
+            addScore(teamSide, num, points, ev.scoreType);
+          } else if (ev.type === 'FOUL') {
+            if (typeof useFoul === 'function') useFoul(teamSide, num, ev.foulType);
+            else if (typeof addFoul === 'function') addFoul(teamSide, num, ev.foulType);
+          }
+          // Mark card as resolved
+          card.classList.add('selected');
+          toggle.classList.add('on');
+          assignBtn.disabled = true;
+        };
+        card.appendChild(assignBtn);
+      }
+      card.appendChild(icon);
+      card.appendChild(info);
+      card.appendChild(toggle);
+      eventsList.appendChild(card);
+    });
+    applyBtn.disabled = false;
+  }
+
+  async function startProcess() {
+    try {
+      resultDiv.style.display = 'none';
+      descriptionEl.textContent = '';
+      eventsList.innerHTML = '';
+      applyBtn.disabled = true;
+      const img = captureFrame();
+      resultDiv.style.display = 'block';
+      descriptionEl.textContent = '解析中...';
+      document.getElementById('game-vision-scan-overlay').style.display = 'block';
+      const data = await sendToVision(img);
+      document.getElementById('game-vision-scan-overlay').style.display = 'none';
+      renderEvents(data);
+    } catch (e) {
+      alert('AI解析エラー: ' + e.message);
+    }
+  }
+
+  // Event listeners
+  openBtn?.addEventListener('click', () => { modal.classList.add('open'); startCamera(); });
+  closeBtn?.addEventListener('click', () => { modal.classList.remove('open'); stopCamera(); });
+  captureBtn?.addEventListener('click', startProcess);
+  retryBtn?.addEventListener('click', startProcess);
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const data = await sendToVision(ev.target.result);
+        renderEvents(data);
+        resultDiv.style.display = 'block';
+      } catch (err) {
+        alert('AI解析エラー: ' + err.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  
+}
+
+document.addEventListener('DOMContentLoaded', initGameVision);
