@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
     }
 
     // 環境・地域・APIキーによって利用可能なモデルが異なるため、動的にリストを取得して最適なものを選択する
-    let selectedModelId = "gemini-1.5-flash"; // デフォルト
+    let modelIdsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]; // デフォルトの優先順位
     try {
       const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
       if (listRes.ok) {
@@ -26,20 +26,26 @@ module.exports = async (req, res) => {
           const validModels = listData.models.filter(m =>
             m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
           );
-          const flashModel = validModels.find(m => m.name.toLowerCase().includes('flash'));
-          const proModel = validModels.find(m => m.name.toLowerCase().includes('pro'));
-
-          if (flashModel) selectedModelId = flashModel.name.replace('models/', '');
-          else if (proModel) selectedModelId = proModel.name.replace('models/', '');
-          else if (validModels.length > 0) selectedModelId = validModels[0].name.replace('models/', '');
+          // flash -> pro -> その他の順にソート
+          validModels.sort((a, b) => {
+             const aName = a.name.toLowerCase();
+             const bName = b.name.toLowerCase();
+             if (aName.includes('flash')) return -1;
+             if (bName.includes('flash')) return 1;
+             if (aName.includes('pro')) return -1;
+             if (bName.includes('pro')) return 1;
+             return 0;
+          });
+          if (validModels.length > 0) {
+            modelIdsToTry = validModels.map(m => m.name.replace('models/', ''));
+          }
         }
       }
     } catch (e) {
-      console.warn("Failed to fetch models list, falling back to default", e);
+      console.warn("Failed to fetch models list, falling back to default list", e);
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: selectedModelId });
 
     const prompt = `
       あなたはプロのバスケットボールアナリストです。
@@ -51,9 +57,30 @@ module.exports = async (req, res) => {
       ${JSON.stringify(matchData, null, 2)}
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    let text = null;
+    let lastError = null;
+
+    // 空いているモデルを探して順番に試すフォールバック処理
+    for (const modelId of modelIdsToTry) {
+      try {
+        console.log(`Trying model: ${modelId}...`);
+        const model = genAI.getGenerativeModel({ model: modelId });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        text = response.text();
+        console.log(`Successfully generated with ${modelId}`);
+        break; // 成功したらループを抜ける
+      } catch (err) {
+        console.warn(`Model ${modelId} failed:`, err.message);
+        lastError = err;
+        // 503や404などの場合は次のモデルへ（ループ継続）
+      }
+    }
+
+    if (!text) {
+      // 全てのモデルが失敗した場合
+      throw lastError || new Error("利用可能なすべてのAIモデルが混雑しているか、応答しませんでした。");
+    }
 
     text = text.replace(/^```html\n?/, '').replace(/^```\n?/, '').replace(/```\n?$/, '');
 
