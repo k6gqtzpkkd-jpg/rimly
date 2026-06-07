@@ -3320,8 +3320,8 @@ function renderTacticsPalette() {
   if (appState.isGameActive && g[team] && g[team].players.length > 0) {
     players = g[team].players;
   } else {
-    // 試合前でもデモ用に番号コマを表示する
-    for (let i = 1; i <= 10; i++) {
+    // 試合前でもデモ用に番号コマを表示する (1番〜18番)
+    for (let i = 1; i <= 18; i++) {
       players.push({ id: `demo_${team}_${i}`, num: i, name: '' });
     }
   }
@@ -3345,6 +3345,25 @@ function renderTacticsPalette() {
     }
     list.appendChild(el);
   });
+
+  // カスタム追加ボタン
+  const customEl = document.createElement('div');
+  customEl.className = `tact-palette-item tact-custom ${team}`;
+  customEl.textContent = '+';
+  customEl.title = 'カスタム番号を追加';
+  
+  const handleCustomAdd = (e) => {
+    if (e) e.preventDefault();
+    const numStr = prompt('追加したい背番号や文字を入力してください (例: 99, ボール, コーチ など)');
+    if (numStr !== null && numStr.trim() !== '') {
+      const customId = `custom_${team}_${Date.now()}`;
+      addPlayerToCourt(customId, numStr.trim(), '', team);
+    }
+  };
+
+  customEl.addEventListener('click', handleCustomAdd);
+  customEl.addEventListener('touchend', handleCustomAdd, { passive: false });
+  list.appendChild(customEl);
 }
 
 /* --- コートに選手を追加 --- */
@@ -3362,7 +3381,16 @@ function addPlayerToCourt(id, num, name, team) {
   playerEl.className = `tact-player ${team}`;
   playerEl.style.left = `${startX}px`;
   playerEl.style.top = `${startY}px`;
-  playerEl.innerHTML = `${num}<span class="tact-player-name">${name}</span>`;
+  
+  // 文字数によってフォントサイズを調整（長い文字も入るように）
+  const numStr = String(num);
+  let fontSize = '20px';
+  if (numStr.length > 2) fontSize = '14px';
+  if (numStr.length > 3) fontSize = '11px';
+  if (numStr.length > 4) fontSize = '9px';
+
+  playerEl.style.fontSize = fontSize;
+  playerEl.innerHTML = `${numStr}<span class="tact-player-name">${name}</span>`;
 
   // 削除ボタン
   const delBtn = document.createElement('div');
