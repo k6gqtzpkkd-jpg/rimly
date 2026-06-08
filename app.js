@@ -3617,16 +3617,32 @@ function initGameVision() {
       homeScore: document.getElementById('home-score')?.textContent?.trim(),
       awayScore: document.getElementById('away-score')?.textContent?.trim()
     };
+    
+    console.log('Sending payload:', payload);
+    
     const resp = await fetch('/api/game-vision', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    
+    const respText = await resp.text();
+    console.log('Response status:', resp.status, 'Body:', respText.substring(0, 200));
+    
     if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error || 'AI解析失敗');
+      try {
+        const err = JSON.parse(respText);
+        throw new Error(err.error || err.details || 'AI解析失敗');
+      } catch (parseErr) {
+        throw new Error(`サーバーエラー (${resp.status}): ${respText.substring(0, 100)}`);
+      }
     }
-    return await resp.json();
+    
+    try {
+      return JSON.parse(respText);
+    } catch (e) {
+      throw new Error('JSONパースエラー: ' + e.message + '\nレスポンス: ' + respText.substring(0, 200));
+    }
   }
 
   function renderEvents(data) {
@@ -3728,11 +3744,18 @@ function initGameVision() {
       resultDiv.style.display = 'block';
       descriptionEl.textContent = '解析中...';
       document.getElementById('game-vision-scan-overlay').style.display = 'block';
+      
+      console.log('Sending image to AI...', img.substring(0, 50) + '...');
       const data = await sendToVision(img);
+      
+      console.log('AI Response:', data);
       document.getElementById('game-vision-scan-overlay').style.display = 'none';
       renderEvents(data);
     } catch (e) {
-      alert('AI解析エラー: ' + e.message);
+      console.error('AI Vision Error:', e);
+      document.getElementById('game-vision-scan-overlay').style.display = 'none';
+      descriptionEl.textContent = '❌ エラー: ' + e.message;
+      alert('AI解析エラー:\n' + e.message + '\n\nデベロッパーツール(F12)でコンソールを確認してください。');
     }
   }
 
