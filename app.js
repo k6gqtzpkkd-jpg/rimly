@@ -3562,11 +3562,15 @@ function clearTacticsBoard() {
 // ================================================================
 // AI GAME VISION – カメラ自動入力ロジック
 // ================================================================
+// ================================================================
+// AI GAME VISION – リアルタイムカメラ自動入力ロジック
+// ================================================================
 function initGameVision() {
   const openBtn = document.getElementById('btn-open-game-vision');
   const modal = document.getElementById('overlay-game-vision');
   const closeBtn = document.getElementById('btn-close-game-vision');
-  const captureBtn = document.getElementById('btn-game-vision-capture');
+  const captureBtn = document.getElementById('btn-game-vision-start');
+  const stopBtn = document.getElementById('btn-game-vision-capture');
   const fileInput = document.getElementById('game-vision-file-input');
   const video = document.getElementById('game-vision-video');
   const canvas = document.getElementById('game-vision-canvas');
@@ -3587,198 +3591,46 @@ function initGameVision() {
 
   function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 
-  function captureFrame() {
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg');
+  // =========================================================
+  // リアルタイム記録開始
+  // =========================================================
+  async function startRecording() {
+    console.log('Starting realtime recording...');
+    captureBtn.style.display = 'none';
+    stopBtn.style.display = 'block';
+    resultDiv.style.display = 'block';
+    descriptionEl.textContent = '🔴 ライブ記録中...';
+    eventsList.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">イベントを検出しています...</div>';
+
+    // game-vision-realtime.js から関数を呼び出し
+    await startRealtimeRecording(video, canvas);
   }
 
-  async function sendToVision(imageData) {
-    // Build player lists from current rosters
-    const homePlayers = Array.from(document.querySelectorAll('#roster-home-table tbody tr')).map(tr => {
-      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
-      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
-      return { num, name };
-    });
-    const awayPlayers = Array.from(document.querySelectorAll('#roster-away-table tbody tr')).map(tr => {
-      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
-      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
-      return { num, name };
-    });
-    const payload = {
-      image: imageData,
-      homePlayers,
-      awayPlayers,
-      homeName: document.getElementById('disp-home-name')?.textContent?.trim(),
-      awayName: document.getElementById('disp-away-name')?.textContent?.trim(),
-      quarter: document.getElementById('period-info')?.textContent?.trim(),
-      homeScore: document.getElementById('home-score')?.textContent?.trim(),
-      awayScore: document.getElementById('away-score')?.textContent?.trim()
-    };
-    
-    console.log('Sending payload:', payload);
-    
-    const resp = await fetch('/api/game-vision', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    const respText = await resp.text();
-    console.log('Response status:', resp.status, 'Body:', respText.substring(0, 200));
-    
-    if (!resp.ok) {
-      try {
-        const err = JSON.parse(respText);
-        throw new Error(err.error || err.details || 'AI解析失敗');
-      } catch (parseErr) {
-        throw new Error(`サーバーエラー (${resp.status}): ${respText.substring(0, 100)}`);
-      }
-    }
-    
-    try {
-      return JSON.parse(respText);
-    } catch (e) {
-      throw new Error('JSONパースエラー: ' + e.message + '\nレスポンス: ' + respText.substring(0, 200));
-    }
-  }
+  // =========================================================
+  // リアルタイム記録停止
+  // =========================================================
+  async function stopRecording() {
+    console.log('Stopping realtime recording...');
+    stopBtn.style.display = 'none';
+    captureBtn.style.display = 'block';
+    descriptionEl.textContent = '✅ 記録停止。ホーム画面に戻ります...';
 
-  function renderEvents(data) {
-    currentAnalysis = data;
-    descriptionEl.textContent = data.description || '';
-    eventsList.innerHTML = '';
-    (data.events || []).forEach((ev, idx) => {
-      const card = document.createElement('div');
-      card.className = 'gv-event-card';
-      const icon = document.createElement('div');
-      icon.className = `gv-event-icon ${ev.type === 'SCORE' ? 'score-icon' : 'foul-icon'}`;
-      icon.textContent = ev.type === 'SCORE' ? '🏀' : '🚩';
-      const info = document.createElement('div');
-      info.className = 'gv-event-info';
-      const title = document.createElement('div');
-      title.className = 'gv-event-title';
-      title.textContent = ev.type === 'SCORE'
-        ? `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.scoreType || ''}`
-        : `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.foulType || ''}`;
-      const sub = document.createElement('div');
-      sub.className = 'gv-event-sub';
-      sub.textContent = `確信度: ${(ev.confidence * 100).toFixed(0)}%`;
-      const badge = document.createElement('div');
-      badge.className = `gv-event-badge ${ev.type === 'SCORE' ? 'gv-badge-score' : 'gv-badge-foul'}`;
-      badge.textContent = ev.type === 'SCORE' ? ev.scoreType : ev.foulType;
-      const confidenceBar = document.createElement('div');
-      confidenceBar.className = 'gv-confidence-bar';
-      const fill = document.createElement('div');
-      fill.className = `gv-confidence-fill ${ev.confidence >= 0.8 ? 'high' : ev.confidence >= 0.5 ? 'mid' : 'low'}`;
-      fill.style.width = `${ev.confidence * 100}%`;
-      confidenceBar.appendChild(fill);
-      info.appendChild(title);
-      info.appendChild(sub);
-      info.appendChild(badge);
-      info.appendChild(confidenceBar);
-      const toggle = document.createElement('button');
-      toggle.className = 'gv-toggle-btn on';
-      toggle.textContent = '✔';
-      toggle.onclick = () => {
-        const sel = card.classList.toggle('selected');
-        toggle.classList.toggle('on', sel);
-        toggle.textContent = sel ? '✔' : '✖';
-      };
-      // If player number unknown, add a "選手選択" button
-      if (!ev.playerNum) {
-        const assignBtn = document.createElement('button');
-        assignBtn.className = 'gv-toggle-btn';
-        assignBtn.textContent = '選手選択';
-        assignBtn.onclick = async () => {
-          const num = prompt('背番号を入力してください（数字）');
-          if (!num) return;
-          // Search both rosters for matching jersey number
-          const allRows = document.querySelectorAll('#roster-home-table tbody tr, #roster-away-table tbody tr');
-          let pid = null;
-          let teamSide = null;
-          allRows.forEach(tr => {
-            const tn = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '');
-            if (tn === num) {
-              pid = tr.dataset.pid || null;
-              teamSide = tr.closest('table').id.includes('home') ? 'home' : 'away';
-            }
-          });
-          if (!pid) {
-            alert('入力した背番号の選手が見つかりません。');
-            return;
-          }
-          // Update event data
-          ev.playerNum = num;
-          // Apply score immediately if selected
-          if (ev.type === 'SCORE') {
-            const points = ev.scoreType === '3P' ? 3 : ev.scoreType === '2P' ? 2 : 1;
-            addScore(teamSide, num, points, ev.scoreType);
-          } else if (ev.type === 'FOUL') {
-            if (typeof useFoul === 'function') useFoul(teamSide, num, ev.foulType);
-            else if (typeof addFoul === 'function') addFoul(teamSide, num, ev.foulType);
-          }
-          // Mark card as resolved
-          card.classList.add('selected');
-          toggle.classList.add('on');
-          assignBtn.disabled = true;
-        };
-        card.appendChild(assignBtn);
-      }
-      card.appendChild(icon);
-      card.appendChild(info);
-      card.appendChild(toggle);
-      eventsList.appendChild(card);
-    });
-    applyBtn.disabled = false;
-  }
+    await stopRealtimeRecording();
 
-  async function startProcess() {
-    try {
-      resultDiv.style.display = 'none';
-      descriptionEl.textContent = '';
-      eventsList.innerHTML = '';
-      applyBtn.disabled = true;
-      const img = captureFrame();
-      resultDiv.style.display = 'block';
-      descriptionEl.textContent = '解析中...';
-      document.getElementById('game-vision-scan-overlay').style.display = 'block';
-      
-      console.log('Sending image to AI...', img.substring(0, 50) + '...');
-      const data = await sendToVision(img);
-      
-      console.log('AI Response:', data);
-      document.getElementById('game-vision-scan-overlay').style.display = 'none';
-      renderEvents(data);
-    } catch (e) {
-      console.error('AI Vision Error:', e);
-      document.getElementById('game-vision-scan-overlay').style.display = 'none';
-      descriptionEl.textContent = '❌ エラー: ' + e.message;
-      alert('AI解析エラー:\n' + e.message + '\n\nデベロッパーツール(F12)でコンソールを確認してください。');
-    }
+    // 1秒後にホーム画面に戻る
+    setTimeout(() => {
+      modal.classList.remove('open');
+      stopCamera();
+      // ホーム画面タブをアクティブにする
+      document.querySelector('[data-tab="score"]')?.click();
+    }, 1500);
   }
 
   // Event listeners
   openBtn?.addEventListener('click', () => { modal.classList.add('open'); startCamera(); });
   closeBtn?.addEventListener('click', () => { modal.classList.remove('open'); stopCamera(); });
-  captureBtn?.addEventListener('click', startProcess);
-  retryBtn?.addEventListener('click', startProcess);
-  fileInput?.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async ev => {
-      try {
-        const data = await sendToVision(ev.target.result);
-        renderEvents(data);
-        resultDiv.style.display = 'block';
-      } catch (err) {
-        alert('AI解析エラー: ' + err.message);
-      }
-    };
-    reader.readAsDataURL(file);
-  });
+  captureBtn?.addEventListener('click', startRecording);
+  stopBtn?.addEventListener('click', stopRecording);
 
   
 }
