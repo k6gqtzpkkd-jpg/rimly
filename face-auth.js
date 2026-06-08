@@ -433,17 +433,17 @@ class RimlyFaceAuth {
     const resized = faceapi.resizeResults(detection, displaySize);
     const box = resized.detection.box;
 
-    // センターフレーム機能：顔の位置判定とガイダンス表示
-    if (this.CONFIG.ENABLE_CENTER_FRAME) {
-      this.faceCenteringStatus = this.calculateFaceCenteringStatus(resized, displaySize);
-      this.drawCenteringGuide(ctx, displaySize, this.faceCenteringStatus, box);
-    }
-
     if (!this.CONFIG.ENABLE_SCAN_EFFECT) {
       // 軽量化モード：シンプルなオレンジの枠
       ctx.strokeStyle = '#FF6B00';
       ctx.lineWidth = 3;
       ctx.strokeRect(box.x, box.y, box.width, box.height);
+      
+      // 軽量化モード時もガイダンス表示
+      if (this.CONFIG.ENABLE_CENTER_FRAME) {
+        this.faceCenteringStatus = this.calculateFaceCenteringStatus(resized, displaySize);
+        this.drawCenteringGuide(ctx, displaySize, this.faceCenteringStatus, box);
+      }
       return;
     }
 
@@ -511,6 +511,12 @@ class RimlyFaceAuth {
     }
 
     ctx.restore();
+
+    // ガイダンスは最後に描画（最前面に表示）
+    if (this.CONFIG.ENABLE_CENTER_FRAME) {
+      this.faceCenteringStatus = this.calculateFaceCenteringStatus(resized, displaySize);
+      this.drawCenteringGuide(ctx, displaySize, this.faceCenteringStatus, box);
+    }
   }
 
   drawCenteringGuide(ctx, displaySize, status, faceBox) {
