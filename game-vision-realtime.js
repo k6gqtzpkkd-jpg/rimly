@@ -9,7 +9,8 @@ let gameVisionState = {
   isSending: false,
   recordedEvents: [],
   lastEventTime: {},  // 重複排除用
-  sessionEvents: []   // セッション中に検出されたイベント
+  sessionEvents: [],  // セッション中に検出されたイベント
+  playerTracking: {}  // {playerKey: {lastFrame, detectedAt, attempts}} - 選手追跡
 };
 
 async function startRealtimeRecording(video, canvas) {
@@ -109,16 +110,69 @@ function isValidNewEvent(event) {
 }
 
 async function autoRecordEvent(event) {
+  // ★ 新機能：選手番号が見えない場合は追跡
+  if (!event.playerNum || event.playerNum === '' || event.playerNum === 'UNKNOWN') {
+    const trackingKey = `${event.team}_${event.type}`;
+    
+    if (!gameVisionState.playerTracking[trackingKey]) {
+      // 新しい追跡を開始
+      gameVisionState.playerTracking[trackingKey] = {
+        detectedAt: Date.now(),
+        attempts: 0,
+        lastPosition: null
+      };
+      console.log(`Starting player tracking for ${trackingKey}`);
+    }
+    
+    // 追跡情報を更新
+    gameVisionState.playerTracking[trackingKey].attempts += 1;
+    
+    // 30秒以内なら待つ（追跡継続）
+    if (Date.now() - gameVisionState.playerTracking[trackingKey].detectedAt < 30000) {
+      console.log(`Tracking ${trackingKey}... (${gameVisionState.playerTracking[trackingKey].attempts} attempts)`);
+      // トースト表示
+      displayDetectedEvent({
+        type: 'TRACKING',
+        team: event.team,
+        playerNum: '？',
+        eventType: event.type
+      });
+      return; // 選手番号が見えるまで記録しない
+    } else {
+      // 30秒以上追跡しても見えない場合は記録を中止
+      delete gameVisionState.playerTracking[trackingKey];
+      console.warn(`Stopped tracking ${trackingKey} - no player number detected after 30s`);
+      return;
+    }
+  }
+  
+  // 通常の記録処理
   if (event.type === 'SCORE') {
     const points = event.scoreType === '3P' ? 3 : event.scoreType === '2P' ? 2 : 1;
     const team = event.team === 'home' ? 'home' : 'away';
     console.log(`Recording ${points}P for ${team} team, player #${event.playerNum}`);
+    
+    // 追跡を終了
+    const trackingKey = `${event.team}_SCORE`;
+    if (gameVisionState.playerTracking[trackingKey]) {
+      console.log(`✓ Player tracking complete: ${trackingKey} → #${event.playerNum}`);
+      delete gameVisionState.playerTracking[trackingKey];
+    }
+    
     if (typeof addScore === 'function') {
       addScore(team, event.playerNum, points, event.scoreType);
     }
   } else if (event.type === 'FOUL') {
     const team = event.team === 'home' ? 'home' : 'away';
     console.log(`Recording foul for ${team} team, player #${event.playerNum}, type: ${event.foulType}`);
+    
+    // 追跡を終了
+    const trackingKey = `${event.team}_FOUL`;
+    if (gameVisionState.playerTracking[trackingKey]) {
+      console.log(`✓ Player tracking complete: ${trackingKey} → #${event.playerNum}`);
+      delete gameVisionState.playerTracking[trackingKey];
+    }
+    
     if (typeof useFoul === 'function') {
       useFoul(team, event.playerNum, event.foulType);
     } else if (typeof addFoul === 'function') {
@@ -129,11 +183,26 @@ async function autoRecordEvent(event) {
 
 function displayDetectedEvent(event) {
   const notification = document.createElement('div');
+  
+  let bgColor = '#FF9800';
+  let typeLabel = '';
+  
+  if (event.type === 'TRACKING') {
+    bgColor = '#2196F3'; // 青
+    typeLabel = '🔍 選手を追跡中...';
+  } else if (event.type === 'SCORE') {
+    bgColor = '#4CAF50'; // 緑
+    typeLabel = `${event.scoreType || ''}得点`;
+  } else if (event.type === 'FOUL') {
+    bgColor = '#FF9800'; // オレンジ
+    typeLabel = `${event.foulType || ''}ファウル`;
+  }
+  
   notification.style.cssText = `
     position: fixed;
     bottom: 20px;
     right: 20px;
-    background: ${event.type === 'SCORE' ? '#4CAF50' : '#FF9800'};
+    background: ${bgColor};
     color: white;
     padding: 12px 16px;
     border-radius: 8px;
@@ -143,11 +212,7 @@ function displayDetectedEvent(event) {
     animation: slideIn 0.3s ease;
   `;
   
-  const typeLabel = event.type === 'SCORE' 
-    ? `${event.scoreType || ''}得点` 
-    : `${event.foulType || ''}ファウル`;
-  
-  notification.textContent = `🎯 ${event.team === 'home' ? 'ホーム' : 'アウェイ'} #${event.playerNum} ${typeLabel}`;
+  notification.textContent = `${event.type === 'TRACKING' ? typeLabel : '🎯'} ${event.team === 'home' ? 'ホーム' : 'アウェイ'} #${event.playerNum || '?'} ${event.type !== 'TRACKING' ? typeLabel : ''}`;
   
   document.body.appendChild(notification);
   setTimeout(() => notification.remove(), 3000);

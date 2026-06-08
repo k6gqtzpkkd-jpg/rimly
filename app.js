@@ -3602,8 +3602,16 @@ function initGameVision() {
     descriptionEl.textContent = '🔴 ライブ記録中...';
     eventsList.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">イベントを検出しています...</div>';
 
-    // game-vision-realtime.js から関数を呼び出し
-    await startRealtimeRecording(video, canvas);
+    // ★ 重要：モーダルをすぐに閉じて、バックグラウンドで処理を続ける
+    setTimeout(() => {
+      modal.classList.remove('open');
+    }, 300);
+
+    // game-vision-realtime.js から関数を呼び出し（バックグラウンドで継続）
+    // await は使わない（非ブロッキング）
+    startRealtimeRecording(video, canvas).catch(e => {
+      console.error('Recording error:', e);
+    });
   }
 
   // =========================================================
