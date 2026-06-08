@@ -422,9 +422,18 @@ class RimlyFaceAuth {
 
   // =========================================================
   drawDetection(detection) {
-    if (!this.canvasEl || !this.videoEl) return;
+    if (!this.canvasEl || !this.videoEl) {
+      console.warn('drawDetection: canvas or video missing', { canvasEl: !!this.canvasEl, videoEl: !!this.videoEl });
+      return;
+    }
     const canvas = this.canvasEl;
     const displaySize = { width: this.videoEl.videoWidth, height: this.videoEl.videoHeight };
+    
+    if (displaySize.width === 0 || displaySize.height === 0) {
+      console.warn('drawDetection: video dimensions are 0', displaySize);
+      return;
+    }
+    
     faceapi.matchDimensions(canvas, displaySize);
     
     const ctx = canvas.getContext('2d');
@@ -520,6 +529,7 @@ class RimlyFaceAuth {
   }
 
   drawCenteringGuide(ctx, displaySize, status, faceBox) {
+    console.log('drawCenteringGuide called:', status, displaySize);
     const centerX = displaySize.width / 2;
     const centerY = displaySize.height / 2;
     const guideRadius = 60;
