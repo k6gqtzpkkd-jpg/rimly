@@ -389,9 +389,10 @@ class RimlyFaceAuth {
   // 顔のセンタリング判定（センターフレーム機能）
   // =========================================================
   calculateFaceCenteringStatus(detection, displaySize) {
-    if (!detection || !detection.detection) return 'centered';
+    if (!detection) return 'centered';
 
-    const box = detection.detection.box;
+    // resizeResults後のオブジェクトか、元のdetectionか判定
+    const box = detection.detection?.box || detection.box;
     const faceCenter = {
       x: box.x + box.width / 2,
       y: box.y + box.height / 2
@@ -517,70 +518,104 @@ class RimlyFaceAuth {
     const centerY = displaySize.height / 2;
     const guideRadius = 60;
 
-    // 中央ターゲット円
-    ctx.strokeStyle = 'rgba(255, 107, 0, 0.5)';
-    ctx.lineWidth = 2;
+    // 中央ターゲット円（薄い背景で見やすく）
+    ctx.strokeStyle = 'rgba(255, 107, 0, 0.8)';
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(centerX, centerY, guideRadius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // ステータスに応じたガイダンス表示
-    const arrowSize = 30;
-    ctx.fillStyle = status === 'centered' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255, 107, 0, 0.8)';
-    ctx.font = 'bold 14px Arial';
+    // 十字マーク
+    ctx.strokeStyle = 'rgba(255, 107, 0, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 20, centerY);
+    ctx.lineTo(centerX + 20, centerY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - 20);
+    ctx.lineTo(centerX, centerY + 20);
+    ctx.stroke();
+
+    // ステータステキスト
+    ctx.fillStyle = status === 'centered' ? 'rgba(76, 175, 80, 1)' : 'rgba(255, 107, 0, 1)';
+    ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     let guidanceText = '';
-    let arrowX = centerX;
-    let arrowY = centerY;
 
     if (status === 'centered') {
       guidanceText = '✓ 中央';
-      ctx.fillStyle = 'rgba(76, 175, 80, 0.8)';
+      ctx.fillStyle = 'rgba(76, 175, 80, 1)';
     } else if (status === 'left') {
-      guidanceText = '← 右へ';
-      arrowX -= 40;
+      guidanceText = '← 右へ移動';
     } else if (status === 'right') {
-      guidanceText = '右へ →';
-      arrowX += 40;
+      guidanceText = '右へ移動 →';
     } else if (status === 'top') {
-      guidanceText = '↓ 下へ';
-      arrowY -= 40;
+      guidanceText = '↓ 下へ移動';
     } else if (status === 'bottom') {
-      guidanceText = '↑ 上へ';
-      arrowY += 40;
+      guidanceText = '↑ 上へ移動';
     }
 
-    // ガイダンステキスト
-    ctx.fillText(guidanceText, centerX, centerY - 80);
+    // ガイダンステキスト（フレーム下部に表示）
+    ctx.fillText(guidanceText, centerX, displaySize.height - 40);
 
-    // 矢印の描画（ステータスが中央でない場合）
+    // 方向矢印を大きく表示
     if (status !== 'centered') {
-      this.drawArrow(ctx, centerX, centerY, arrowX, arrowY, arrowSize);
+      this.drawDirectionArrow(ctx, centerX, centerY, status);
     }
   }
 
-  drawArrow(ctx, fromX, fromY, toX, toY, size) {
-    const headlen = 15;
-    const angle = Math.atan2(toY - fromY, toX - fromX);
+  drawDirectionArrow(ctx, centerX, centerY, direction) {
+    const arrowSize = 40;
+    const offset = 50;
 
-    // 矢印の幹
-    ctx.strokeStyle = 'rgba(255, 107, 0, 0.8)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(fromX, fromY);
-    ctx.lineTo(toX, toY);
-    ctx.stroke();
-
-    // 矢印の先端
     ctx.fillStyle = 'rgba(255, 107, 0, 0.8)';
-    ctx.beginPath();
-    ctx.moveTo(toX, toY);
-    ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
-    ctx.closePath();
-    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 107, 0, 1)';
+    ctx.lineWidth = 2;
+
+    if (direction === 'left') {
+      // 左矢印
+      ctx.beginPath();
+      ctx.moveTo(centerX - offset, centerY);
+      ctx.lineTo(centerX - offset - arrowSize, centerY - arrowSize / 2);
+      ctx.lineTo(centerX - offset - arrowSize / 2, centerY);
+      ctx.lineTo(centerX - offset - arrowSize, centerY + arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (direction === 'right') {
+      // 右矢印
+      ctx.beginPath();
+      ctx.moveTo(centerX + offset, centerY);
+      ctx.lineTo(centerX + offset + arrowSize, centerY - arrowSize / 2);
+      ctx.lineTo(centerX + offset + arrowSize / 2, centerY);
+      ctx.lineTo(centerX + offset + arrowSize, centerY + arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (direction === 'top') {
+      // 上矢印
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - offset);
+      ctx.lineTo(centerX - arrowSize / 2, centerY - offset - arrowSize);
+      ctx.lineTo(centerX, centerY - offset - arrowSize / 2);
+      ctx.lineTo(centerX + arrowSize / 2, centerY - offset - arrowSize);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (direction === 'bottom') {
+      // 下矢印
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY + offset);
+      ctx.lineTo(centerX - arrowSize / 2, centerY + offset + arrowSize);
+      ctx.lineTo(centerX, centerY + offset + arrowSize / 2);
+      ctx.lineTo(centerX + arrowSize / 2, centerY + offset + arrowSize);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   }
 
   // =========================================================
