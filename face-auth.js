@@ -26,12 +26,16 @@ class RimlyFaceAuth {
       MIN_CONFIDENCE: 0.3,
       INPUT_SIZE: 128,
       ENABLE_SCAN_EFFECT: true,
+      ENABLE_CENTER_FRAME: true, // センターフレーム機能を有効化
+      CENTER_TOLERANCE: 0.15, // フレーム中央からの許容ズレ（比率）
 
       MODEL_URL: 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights'
     };
 
     this.lastDetection = null;
     this.renderLoopId = null;
+    this.faceCenteringStatus = 'centered'; // 'centered', 'left', 'right', 'top', 'bottom'
+    this.orientationChangeListener = null;
   }
 
   // =========================================================
@@ -153,6 +157,10 @@ class RimlyFaceAuth {
     }
     if (this.videoEl) this.videoEl.srcObject = null;
     this.stopDetectionLoop();
+    if (this.orientationChangeListener) {
+      window.removeEventListener('orientationchange', this.orientationChangeListener);
+      this.orientationChangeListener = null;
+    }
   }
 
   startRenderLoop() {
@@ -218,7 +226,31 @@ class RimlyFaceAuth {
 
       if (detection) {
         descriptors.push(detection.descriptor);
-        if (onStatus) onStatus(`顔をスキャン中... (${descriptors.length}/${SAMPLES})`);
+        
+        let statusMsg = `顔をスキャン中... (${descriptors.length}/${SAMPLES})`;
+        
+        // センタリングステータスを表示
+        if (this.CONFIG.ENABLE_CENTER_FRAME) {
+          const displaySize = { width: this.videoEl.videoWidth, height: this.videoEl.videoHeight };
+          this.faceCenteringStatus = this.calculateFaceCenteringStatus(detection, displaySize);
+          if (this.faceCenteringStatus !== 'centered') {
+            const centeringHints = {
+              'left': '← 右へ移動してください',
+              'right': '右へ → 移動してください',
+              'top': '↓ 下へ移動してください',
+              'bottom': '↑ 上へ移動してください'
+            };
+            statusMsg += ` (${centeringHints[this.faceCenteringStatus]})`;
+          }
+        }
+        
+        if (onStatus) onStatus(statusMsg);
+      } else {
+        let statusMsg = '顔が見つかりません...';
+        if (this.CONFIG.ENABLE_CENTER_FRAME) {
+          statusMsg += ' 顔をカメラの中央に置いてください';
+        }
+        if (onStatus) onStatus(statusMsg);
       }
       await new Promise(r => setTimeout(r, 100));
     }
@@ -301,6 +333,12 @@ class RimlyFaceAuth {
         
         // 認証にかかった時間を計算
         const elapsed = Date.now() - startTime;
+
+        // センタリングステータスを更新
+        if (this.CONFIG.ENABLE_CENTER_FRAME) {
+          const displaySize = { width: this.videoEl.videoWidth, height: this.videoEl.videoHeight };
+          this.faceCenteringStatus = this.calculateFaceCenteringStatus(detection, displaySize);
+        }
         
         if (match) {
           // 最低でも800msはスキャンエフェクトを見せる
@@ -316,7 +354,17 @@ class RimlyFaceAuth {
           
           if (onSuccess) onSuccess(this.matchedUser);
         } else {
-          if (onStatus) onStatus('認識中... (一致する顔が見つかりません)');
+          let statusMsg = '認識中... (一致する顔が見つかりません)';
+          if (this.CONFIG.ENABLE_CENTER_FRAME && this.faceCenteringStatus !== 'centered') {
+            const centeringHints = {
+              'left': '← 右へ移動してください',
+              'right': '右へ → 移動してください',
+              'top': '↓ 下へ移動してください',
+              'bottom': '↑ 上へ移動してください'
+            };
+            statusMsg += ` | ${centeringHints[this.faceCenteringStatus] || ''}`;
+          }
+          if (onStatus) onStatus(statusMsg);
         }
       } catch (e) {
         console.error('Detection error:', e);
@@ -338,7 +386,39 @@ class RimlyFaceAuth {
   }
 
   // =========================================================
-  // 検出結果の描画
+  // 顔のセンタリング判定（センターフレーム機能）
+  // =========================================================
+  calculateFaceCenteringStatus(detection, displaySize) {
+    if (!detection || !detection.detection) return 'centered';
+
+    const box = detection.detection.box;
+    const faceCenter = {
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2
+    };
+
+    const frameCenter = {
+      x: displaySize.width / 2,
+      y: displaySize.height / 2
+    };
+
+    const toleranceX = displaySize.width * this.CONFIG.CENTER_TOLERANCE;
+    const toleranceY = displaySize.height * this.CONFIG.CENTER_TOLERANCE;
+
+    const deltaX = faceCenter.x - frameCenter.x;
+    const deltaY = faceCenter.y - frameCenter.y;
+
+    // 縦・横の外れ方を判定
+    if (Math.abs(deltaY) > toleranceY) {
+      return deltaY > 0 ? 'bottom' : 'top';
+    }
+    if (Math.abs(deltaX) > toleranceX) {
+      return deltaX > 0 ? 'right' : 'left';
+    }
+
+    return 'centered';
+  }
+
   // =========================================================
   drawDetection(detection) {
     if (!this.canvasEl || !this.videoEl) return;
@@ -351,6 +431,12 @@ class RimlyFaceAuth {
     
     const resized = faceapi.resizeResults(detection, displaySize);
     const box = resized.detection.box;
+
+    // センターフレーム機能：顔の位置判定とガイダンス表示
+    if (this.CONFIG.ENABLE_CENTER_FRAME) {
+      this.faceCenteringStatus = this.calculateFaceCenteringStatus(resized, displaySize);
+      this.drawCenteringGuide(ctx, displaySize, this.faceCenteringStatus, box);
+    }
 
     if (!this.CONFIG.ENABLE_SCAN_EFFECT) {
       // 軽量化モード：シンプルなオレンジの枠
@@ -424,6 +510,77 @@ class RimlyFaceAuth {
     }
 
     ctx.restore();
+  }
+
+  drawCenteringGuide(ctx, displaySize, status, faceBox) {
+    const centerX = displaySize.width / 2;
+    const centerY = displaySize.height / 2;
+    const guideRadius = 60;
+
+    // 中央ターゲット円
+    ctx.strokeStyle = 'rgba(255, 107, 0, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, guideRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ステータスに応じたガイダンス表示
+    const arrowSize = 30;
+    ctx.fillStyle = status === 'centered' ? 'rgba(76, 175, 80, 0.8)' : 'rgba(255, 107, 0, 0.8)';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    let guidanceText = '';
+    let arrowX = centerX;
+    let arrowY = centerY;
+
+    if (status === 'centered') {
+      guidanceText = '✓ 中央';
+      ctx.fillStyle = 'rgba(76, 175, 80, 0.8)';
+    } else if (status === 'left') {
+      guidanceText = '← 右へ';
+      arrowX -= 40;
+    } else if (status === 'right') {
+      guidanceText = '右へ →';
+      arrowX += 40;
+    } else if (status === 'top') {
+      guidanceText = '↓ 下へ';
+      arrowY -= 40;
+    } else if (status === 'bottom') {
+      guidanceText = '↑ 上へ';
+      arrowY += 40;
+    }
+
+    // ガイダンステキスト
+    ctx.fillText(guidanceText, centerX, centerY - 80);
+
+    // 矢印の描画（ステータスが中央でない場合）
+    if (status !== 'centered') {
+      this.drawArrow(ctx, centerX, centerY, arrowX, arrowY, arrowSize);
+    }
+  }
+
+  drawArrow(ctx, fromX, fromY, toX, toY, size) {
+    const headlen = 15;
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+
+    // 矢印の幹
+    ctx.strokeStyle = 'rgba(255, 107, 0, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+
+    // 矢印の先端
+    ctx.fillStyle = 'rgba(255, 107, 0, 0.8)';
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
   }
 
   // =========================================================
