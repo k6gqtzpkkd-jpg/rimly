@@ -2,6 +2,54 @@
    RIMLY v4 CLASSIC GLOW - Logic & State Handling
    ========================================================== */
 
+// ================================================================
+// ★ プライベートアクセス制御 - URLで開く場合はトークン認証が必要
+// ================================================================
+(function initPrivateAccessControl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('private');
+
+  if (token) {
+    // トークンがある場合は、それを sessionStorage に保存
+    const validToken = localStorage.getItem('rimly_private_token');
+    if (!validToken || token !== validToken) {
+      // トークンが無効または不正な場合はアクセス拒否
+      document.body.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          background: #f5f5f5;
+          flex-direction: column;
+          gap: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        ">
+          <div style="text-align: center;">
+            <h1 style="margin: 0; font-size: 24px; color: #333;">🔒 アクセスが拒否されました</h1>
+            <p style="color: #666; margin-top: 10px;">正しいトークンを使用してアクセスしてください。</p>
+          </div>
+        </div>
+      `;
+      document.body.style.cssText = 'margin: 0; padding: 0;';
+      throw new Error('Invalid private access token');
+    }
+
+    // トークンが有効な場合は sessionStorage に記録
+    sessionStorage.setItem('rimly_private_session', 'true');
+    // URL から ?private=... を削除してクリーン
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  // 定期的に sessionStorage をチェック（プライベートセッションが切れたか確認）
+  setInterval(() => {
+    if (sessionStorage.getItem('rimly_private_session') === null) {
+      // セッションが切れた場合は警告
+      // (再度ログインが必要な場合はここで処理)
+    }
+  }, 5000);
+})();
+
 let pwInput = '';
 
 let appState = {
@@ -64,7 +112,7 @@ async function loadData() {
         appState.game = parsedMatch.game;
         appState.isGameActive = parsedMatch.isGameActive;
         appState.activeTab = parsedMatch.activeTab || 'score';
-        document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"], .tab-btn[data-tab="teams"]').forEach(b => b.disabled = true);
+        document.querySelectorAll('.bottom-tab-item[data-tab="setup"], .bottom-tab-item[data-tab="history"], .bottom-tab-item[data-tab="teams"]').forEach(b => b.disabled = true);
         setTimeout(() => switchTab(appState.activeTab), 50);
       }
     }
@@ -198,7 +246,14 @@ function checkOSUpdate() {
 
 // --- PASSWORD SCREEN ---
 function setupPassword() {
+  if (setupPassword.initialized) return;
+  setupPassword.initialized = true;
+
   const ds = Array.from({ length: 6 }, (_, i) => document.getElementById(`dot-${i}`));
+  const passwordScreen = document.getElementById('password-screen');
+  const appScreen = document.getElementById('app-screen');
+  const errorEl = document.getElementById('pw-error');
+  if (!passwordScreen || !appScreen || ds.some(d => !d)) return;
 
   const updateDots = (err = false) => {
     ds.forEach((d, i) => {
@@ -211,36 +266,57 @@ function setupPassword() {
   const checkPw = () => {
     const correctPw = localStorage.getItem('rimly_app_pw') || '082655';
     if (pwInput === correctPw) {
-      document.getElementById('password-screen').classList.remove('active');
-      document.getElementById('app-screen').classList.add('active');
+      passwordScreen.classList.remove('active');
+      appScreen.classList.add('active');
     } else {
-      document.getElementById('pw-error').textContent = 'パスワードが一致しません';
+      if (errorEl) errorEl.textContent = 'パスワードが一致しません';
       updateDots(true);
-      setTimeout(() => { pwInput = ''; updateDots(); document.getElementById('pw-error').textContent = ''; }, 1200);
+      setTimeout(() => { pwInput = ''; updateDots(); if (errorEl) errorEl.textContent = ''; }, 1200);
     }
   };
 
-  document.querySelectorAll('.num-btn[data-n]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (pwInput.length < 6) {
-        pwInput += btn.dataset.n;
-        updateDots();
-        if (pwInput.length === 6) setTimeout(checkPw, 100);
-      }
-    });
-  });
+  const inputDigit = (digit) => {
+    if (pwInput.length >= 6) return;
+    pwInput += digit;
+    updateDots();
+    if (pwInput.length === 6) {
+      setTimeout(checkPw, 100);
+    }
+  };
 
-  document.getElementById('pw-clear').addEventListener('click', () => {
+  const clearDigit = (e) => {
+    if (e) e.preventDefault();
     pwInput = pwInput.slice(0, -1);
     updateDots();
-    document.getElementById('pw-error').textContent = '';
+    if (errorEl) errorEl.textContent = '';
+  };
+
+  document.querySelectorAll('.num-btn[data-n]').forEach(btn => {
+    const handlePress = e => {
+      e.preventDefault();
+      inputDigit(btn.getAttribute('data-n'));
+    };
+    if (window.PointerEvent) {
+      btn.addEventListener('pointerdown', handlePress);
+    } else {
+      btn.addEventListener('click', handlePress);
+    }
   });
+
+  const clearBtn = document.getElementById('pw-clear');
+  if (clearBtn) {
+    if (window.PointerEvent) {
+      clearBtn.addEventListener('pointerdown', clearDigit);
+    } else {
+      clearBtn.addEventListener('click', clearDigit);
+    }
+  }
 
   // KB Support
   document.addEventListener('keydown', e => {
-    if (!document.getElementById('password-screen').classList.contains('active')) return;
+    if (!passwordScreen.classList.contains('active')) return;
     if (e.key >= '0' && e.key <= '9' && pwInput.length < 6) { pwInput += e.key; updateDots(); if (pwInput.length === 6) setTimeout(checkPw, 100); }
-    else if (e.key === 'Backspace') { pwInput = pwInput.slice(0, -1); updateDots(); document.getElementById('pw-error').textContent = ''; }
+    else if (e.key === 'Backspace') clearDigit(e);
   });
 
   // 🌍 ▼ iPhone(NFC)からの遠隔ロック解除を監視（ポーリング）する機能 ▼ 🌍
@@ -296,6 +372,2334 @@ function setupPassword() {
   }, 2000); // 2秒ごとに確認
 }
 
+document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
+
+// --- Apple-like compact UI bridge ---
+// The file still contains older UI code below. This bridge wires the current
+// Apple-like HTML first, so the tablet/desktop UI remains usable even if old
+// elements are no longer present.
+(function setupAppleLikeUIBridge() {
+  const $ = (id) => document.getElementById(id);
+  const qs = (sel) => document.querySelector(sel);
+  const qsa = (sel) => Array.from(document.querySelectorAll(sel));
+
+  function onPress(el, handler) {
+    if (!el) return;
+    const wrapped = (e) => {
+      e.preventDefault();
+      handler(e);
+    };
+    if (window.PointerEvent) el.addEventListener('pointerdown', wrapped);
+    else el.addEventListener('click', wrapped);
+  }
+
+  function makeDefaultPlayers(team) {
+    return Array.from({ length: 12 }, (_, i) => ({
+      id: `${team}-${Date.now()}-${i}`,
+      num: String(i + 4),
+      name: `選手 ${i + 4}`,
+      pts: 0,
+      p3: 0,
+      p2: 0,
+      pt: 0,
+      pf: 0
+    }));
+  }
+
+  function normalizePlayers(players, team) {
+    const list = Array.isArray(players) && players.length ? players : makeDefaultPlayers(team);
+    return list.map((p, i) => ({
+      id: p.id || `${team}-${Date.now()}-${i}`,
+      num: String(p.num || i + 4),
+      name: p.name || `選手 ${p.num || i + 4}`,
+      pts: Number(p.pts || 0),
+      p3: Number(p.p3 || 0),
+      p2: Number(p.p2 || 0),
+      pt: Number(p.pt || 0),
+      pf: Number(p.pf || 0)
+    }));
+  }
+
+  function loadLocalState() {
+    try {
+      appState.settings = JSON.parse(localStorage.getItem('rimly_settings')) || appState.settings;
+    } catch (e) { }
+
+    if (!appState.settings) appState.settings = { storageMode: 'local', dbKey: '' };
+    if (!appState.settings.dbKey) {
+      appState.settings.dbKey = 'USER_' + Math.random().toString(36).slice(2, 11).toUpperCase();
+      localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+    }
+
+    const profileKey = appState.settings.dbKey || 'default';
+    try {
+      appState.teamsDB = JSON.parse(localStorage.getItem(`rimly_teams_${profileKey}`) || localStorage.getItem('rimly_v4_teams') || '[]');
+    } catch (e) {
+      appState.teamsDB = [];
+    }
+    try {
+      appState.historyDB = JSON.parse(localStorage.getItem(`rimly_history_${profileKey}`) || localStorage.getItem('rimly_v4_history') || '[]');
+    } catch (e) {
+      appState.historyDB = [];
+    }
+    try {
+      const active = JSON.parse(localStorage.getItem('rimly_v4_active_match') || 'null');
+      if (active && active.game) {
+        appState.game = active.game;
+        appState.isGameActive = !!active.isGameActive;
+        appState.activeTab = active.activeTab || (appState.isGameActive ? 'score' : 'setup');
+      }
+    } catch (e) { }
+  }
+
+  function saveLocalState() {
+    const profileKey = appState.settings?.dbKey || 'default';
+    localStorage.setItem('rimly_settings', JSON.stringify(appState.settings || {}));
+    localStorage.setItem(`rimly_teams_${profileKey}`, JSON.stringify(appState.teamsDB || []));
+    localStorage.setItem(`rimly_history_${profileKey}`, JSON.stringify(appState.historyDB || []));
+    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB || []));
+    if (appState.isGameActive) {
+      localStorage.setItem('rimly_v4_active_match', JSON.stringify({
+        game: appState.game,
+        isGameActive: appState.isGameActive,
+        activeTab: appState.activeTab
+      }));
+    } else {
+      localStorage.removeItem('rimly_v4_active_match');
+    }
+  }
+
+  function resetMatchStats() {
+    const g = appState.game;
+    g.score = { home: 0, away: 0 };
+    g.quarter = 1;
+    g.isOT = false;
+    g.teamFouls = { home: 0, away: 0 };
+    g.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+    g.logs = [];
+    ['home', 'away'].forEach(team => {
+      g[team].players = normalizePlayers(g[team].players, team).map(p => ({
+        ...p,
+        pts: 0,
+        p3: 0,
+        p2: 0,
+        pt: 0,
+        pf: 0
+      }));
+    });
+  }
+
+  function qStr() {
+    return appState.game.isOT ? 'OT' : `Q${appState.game.quarter}`;
+  }
+
+  function halfKey() {
+    if (appState.game.isOT) return 'ot';
+    return appState.game.quarter <= 2 ? 'h1' : 'h2';
+  }
+
+  function switchAppleTab(tabName) {
+    appState.activeTab = tabName;
+    qsa('.bottom-tab-item').forEach(item => item.classList.toggle('active', item.dataset.tab === tabName));
+    qsa('.tab-content').forEach(content => content.classList.toggle('active', content.id === `tab-content-${tabName}`));
+    if (tabName === 'score') renderAppleScore();
+    if (tabName === 'plays') renderAppleLogs();
+    if (tabName === 'settings') renderAppleSettings();
+    saveLocalState();
+  }
+
+  function renderAppleSetup() {
+    if ($('setup-home-name')) $('setup-home-name').value = appState.game.home.name || 'HOME TEAM';
+    if ($('setup-away-name')) $('setup-away-name').value = appState.game.away.name || 'AWAY TEAM';
+  }
+
+  function renderAppleSettings() {
+    if ($('setting-storage-mode')) $('setting-storage-mode').value = appState.settings.storageMode || 'local';
+    if ($('setting-db-key')) $('setting-db-key').value = appState.settings.dbKey || '';
+    if ($('setting-app-pw')) $('setting-app-pw').value = localStorage.getItem('rimly_app_pw') || '082655';
+  }
+
+  function renderAppleScore() {
+    const g = appState.game;
+    if ($('disp-home-name')) $('disp-home-name').textContent = g.home.name || 'HOME';
+    if ($('disp-away-name')) $('disp-away-name').textContent = g.away.name || 'AWAY';
+    if ($('home-score')) $('home-score').textContent = g.score.home || 0;
+    if ($('away-score')) $('away-score').textContent = g.score.away || 0;
+    if ($('quarter-label')) $('quarter-label').textContent = qStr();
+
+    const periodLabels = ['1st QUARTER', '2nd QUARTER', '3rd QUARTER', '4th QUARTER'];
+    if ($('period-info')) $('period-info').textContent = g.isOT ? 'OVERTIME' : periodLabels[g.quarter - 1];
+
+    if ($('tf-home-val')) $('tf-home-val').textContent = g.teamFouls.home || 0;
+    if ($('tf-away-val')) $('tf-away-val').textContent = g.teamFouls.away || 0;
+
+    const key = halfKey();
+    const timeoutLimits = { h1: 2, h2: 3, ot: 3 };
+    if ($('to-home-rem')) $('to-home-rem').textContent = Math.max(0, timeoutLimits[key] - (g.timeouts.home[key] || 0));
+    if ($('to-away-rem')) $('to-away-rem').textContent = Math.max(0, timeoutLimits[key] - (g.timeouts.away[key] || 0));
+
+    renderAppleRoster('home');
+    renderAppleRoster('away');
+    if ($('btn-quick-undo')) $('btn-quick-undo').disabled = !g.logs || g.logs.length === 0;
+  }
+
+  function renderAppleRoster(team) {
+    const container = $(`roster-${team}-grid`);
+    if (!container) return;
+    container.innerHTML = '';
+    appState.game[team].players = normalizePlayers(appState.game[team].players, team);
+    appState.game[team].players.forEach(player => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `player-card ${team}`;
+      card.innerHTML = `
+        <div class="p-num">#${player.num}</div>
+        <div class="p-name">${player.name || '選手'}</div>
+        <div class="p-pts">${player.pts || 0} pts</div>
+        <div class="p-foul">${player.pf || 0}F</div>
+      `;
+      onPress(card, () => openAppleActionSheet(team, player.id));
+      container.appendChild(card);
+    });
+  }
+
+  function renderAppleLogs() {
+    const container = $('plays-log-container');
+    if (!container) return;
+    const logs = appState.game.logs || [];
+    if (!logs.length) {
+      container.innerHTML = '<div class="text-caption" style="text-align:center; padding:20px;">まだ記録がありません</div>';
+      return;
+    }
+
+    container.innerHTML = logs.map(log => {
+      const color = log.team === 'home' ? 'text-orange' : 'text-blue';
+      const teamName = log.team === 'home' ? appState.game.home.name : appState.game.away.name;
+      return `
+        <div class="list-item" style="display:block;">
+          <div class="${color}" style="font-weight:700;">${teamName} ${log.qStr}</div>
+          <div style="font-size:15px; margin-top:4px;">${log.detail}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function openAppleActionSheet(team, playerId) {
+    const player = appState.game[team].players.find(p => p.id === playerId);
+    if (!player) return;
+    appState.activeSheetTarget = { team, playerId };
+    if ($('as-player-title')) $('as-player-title').textContent = `#${player.num} ${player.name || '選手'}`;
+    $('action-sheet-overlay')?.classList.add('show');
+  }
+
+  function closeAppleActionSheet() {
+    appState.activeSheetTarget = null;
+    $('action-sheet-overlay')?.classList.remove('show');
+  }
+
+  function addAppleScore(value, rawType) {
+    const target = appState.activeSheetTarget;
+    if (!target) return;
+    const g = appState.game;
+    const player = g[target.team].players.find(p => p.id === target.playerId);
+    if (!player) return;
+
+    player.pts = (player.pts || 0) + value;
+    if (rawType === 'FT') player.pt = (player.pt || 0) + 1;
+    if (rawType === '2P') player.p2 = (player.p2 || 0) + 1;
+    if (rawType === '3P') player.p3 = (player.p3 || 0) + 1;
+    g.score[target.team] = (g.score[target.team] || 0) + value;
+    g.logs.unshift({
+      id: Date.now(),
+      team: target.team,
+      pid: player.id,
+      type: 'SCORE',
+      val: value,
+      rawType,
+      qStr: qStr(),
+      detail: `#${player.num} ${player.name || '選手'} +${value} ${rawType}`
+    });
+
+    closeAppleActionSheet();
+    renderAppleScore();
+    renderAppleLogs();
+    saveLocalState();
+  }
+
+  function addAppleFoul() {
+    const target = appState.activeSheetTarget;
+    if (!target) return;
+    const g = appState.game;
+    const player = g[target.team].players.find(p => p.id === target.playerId);
+    if (!player) return;
+
+    player.pf = (player.pf || 0) + 1;
+    g.teamFouls[target.team] = (g.teamFouls[target.team] || 0) + 1;
+    g.logs.unshift({
+      id: Date.now(),
+      team: target.team,
+      pid: player.id,
+      type: 'FOUL',
+      qStr: qStr(),
+      detail: `#${player.num} ${player.name || '選手'} Personal Foul`
+    });
+
+    closeAppleActionSheet();
+    renderAppleScore();
+    renderAppleLogs();
+    saveLocalState();
+  }
+
+  function useAppleTimeout() {
+    const target = appState.activeSheetTarget;
+    if (!target) return;
+    const g = appState.game;
+    const key = halfKey();
+    const limit = { h1: 2, h2: 3, ot: 3 }[key];
+    if ((g.timeouts[target.team][key] || 0) >= limit) {
+      alert('この区分でのタイムアウト上限です。');
+      closeAppleActionSheet();
+      return;
+    }
+
+    g.timeouts[target.team][key] = (g.timeouts[target.team][key] || 0) + 1;
+    g.logs.unshift({
+      id: Date.now(),
+      team: target.team,
+      pid: 'TO',
+      type: 'TO',
+      qStr: qStr(),
+      detail: 'TIMEOUT'
+    });
+
+    closeAppleActionSheet();
+    renderAppleScore();
+    renderAppleLogs();
+    saveLocalState();
+  }
+
+  function undoAppleLog() {
+    const log = appState.game.logs.shift();
+    if (!log) return;
+    const g = appState.game;
+    if (log.type === 'SCORE') {
+      const player = g[log.team].players.find(p => p.id === log.pid);
+      if (player) {
+        player.pts = Math.max(0, (player.pts || 0) - log.val);
+        if (log.rawType === 'FT') player.pt = Math.max(0, (player.pt || 0) - 1);
+        if (log.rawType === '2P') player.p2 = Math.max(0, (player.p2 || 0) - 1);
+        if (log.rawType === '3P') player.p3 = Math.max(0, (player.p3 || 0) - 1);
+      }
+      g.score[log.team] = Math.max(0, (g.score[log.team] || 0) - log.val);
+    }
+    if (log.type === 'FOUL') {
+      const player = g[log.team].players.find(p => p.id === log.pid);
+      if (player) player.pf = Math.max(0, (player.pf || 0) - 1);
+      g.teamFouls[log.team] = Math.max(0, (g.teamFouls[log.team] || 0) - 1);
+    }
+    if (log.type === 'TO') {
+      const key = log.qStr === 'OT' ? 'ot' : (Number(String(log.qStr).replace('Q', '')) <= 2 ? 'h1' : 'h2');
+      g.timeouts[log.team][key] = Math.max(0, (g.timeouts[log.team][key] || 0) - 1);
+    }
+    renderAppleScore();
+    renderAppleLogs();
+    saveLocalState();
+  }
+
+  function bindAppleUI() {
+    if (!$('app-screen') || !$('btn-start-match')) return;
+
+    qsa('.bottom-tab-item').forEach(item => {
+      onPress(item, () => switchAppleTab(item.dataset.tab));
+    });
+
+    qsa('#setup-home-color .toggle-btn, #setup-away-color .toggle-btn').forEach(btn => {
+      onPress(btn, () => {
+        const group = btn.closest('.toggle-group');
+        group?.querySelectorAll('.toggle-btn').forEach(item => item.classList.remove('active'));
+        btn.classList.add('active');
+        const team = group?.id.includes('home') ? 'home' : 'away';
+        appState.game[team].color = btn.dataset.val || appState.game[team].color;
+        saveLocalState();
+      });
+    });
+
+    onPress($('btn-start-match'), () => {
+      const g = appState.game;
+      g.home.name = $('setup-home-name')?.value.trim() || 'HOME TEAM';
+      g.away.name = $('setup-away-name')?.value.trim() || 'AWAY TEAM';
+      g.home.players = normalizePlayers(g.home.players, 'home');
+      g.away.players = normalizePlayers(g.away.players, 'away');
+      resetMatchStats();
+      appState.isGameActive = true;
+      switchAppleTab('score');
+    });
+
+    onPress($('q-prev'), () => {
+      const g = appState.game;
+      if (g.isOT) {
+        g.isOT = false;
+        g.quarter = 4;
+      } else {
+        g.quarter = Math.max(1, g.quarter - 1);
+      }
+      g.teamFouls = { home: 0, away: 0 };
+      renderAppleScore();
+      saveLocalState();
+    });
+
+    onPress($('q-next'), () => {
+      const g = appState.game;
+      if (!g.isOT && g.quarter < 4) g.quarter += 1;
+      else g.isOT = true;
+      g.teamFouls = { home: 0, away: 0 };
+      renderAppleScore();
+      saveLocalState();
+    });
+
+    onPress($('btn-quick-undo'), undoAppleLog);
+    onPress($('btn-end-match'), () => {
+      if (!confirm('試合を終了しますか？')) return;
+      appState.historyDB.unshift({
+        id: Date.now(),
+        date: new Date().toLocaleString('ja-JP'),
+        home: JSON.parse(JSON.stringify(appState.game.home)),
+        away: JSON.parse(JSON.stringify(appState.game.away)),
+        score: { ...appState.game.score },
+        logs: JSON.parse(JSON.stringify(appState.game.logs || []))
+      });
+      appState.isGameActive = false;
+      switchAppleTab('setup');
+    });
+
+    onPress($('as-btn-cancel'), closeAppleActionSheet);
+    onPress($('action-sheet-overlay'), e => {
+      if (e.target === $('action-sheet-overlay')) closeAppleActionSheet();
+    });
+    onPress($('as-btn-2p'), () => addAppleScore(2, '2P'));
+    onPress($('as-btn-3p'), () => addAppleScore(3, '3P'));
+    onPress($('as-btn-ft'), () => addAppleScore(1, 'FT'));
+    onPress($('as-btn-foul'), addAppleFoul);
+    onPress($('as-btn-to'), useAppleTimeout);
+
+    onPress($('btn-save-settings'), () => {
+      appState.settings.storageMode = $('setting-storage-mode')?.value || 'local';
+      appState.settings.dbKey = $('setting-db-key')?.value.trim() || appState.settings.dbKey;
+      const pw = $('setting-app-pw')?.value.trim();
+      if (pw) localStorage.setItem('rimly_app_pw', pw);
+      saveLocalState();
+      alert('設定を保存しました。');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadLocalState();
+    bindAppleUI();
+    renderAppleSetup();
+    renderAppleSettings();
+    switchAppleTab(appState.activeTab || 'setup');
+  }, { once: true });
+})();
+
+// --- Full Apple-language app rebuild ---
+(function setupRimlyFullAppleApp() {
+  const $ = (id) => document.getElementById(id);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const API_DB = '/api/db';
+
+  const defaultSettings = () => ({
+    storageMode: 'local',
+    dbKey: 'USER_' + Math.random().toString(36).slice(2, 11).toUpperCase(),
+    statsMode: 'basic',
+    autoCopy: 'false',
+    authKey: ''
+  });
+
+  const defaultPlayer = (team, index) => ({
+    id: `${team}_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}`,
+    num: String(index + 4),
+    name: `選手 ${index + 4}`,
+    pts: 0,
+    p3: 0,
+    p2: 0,
+    pt: 0,
+    pf: 0,
+    po: 0,
+    tf: 0,
+    uf: 0,
+    df: 0,
+    ast: 0,
+    orb: 0,
+    drb: 0,
+    stl: 0,
+    tov: 0,
+    blk: 0,
+    isOnCourt: index < 5
+  });
+
+  const statKeys = ['pts', 'p3', 'p2', 'pt', 'pf', 'po', 'tf', 'uf', 'df', 'ast', 'orb', 'drb', 'stl', 'tov', 'blk'];
+  const timeoutLimits = { h1: 2, h2: 3, ot: 3 };
+
+  let activeTab = 'setup';
+  let rosterEditTeam = 'home';
+  let teamEditIndex = -1;
+  let teamDraft = null;
+  let quickActionType = null;
+  let pendingFoulTarget = null;
+  let toastTimer = null;
+  let tacticState = null;
+  let gameVisionStream = null;
+  let gameVisionRecording = false;
+
+  function stopKnownLegacyErrors() {
+    window.addEventListener('error', (event) => {
+      const msg = String(event.message || '');
+      if (msg.includes("Cannot set properties of null") || msg.includes("Cannot read properties of null")) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) {
+        if (existing.dataset.loaded === 'true') resolve();
+        else existing.addEventListener('load', resolve, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => {
+        script.dataset.loaded = 'true';
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  function getFaceEngine() {
+    try {
+      if (window.rimlyFaceAuth) return window.rimlyFaceAuth;
+      return Function('return typeof rimlyFaceAuth !== "undefined" ? rimlyFaceAuth : null')();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function ensureFaceAuth() {
+    if (getFaceEngine()) return getFaceEngine();
+    await loadScriptOnce('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
+    await loadScriptOnce('face-auth.js');
+    const engine = getFaceEngine();
+    if (!engine) throw new Error('顔認証エンジンを読み込めませんでした');
+    await engine.init();
+    return engine;
+  }
+
+  function press(el, handler) {
+    if (!el) return;
+    const wrapped = (event) => {
+      if (event.type === 'pointerdown') event.preventDefault();
+      handler(event);
+    };
+    if (window.PointerEvent) el.addEventListener('pointerdown', wrapped);
+    else el.addEventListener('click', wrapped);
+  }
+
+  function ensureState() {
+    const settings = (() => {
+      try { return JSON.parse(localStorage.getItem('rimly_settings')) || defaultSettings(); }
+      catch (e) { return defaultSettings(); }
+    })();
+    appState.settings = { ...defaultSettings(), ...settings };
+    if (!appState.settings.dbKey) appState.settings.dbKey = defaultSettings().dbKey;
+
+    const profile = appState.settings.dbKey || 'default';
+    try {
+      appState.teamsDB = JSON.parse(localStorage.getItem(`rimly_teams_${profile}`) || localStorage.getItem('rimly_v4_teams') || '[]');
+    } catch (e) { appState.teamsDB = []; }
+    try {
+      appState.historyDB = JSON.parse(localStorage.getItem(`rimly_history_${profile}`) || localStorage.getItem('rimly_v4_history') || '[]');
+    } catch (e) { appState.historyDB = []; }
+    try {
+      const saved = JSON.parse(localStorage.getItem('rimly_v4_active_match') || 'null');
+      if (saved && saved.game) {
+        appState.game = saved.game;
+        appState.isGameActive = !!saved.isGameActive;
+        activeTab = saved.activeTab || (appState.isGameActive ? 'score' : 'setup');
+      }
+    } catch (e) { }
+
+    appState.game.home.name ||= 'HOME TEAM';
+    appState.game.away.name ||= 'AWAY TEAM';
+    appState.game.home.color ||= 'dark';
+    appState.game.away.color ||= 'light';
+    appState.game.score ||= { home: 0, away: 0 };
+    appState.game.teamFouls ||= { home: 0, away: 0 };
+    appState.game.timeouts ||= { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+    appState.game.logs ||= [];
+    appState.game.quarter ||= 1;
+    appState.game.isOT = !!appState.game.isOT;
+    ['home', 'away'].forEach(team => {
+      appState.game[team].players = normalizePlayers(appState.game[team].players, team, true);
+    });
+    saveState(false);
+  }
+
+  function normalizePlayers(players, team, allowEmpty = false) {
+    const source = Array.isArray(players) && players.length ? players : (allowEmpty ? [] : Array.from({ length: 12 }, (_, i) => defaultPlayer(team, i)));
+    return source.map((player, index) => {
+      const base = defaultPlayer(team, index);
+      const normalized = { ...base, ...player };
+      normalized.id ||= base.id;
+      normalized.num = String(normalized.num || index + 4);
+      normalized.name ||= `選手 ${normalized.num}`;
+      statKeys.forEach(key => normalized[key] = Number(normalized[key] || 0));
+      normalized.isOnCourt = !!normalized.isOnCourt;
+      return normalized;
+    });
+  }
+
+  function saveState(show = false) {
+    const profile = appState.settings?.dbKey || 'default';
+    localStorage.setItem('rimly_settings', JSON.stringify(appState.settings || {}));
+    localStorage.setItem(`rimly_teams_${profile}`, JSON.stringify(appState.teamsDB || []));
+    localStorage.setItem('rimly_v4_teams', JSON.stringify(appState.teamsDB || []));
+    localStorage.setItem(`rimly_history_${profile}`, JSON.stringify(appState.historyDB || []));
+    localStorage.setItem('rimly_v4_history', JSON.stringify(appState.historyDB || []));
+    if (appState.isGameActive) {
+      localStorage.setItem('rimly_v4_active_match', JSON.stringify({ game: appState.game, isGameActive: true, activeTab }));
+    } else {
+      localStorage.removeItem('rimly_v4_active_match');
+    }
+    if (show) toast('保存しました');
+  }
+
+  async function syncCloud(direction = 'save') {
+    if (!['db', 'hybrid'].includes(appState.settings.storageMode)) return;
+    try {
+      if (direction === 'load') {
+        const res = await fetch(API_DB, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey })
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (Array.isArray(json.data.teams)) appState.teamsDB = json.data.teams;
+          if (Array.isArray(json.data.history)) appState.historyDB = json.data.history;
+          saveState();
+          toast('クラウドから読み込みました');
+        }
+      } else {
+        await fetch(API_DB, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save',
+            user_key: appState.settings.dbKey,
+            teams: appState.teamsDB,
+            history: appState.historyDB
+          })
+        });
+      }
+    } catch (e) {
+      toast('クラウド同期をスキップしました');
+    }
+  }
+
+  function toast(message) {
+    const pop = $('score-pop') || document.createElement('div');
+    if (!pop.id) {
+      pop.id = 'score-pop';
+      pop.className = 'score-pop';
+      document.body.appendChild(pop);
+    }
+    pop.textContent = message;
+    pop.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      pop.classList.remove('show');
+      pop.textContent = '';
+    }, 1500);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[ch]));
+  }
+
+  function openModal(title, body, className = '') {
+    const root = $('rimly-modal-root');
+    root.innerHTML = `
+      <div class="rimly-modal open">
+        <div class="rimly-modal-box ${className}">
+          <div class="rimly-modal-header">
+            <div class="rimly-modal-title">${title}</div>
+            <button class="icon-button modal-close" type="button" aria-label="閉じる">×</button>
+          </div>
+          <div class="rimly-modal-body">${body}</div>
+        </div>
+      </div>
+    `;
+    press(root.querySelector('.modal-close'), closeModal);
+    root.querySelector('.rimly-modal').addEventListener('pointerdown', e => {
+      if (e.target.classList.contains('rimly-modal')) closeModal();
+    });
+  }
+
+  function closeModal() {
+    const root = $('rimly-modal-root');
+    if (root) root.innerHTML = '';
+    stopGameVision();
+  }
+
+  function confirmModal(message, onOk) {
+    openModal('確認', `
+      <div class="confirm-copy">${escapeHtml(message)}</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modal-cancel">キャンセル</button>
+        <button class="btn-primary" id="modal-ok">OK</button>
+      </div>
+    `, 'modal-sm');
+    press($('modal-cancel'), closeModal);
+    press($('modal-ok'), () => { closeModal(); onOk(); });
+  }
+
+  function buildShell() {
+    const app = $('app-screen');
+    if (!app) return;
+    app.innerHTML = `
+      <div class="rimly-shell">
+        <header class="rimly-topbar">
+          <div>
+            <div class="rimly-brand">Rimly</div>
+            <div class="rimly-subbrand">Basketball Score Manager</div>
+          </div>
+          <div class="rimly-live-pill" id="live-pill">READY</div>
+        </header>
+        <main class="rimly-workspace">
+          <section class="rimly-tab active" id="view-setup"></section>
+          <section class="rimly-tab" id="view-score"></section>
+          <section class="rimly-tab" id="view-plays"></section>
+          <section class="rimly-tab" id="view-fouls"></section>
+          <section class="rimly-tab" id="view-teams"></section>
+          <section class="rimly-tab" id="view-history"></section>
+          <section class="rimly-tab" id="view-tactics"></section>
+          <section class="rimly-tab" id="view-settings"></section>
+        </main>
+        <nav class="rimly-bottom-nav">
+          ${navButton('setup', '準備')}
+          ${navButton('score', 'スコア')}
+          ${navButton('plays', '得点')}
+          ${navButton('fouls', 'ファウル')}
+          ${navButton('teams', 'チーム')}
+          ${navButton('history', '履歴')}
+          ${navButton('tactics', '作戦')}
+          ${navButton('settings', '設定')}
+        </nav>
+      </div>
+      <div id="rimly-modal-root"></div>
+      <div class="score-pop" id="score-pop"></div>
+    `;
+    qsa('.rimly-nav-btn').forEach(btn => press(btn, () => switchTabFull(btn.dataset.tab)));
+  }
+
+  function navButton(tab, label) {
+    return `<button class="rimly-nav-btn" data-tab="${tab}" type="button"><span>${label}</span></button>`;
+  }
+
+  function visibleTabs() {
+    return appState.isGameActive
+      ? ['score', 'plays', 'fouls', 'history']
+      : ['setup', 'teams', 'history', 'tactics', 'settings'];
+  }
+
+  function firstVisibleTab() {
+    return visibleTabs()[0];
+  }
+
+  function renderAll() {
+    renderSetup();
+    renderScore();
+    renderLogs();
+    renderTeams();
+    renderHistory();
+    renderTactics();
+    renderSettings();
+    switchTabFull(activeTab);
+  }
+
+  function switchTabFull(tab) {
+    if (!visibleTabs().includes(tab)) tab = firstVisibleTab();
+    activeTab = tab;
+    qsa('.rimly-tab').forEach(view => view.classList.toggle('active', view.id === `view-${tab}`));
+    qsa('.rimly-nav-btn').forEach(btn => {
+      const visible = visibleTabs().includes(btn.dataset.tab);
+      btn.hidden = !visible;
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    if ($('live-pill')) $('live-pill').textContent = appState.isGameActive ? `${getQuarterLabel()} LIVE` : 'READY';
+    if (tab === 'tactics') requestAnimationFrame(initTacticsCanvas);
+    saveState(false);
+  }
+
+  function renderSetup() {
+    $('view-setup').innerHTML = `
+      <div class="section-heading setup-heading">
+        <h1>新規試合</h1>
+      </div>
+      <div class="setup-grid">
+        ${teamSetupCard('home')}
+        ${teamSetupCard('away')}
+      </div>
+      <div class="setup-start-row">
+        <button class="btn-primary setup-start-button" id="setup-start">試合開始</button>
+      </div>
+    `;
+    ['home', 'away'].forEach(team => {
+      const input = $(`setup-${team}-name-full`);
+      input.addEventListener('input', () => {
+        appState.game[team].name = input.value.trim() || (team === 'home' ? 'HOME TEAM' : 'AWAY TEAM');
+        renderScoreHeaderOnly();
+        saveState(false);
+      });
+      qsa(`[data-color-team="${team}"]`).forEach(btn => press(btn, () => {
+        appState.game[team].color = btn.dataset.colorValue;
+        renderSetup();
+        saveState();
+      }));
+      press($(`setup-${team}-load`), () => openTeamLoad(team));
+      press($(`setup-${team}-edit`), () => openRosterEditor(team));
+    });
+    press($('setup-start'), startMatch);
+  }
+
+  function teamSetupCard(team) {
+    const color = team === 'home' ? 'orange' : 'blue';
+    const label = team === 'home' ? 'HOME TEAM' : 'AWAY TEAM';
+    const playerCount = appState.game[team].players.length;
+    return `
+      <div class="ios-panel team-panel team-${team}">
+        <div class="panel-kicker ${color}">${label}</div>
+        <input class="ios-title-input" id="setup-${team}-name-full" value="${escapeHtml(appState.game[team].name || label)}" />
+        <div class="segmented">
+          <button data-color-team="${team}" data-color-value="dark" class="${appState.game[team].color === 'dark' ? 'active' : ''}">濃</button>
+          <button data-color-team="${team}" data-color-value="light" class="${appState.game[team].color === 'light' ? 'active' : ''}">淡</button>
+        </div>
+        <div class="team-card-footer refined">
+          <span class="player-count-pill">${playerCount}名</span>
+          <div class="team-action-row">
+            <button class="team-action-btn ${color}" id="setup-${team}-load"><span>読込</span><small>登録済み</small></button>
+            <button class="team-action-btn ${color}" id="setup-${team}-edit"><span>選手</span><small>編集</small></button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function startMatch() {
+    ['home', 'away'].forEach(team => {
+      appState.game[team].players = normalizePlayers(appState.game[team].players, team, false);
+      if (appState.game[team].players.filter(p => p.isOnCourt).length === 0) {
+        appState.game[team].players.forEach((player, index) => player.isOnCourt = index < 5);
+      }
+    });
+    openStartingFiveSelection('home');
+  }
+
+  function openStartingFiveSelection(team) {
+    const teamLabel = team === 'home' ? 'HOME' : 'AWAY';
+    const color = team === 'home' ? 'orange' : 'blue';
+    const players = appState.game[team].players;
+    openModal(`${teamLabel} スタメン`, `
+      <div class="starter-count ${color}" id="starter-count">${players.filter(p => p.isOnCourt).length}/5</div>
+      <div class="starter-grid">
+        ${players.map(p => `
+          <button class="starter-player ${color} ${p.isOnCourt ? 'active' : ''}" data-starter="${team}:${p.id}">
+            <strong>#${escapeHtml(p.num)}</strong>
+            <span>${escapeHtml(p.name)}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="modal-actions balanced-actions">
+        <button class="btn-secondary" id="starter-cancel">キャンセル</button>
+        <button class="btn-primary ${color}" id="starter-next">${team === 'home' ? 'AWAYへ' : '試合開始'}</button>
+      </div>
+    `, 'modal-lg');
+
+    const updateCount = () => {
+      const count = appState.game[team].players.filter(p => p.isOnCourt).length;
+      $('starter-count').textContent = `${count}/5`;
+      $('starter-next').disabled = count === 0 || count > 5;
+      qsa('[data-starter]').forEach(btn => {
+        const [, id] = btn.dataset.starter.split(':');
+        const p = findPlayer(team, id);
+        btn.classList.toggle('active', !!p?.isOnCourt);
+      });
+    };
+
+    qsa('[data-starter]').forEach(btn => press(btn, () => {
+      const [, id] = btn.dataset.starter.split(':');
+      const p = findPlayer(team, id);
+      if (!p) return;
+      const count = appState.game[team].players.filter(x => x.isOnCourt).length;
+      if (!p.isOnCourt && count >= 5) return toast('スタメンは5名までです');
+      p.isOnCourt = !p.isOnCourt;
+      updateCount();
+    }));
+    press($('starter-cancel'), closeModal);
+    press($('starter-next'), () => {
+      const count = appState.game[team].players.filter(p => p.isOnCourt).length;
+      if (count === 0 || count > 5) return;
+      if (team === 'home') openStartingFiveSelection('away');
+      else {
+        closeModal();
+        beginMatchAfterStarters();
+      }
+    });
+    updateCount();
+  }
+
+  function beginMatchAfterStarters() {
+    ['home', 'away'].forEach(team => {
+      appState.game[team].players = normalizePlayers(appState.game[team].players, team, false).map((player) => ({
+        ...player,
+        pts: 0, p3: 0, p2: 0, pt: 0, pf: 0, po: 0, tf: 0, uf: 0, df: 0,
+        ast: 0, orb: 0, drb: 0, stl: 0, tov: 0, blk: 0
+      }));
+    });
+    appState.game.score = { home: 0, away: 0 };
+    appState.game.quarter = 1;
+    appState.game.isOT = false;
+    appState.game.teamFouls = { home: 0, away: 0 };
+    appState.game.timeouts = { home: { h1: 0, h2: 0, ot: 0 }, away: { h1: 0, h2: 0, ot: 0 } };
+    appState.game.logs = [];
+    appState.isGameActive = true;
+    toast('試合開始');
+    renderAll();
+    switchTabFull('score');
+  }
+
+  function renderScoreHeaderOnly() {
+    if ($('score-home-name')) $('score-home-name').textContent = appState.game.home.name;
+    if ($('score-away-name')) $('score-away-name').textContent = appState.game.away.name;
+  }
+
+  function renderScore() {
+    $('view-score').innerHTML = `
+      <div class="score-layout">
+        <div class="score-hero-panel">
+          <div class="score-toolbar">
+            <button class="icon-button" id="quarter-prev">‹</button>
+            <div class="quarter-stack">
+              <span>${getPeriodLabel()}</span>
+              <strong>${getQuarterLabel()}</strong>
+            </div>
+            <button class="icon-button" id="quarter-next">›</button>
+            <button class="btn-secondary" id="open-game-vision">AI入力</button>
+            <button class="btn-secondary red" id="end-match">終了</button>
+          </div>
+          <div class="score-row">
+            ${scoreBlock('home')}
+            <div class="score-vs">-</div>
+            ${scoreBlock('away')}
+          </div>
+          <div class="score-meta-row">
+            ${teamMeta('home')}
+            ${teamMeta('away')}
+          </div>
+        </div>
+        <div class="quick-panel">
+          <button class="btn-secondary" id="undo-last" ${appState.game.logs.length ? '' : 'disabled'}>取り消し</button>
+          <button class="btn-primary orange quick-score-command" data-quick="2P">2点</button>
+          <button class="btn-primary orange quick-score-command" data-quick="3P">3点</button>
+          <button class="btn-primary" data-quick="FT">FT</button>
+          <button class="btn-secondary red" data-quick="FOUL">ファウル</button>
+        </div>
+        <div class="quarter-strip">${quarterSummary()}</div>
+        <div class="roster-panels">
+          ${rosterPanel('home')}
+          ${rosterPanel('away')}
+        </div>
+      </div>
+    `;
+    bindScoreControls();
+  }
+
+  function scoreBlock(team) {
+    const color = team === 'home' ? 'orange' : 'blue';
+    return `
+      <div class="score-team">
+        <div class="score-team-label ${color}">${team === 'home' ? 'HOME' : 'AWAY'}</div>
+        <div class="score-team-name ${color}" id="score-${team}-name">${escapeHtml(appState.game[team].name)}</div>
+        <div class="score-number ${color}">${appState.game.score[team] || 0}</div>
+      </div>
+    `;
+  }
+
+  function teamMeta(team) {
+    const color = team === 'home' ? 'orange' : 'blue';
+    const key = getHalfKey();
+    const rem = Math.max(0, timeoutLimits[key] - (appState.game.timeouts[team][key] || 0));
+    return `
+      <div class="meta-card">
+        <span class="${color}">${team === 'home' ? 'HOME' : 'AWAY'}</span>
+        <strong>F ${appState.game.teamFouls[team] || 0}</strong>
+        <strong>TO ${rem}</strong>
+        <button class="mini-button" data-timeout="${team}">TIMEOUT</button>
+      </div>
+    `;
+  }
+
+  function rosterPanel(team) {
+    const color = team === 'home' ? 'orange' : 'blue';
+    const players = appState.game[team].players;
+    const advanced = appState.settings.statsMode === 'advanced';
+    const extraHead = advanced ? '<th>AST</th><th>ORB</th><th>DRB</th><th>STL</th><th>TOV</th><th>BLK</th>' : '';
+    return `
+      <div class="ios-panel roster-panel">
+        <div class="roster-panel-head">
+          <div>
+            <div class="panel-kicker ${color}">${team === 'home' ? 'HOME' : 'AWAY'}</div>
+            <h2>${escapeHtml(appState.game[team].name)}</h2>
+          </div>
+          <div class="button-row">
+            <button class="btn-secondary ${color}" data-roster-edit="${team}">選手</button>
+            <button class="btn-secondary ${color}" data-sub="${team}">交代</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="rimly-table">
+            <thead><tr><th>#</th><th>PLAYER</th><th>PTS</th><th>3P</th><th>2P</th><th>FT</th><th>F</th>${extraHead}</tr></thead>
+            <tbody>
+              ${players.map(p => playerRow(team, p, advanced)).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  function playerRow(team, player, advanced) {
+    const out = isFoulOut(player);
+    const statButtons = advanced ? `
+      ${statCell(team, player.id, 'ast', player.ast)}
+      ${statCell(team, player.id, 'orb', player.orb)}
+      ${statCell(team, player.id, 'drb', player.drb)}
+      ${statCell(team, player.id, 'stl', player.stl)}
+      ${statCell(team, player.id, 'tov', player.tov)}
+      ${statCell(team, player.id, 'blk', player.blk)}
+    ` : '';
+    return `
+      <tr class="${player.isOnCourt ? '' : 'bench-row'} ${out ? 'foul-out-row' : ''}">
+        <td><button class="table-link" data-player-stats="${team}:${player.id}">#${escapeHtml(player.num)}</button></td>
+        <td><button class="player-name-button" data-player-stats="${team}:${player.id}">${escapeHtml(player.name)}</button></td>
+        <td>${player.pts || 0}</td>
+        <td><button class="stat-button" data-score="${team}:${player.id}:3:3P">${player.p3 || 0}</button></td>
+        <td><button class="stat-button" data-score="${team}:${player.id}:2:2P">${player.p2 || 0}</button></td>
+        <td><button class="stat-button" data-score="${team}:${player.id}:1:FT">${player.pt || 0}</button></td>
+        <td><button class="stat-button danger" data-foul-target="${team}:${player.id}">${player.pf || 0}</button></td>
+        ${statButtons}
+      </tr>
+    `;
+  }
+
+  function statCell(team, playerId, key, value) {
+    return `<td><button class="stat-button" data-stat="${team}:${playerId}:${key}">${value || 0}</button></td>`;
+  }
+
+  function bindScoreControls() {
+    press($('quarter-prev'), () => changeQuarter(-1));
+    press($('quarter-next'), () => changeQuarter(1));
+    press($('undo-last'), undoLastLog);
+    press($('end-match'), endMatch);
+    press($('open-game-vision'), openGameVision);
+    qsa('[data-timeout]').forEach(btn => press(btn, () => useTimeoutFull(btn.dataset.timeout)));
+    qsa('[data-roster-edit]').forEach(btn => press(btn, () => openRosterEditor(btn.dataset.rosterEdit)));
+    qsa('[data-sub]').forEach(btn => press(btn, () => openSubstitution(btn.dataset.sub)));
+    qsa('[data-score]').forEach(btn => press(btn, () => {
+      const [team, playerId, points, type] = btn.dataset.score.split(':');
+      addScoreFull(team, playerId, Number(points), type);
+    }));
+    qsa('[data-foul-target]').forEach(btn => press(btn, () => {
+      const [team, playerId] = btn.dataset.foulTarget.split(':');
+      openFoulModal(team, playerId);
+    }));
+    qsa('[data-stat]').forEach(btn => press(btn, () => {
+      const [team, playerId, key] = btn.dataset.stat.split(':');
+      addStatFull(team, playerId, key);
+    }));
+    qsa('[data-player-stats]').forEach(btn => press(btn, () => {
+      const [team, playerId] = btn.dataset.playerStats.split(':');
+      openPlayerStats(team, playerId);
+    }));
+    qsa('[data-quick]').forEach(btn => press(btn, () => openQuickScore(btn.dataset.quick)));
+  }
+
+  function addScoreFull(team, playerIdOrNum, value, type) {
+    const player = findPlayer(team, playerIdOrNum);
+    if (!player || isFoulOut(player)) return;
+    player.pts += value;
+    if (type === '3P') player.p3 += 1;
+    if (type === '2P') player.p2 += 1;
+    if (type === 'FT' || type === '1P') player.pt += 1;
+    appState.game.score[team] += value;
+    pushLog({ team, pid: player.id, type: 'SCORE', val: value, rawType: type, detail: `#${player.num} ${player.name} +${value} ${type}` });
+    afterStatChange(`+${value}`);
+  }
+
+  function addFoulFull(team, playerIdOrNum, foulType = 'P') {
+    const player = findPlayer(team, playerIdOrNum);
+    if (!player) return;
+    player.pf += 1;
+    if (foulType === 'P' || foulType === 'O') player.po += 1;
+    if (foulType === 'T') player.tf += 1;
+    if (foulType === 'U') player.uf += 1;
+    if (foulType === 'D') player.df += 1;
+    appState.game.teamFouls[team] += 1;
+    const names = { P: 'Personal', O: 'Offensive', T: 'Technical', U: 'Unsportsmanlike', D: 'Disqualifying' };
+    pushLog({ team, pid: player.id, type: 'FOUL', fType: foulType, detail: `#${player.num} ${player.name} ${names[foulType] || 'Foul'}` });
+    afterStatChange('FOUL');
+  }
+
+  function addStatFull(team, playerId, key) {
+    const player = findPlayer(team, playerId);
+    if (!player || isFoulOut(player)) return;
+    player[key] += 1;
+    pushLog({ team, pid: player.id, type: 'STAT', statKey: key, detail: `#${player.num} ${player.name} +1 ${key.toUpperCase()}` });
+    afterStatChange(key.toUpperCase());
+  }
+
+  function pushLog(log) {
+    appState.game.logs.unshift({ id: Date.now() + Math.random(), qStr: getQuarterLabel(), tstamp: Date.now(), ...log });
+  }
+
+  function afterStatChange(message) {
+    toast(message);
+    renderScore();
+    renderLogs();
+    saveState();
+  }
+
+  function findPlayer(team, playerIdOrNum) {
+    return appState.game[team].players.find(p => String(p.id) === String(playerIdOrNum) || String(p.num) === String(playerIdOrNum));
+  }
+
+  function isFoulOut(player) {
+    return (player.pf || 0) >= 5 || (player.tf || 0) >= 2 || (player.uf || 0) >= 2 || (player.df || 0) >= 1;
+  }
+
+  function openFoulModal(team, playerId) {
+    const player = findPlayer(team, playerId);
+    if (!player) return;
+    pendingFoulTarget = { team, playerId };
+    openModal(`#${escapeHtml(player.num)} ${escapeHtml(player.name)}`, `
+      <div class="foul-grid">
+        ${['P:Personal', 'O:Offensive', 'T:Technical', 'U:Unsports', 'D:Disqualifying'].map(item => {
+          const [key, label] = item.split(':');
+          return `<button class="btn-secondary red" data-foul-type="${key}">${label}</button>`;
+        }).join('')}
+      </div>
+    `, 'modal-sm');
+    qsa('[data-foul-type]').forEach(btn => press(btn, () => {
+      closeModal();
+      addFoulFull(pendingFoulTarget.team, pendingFoulTarget.playerId, btn.dataset.foulType);
+    }));
+  }
+
+  function openQuickScore(type) {
+    quickActionType = type;
+    openModal('記録', `
+      <div class="team-choice">
+        <button class="team-choice-btn home" data-quick-team="home">${escapeHtml(appState.game.home.name)}</button>
+        <button class="team-choice-btn away" data-quick-team="away">${escapeHtml(appState.game.away.name)}</button>
+      </div>
+      <div id="quick-player-list"></div>
+    `);
+    qsa('[data-quick-team]').forEach(btn => press(btn, () => renderQuickPlayers(btn.dataset.quickTeam)));
+  }
+
+  function renderQuickPlayers(team) {
+    const list = $('quick-player-list');
+    const players = appState.game[team].players.filter(p => p.isOnCourt);
+    list.innerHTML = `
+      <div class="player-choice-grid">
+        ${players.map(p => `<button class="player-choice ${team}" data-quick-player="${team}:${p.id}">#${escapeHtml(p.num)}<span>${escapeHtml(p.name)}</span></button>`).join('')}
+      </div>
+    `;
+    qsa('[data-quick-player]').forEach(btn => press(btn, () => {
+      const [targetTeam, playerId] = btn.dataset.quickPlayer.split(':');
+      closeModal();
+      if (quickActionType === 'FOUL') addFoulFull(targetTeam, playerId, 'P');
+      else addScoreFull(targetTeam, playerId, quickActionType === '3P' ? 3 : quickActionType === '2P' ? 2 : 1, quickActionType);
+    }));
+  }
+
+  function useTimeoutFull(team) {
+    const key = getHalfKey();
+    if ((appState.game.timeouts[team][key] || 0) >= timeoutLimits[key]) {
+      toast('タイムアウト上限です');
+      return;
+    }
+    appState.game.timeouts[team][key] += 1;
+    pushLog({ team, pid: 'TO', type: 'TO', detail: 'TIMEOUT' });
+    afterStatChange('TIMEOUT');
+  }
+
+  function undoLastLog() {
+    const log = appState.game.logs.shift();
+    if (!log) return;
+    if (log.type === 'SCORE') {
+      const p = findPlayer(log.team, log.pid);
+      if (p) {
+        p.pts = Math.max(0, p.pts - log.val);
+        if (log.rawType === '3P') p.p3 = Math.max(0, p.p3 - 1);
+        if (log.rawType === '2P') p.p2 = Math.max(0, p.p2 - 1);
+        if (log.rawType === 'FT' || log.rawType === '1P') p.pt = Math.max(0, p.pt - 1);
+      }
+      appState.game.score[log.team] = Math.max(0, appState.game.score[log.team] - log.val);
+    }
+    if (log.type === 'FOUL') {
+      const p = findPlayer(log.team, log.pid);
+      if (p) p.pf = Math.max(0, p.pf - 1);
+      appState.game.teamFouls[log.team] = Math.max(0, appState.game.teamFouls[log.team] - 1);
+    }
+    if (log.type === 'STAT') {
+      const p = findPlayer(log.team, log.pid);
+      if (p && log.statKey) p[log.statKey] = Math.max(0, p[log.statKey] - 1);
+    }
+    if (log.type === 'TO') {
+      const key = log.qStr === 'OT' ? 'ot' : (Number(log.qStr.replace('Q', '')) <= 2 ? 'h1' : 'h2');
+      appState.game.timeouts[log.team][key] = Math.max(0, appState.game.timeouts[log.team][key] - 1);
+    }
+    afterStatChange('取消');
+  }
+
+  function changeQuarter(delta) {
+    if (delta < 0) {
+      if (appState.game.isOT) {
+        appState.game.isOT = false;
+        appState.game.quarter = 4;
+      } else {
+        appState.game.quarter = Math.max(1, appState.game.quarter - 1);
+      }
+    } else {
+      if (!appState.game.isOT && appState.game.quarter < 4) appState.game.quarter += 1;
+      else appState.game.isOT = true;
+    }
+    appState.game.teamFouls = { home: 0, away: 0 };
+    renderScore();
+    saveState();
+  }
+
+  function getQuarterLabel() {
+    return appState.game.isOT ? 'OT' : `Q${appState.game.quarter}`;
+  }
+
+  function getPeriodLabel() {
+    if (appState.game.isOT) return 'OVERTIME';
+    return ['1st QUARTER', '2nd QUARTER', '3rd QUARTER', '4th QUARTER'][appState.game.quarter - 1];
+  }
+
+  function getHalfKey() {
+    if (appState.game.isOT) return 'ot';
+    return appState.game.quarter <= 2 ? 'h1' : 'h2';
+  }
+
+  function quarterSummary() {
+    const labels = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'];
+    return labels.map(label => {
+      const h = appState.game.logs.filter(l => l.type === 'SCORE' && l.team === 'home' && l.qStr === label).reduce((s, l) => s + l.val, 0);
+      const a = appState.game.logs.filter(l => l.type === 'SCORE' && l.team === 'away' && l.qStr === label).reduce((s, l) => s + l.val, 0);
+      return `<div class="quarter-chip"><span>${label}</span><strong><b class="orange">${h}</b> - <b class="blue">${a}</b></strong></div>`;
+    }).join('');
+  }
+
+  function renderLogs() {
+    $('view-plays').innerHTML = logView('SCORE');
+    $('view-fouls').innerHTML = logView('FOUL');
+    qsa('[data-log-edit]').forEach(btn => press(btn, () => editLogPlayer(btn.dataset.logEdit)));
+    qsa('[data-log-delete]').forEach(btn => press(btn, () => deleteLog(btn.dataset.logDelete)));
+  }
+
+  function logView(kind) {
+    const isScore = kind === 'SCORE';
+    const logs = appState.game.logs.filter(l => isScore ? ['SCORE', 'TO', 'STAT'].includes(l.type) : l.type === 'FOUL');
+    return `
+      <div class="section-heading">
+        <h1>${isScore ? '得点ログ' : 'ファウルログ'}</h1>
+      </div>
+      <div class="log-list">
+        ${logs.length ? logs.map(logItem).join('') : '<div class="empty-state">まだ記録がありません</div>'}
+      </div>
+    `;
+  }
+
+  function logItem(log) {
+    const color = log.team === 'home' ? 'orange' : 'blue';
+    const teamName = log.team === 'home' ? appState.game.home.name : appState.game.away.name;
+    return `
+      <div class="log-item">
+        <div class="log-main">
+          <span class="${color}">${escapeHtml(teamName)} ${escapeHtml(log.qStr)}</span>
+          <strong>${escapeHtml(log.detail)}</strong>
+        </div>
+        <div class="button-row">
+          ${log.pid !== 'TO' ? `<button class="mini-button" data-log-edit="${log.id}">変更</button>` : ''}
+          <button class="mini-button danger" data-log-delete="${log.id}">取消</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function editLogPlayer(logId) {
+    const log = appState.game.logs.find(l => String(l.id) === String(logId));
+    if (!log || log.pid === 'TO') return;
+    const players = appState.game[log.team].players;
+    openModal('選手変更', `
+      <div class="player-choice-grid">
+        ${players.map(p => `<button class="player-choice ${log.team}" data-edit-log-player="${p.id}">#${escapeHtml(p.num)}<span>${escapeHtml(p.name)}</span></button>`).join('')}
+      </div>
+    `);
+    qsa('[data-edit-log-player]').forEach(btn => press(btn, () => {
+      const oldPlayer = findPlayer(log.team, log.pid);
+      const newPlayer = findPlayer(log.team, btn.dataset.editLogPlayer);
+      if (!newPlayer) return;
+      if (log.type === 'SCORE' && oldPlayer) {
+        oldPlayer.pts = Math.max(0, oldPlayer.pts - log.val);
+        if (log.rawType === '3P') oldPlayer.p3 = Math.max(0, oldPlayer.p3 - 1);
+        if (log.rawType === '2P') oldPlayer.p2 = Math.max(0, oldPlayer.p2 - 1);
+        if (log.rawType === 'FT' || log.rawType === '1P') oldPlayer.pt = Math.max(0, oldPlayer.pt - 1);
+        newPlayer.pts += log.val;
+        if (log.rawType === '3P') newPlayer.p3 += 1;
+        if (log.rawType === '2P') newPlayer.p2 += 1;
+        if (log.rawType === 'FT' || log.rawType === '1P') newPlayer.pt += 1;
+      }
+      if (log.type === 'FOUL' && oldPlayer) {
+        oldPlayer.pf = Math.max(0, oldPlayer.pf - 1);
+        newPlayer.pf += 1;
+      }
+      log.pid = newPlayer.id;
+      log.detail = log.detail.replace(/#.*?(?=\s(?:\+|Personal|Offensive|Technical|Unsportsmanlike|Disqualifying|[A-Z]{3}))/u, `#${newPlayer.num} ${newPlayer.name}`);
+      closeModal();
+      renderScore();
+      renderLogs();
+      saveState();
+    }));
+  }
+
+  function deleteLog(logId) {
+    const index = appState.game.logs.findIndex(l => String(l.id) === String(logId));
+    if (index < 0) return;
+    appState.game.logs.unshift(...appState.game.logs.splice(index, 1));
+    undoLastLog();
+  }
+
+  function openRosterEditor(team) {
+    rosterEditTeam = team;
+    const players = appState.game[team].players;
+    openModal(`${team === 'home' ? 'HOME' : 'AWAY'} 選手`, `
+      <div class="form-row">
+        <input class="ios-input" id="roster-num" inputmode="numeric" placeholder="No." />
+        <input class="ios-input" id="roster-name" placeholder="選手名" />
+        <button class="btn-primary" id="roster-add">追加</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="roster-ocr">カメラで名簿を撮影</button>
+        <button class="btn-secondary" id="roster-save-team">DB保存</button>
+      </div>
+      <input type="file" id="roster-ocr-file" accept="image/*" capture="environment" hidden />
+      <div class="edit-list" id="roster-edit-list">
+        ${players.map(p => editPlayerRow(team, p)).join('')}
+      </div>
+    `, 'modal-lg');
+    press($('roster-add'), () => {
+      const num = $('roster-num').value.trim();
+      const name = $('roster-name').value.trim();
+      if (!num) return;
+      appState.game[team].players.push({ ...defaultPlayer(team, players.length), id: `${team}_${Date.now()}`, num, name: name || `選手 ${num}`, isOnCourt: false });
+      openRosterEditor(team);
+      renderScore();
+      saveState();
+    });
+    press($('roster-save-team'), () => saveCurrentRosterAsTeam(team));
+    press($('roster-ocr'), () => openCameraOcr(team, () => openRosterEditor(team), false));
+    $('roster-ocr-file').addEventListener('change', e => handleOcrFile(e.target.files[0], team, () => openRosterEditor(team), false));
+    bindEditList();
+  }
+
+  function editPlayerRow(team, player) {
+    return `
+      <div class="edit-list-row">
+        <button class="mini-button ${player.isOnCourt ? 'active' : ''}" data-toggle-court="${team}:${player.id}">${player.isOnCourt ? 'ON' : 'OFF'}</button>
+        <span>#${escapeHtml(player.num)} ${escapeHtml(player.name)}</span>
+        <button class="mini-button danger" data-delete-player="${team}:${player.id}">削除</button>
+      </div>
+    `;
+  }
+
+  function bindEditList() {
+    qsa('[data-toggle-court]').forEach(btn => press(btn, () => {
+      const [team, playerId] = btn.dataset.toggleCourt.split(':');
+      const player = findPlayer(team, playerId);
+      if (!player) return;
+      const count = appState.game[team].players.filter(p => p.isOnCourt).length;
+      if (!player.isOnCourt && count >= 5) return toast('コート上は5名までです');
+      player.isOnCourt = !player.isOnCourt;
+      openRosterEditor(team);
+      renderScore();
+      saveState();
+    }));
+    qsa('[data-delete-player]').forEach(btn => press(btn, () => {
+      const [team, playerId] = btn.dataset.deletePlayer.split(':');
+      appState.game[team].players = appState.game[team].players.filter(p => p.id !== playerId);
+      openRosterEditor(team);
+      renderScore();
+      saveState();
+    }));
+  }
+
+  function openSubstitution(team) {
+    openModal('選手交代', `
+      <div class="edit-list">
+        ${appState.game[team].players.map(p => editPlayerRow(team, p)).join('')}
+      </div>
+    `);
+    bindEditList();
+  }
+
+  function saveCurrentRosterAsTeam(team) {
+    const name = appState.game[team].name || (team === 'home' ? 'HOME TEAM' : 'AWAY TEAM');
+    const cleanPlayers = appState.game[team].players.map(p => cleanPlayerForTeam(p));
+    const index = appState.teamsDB.findIndex(t => t.name === name);
+    const record = { id: index >= 0 ? appState.teamsDB[index].id : Date.now(), name, players: cleanPlayers };
+    if (index >= 0) appState.teamsDB[index] = record;
+    else appState.teamsDB.push(record);
+    saveState(true);
+    syncCloud('save');
+    renderTeams();
+  }
+
+  function cleanPlayerForTeam(player) {
+    return { id: player.id || Date.now() + Math.random(), num: player.num, name: player.name, isCoach: !!player.isCoach };
+  }
+
+  function openTeamLoad(team) {
+    openModal('チーム読込', `
+      <input class="ios-input" id="team-load-search" placeholder="検索" />
+      <div class="team-load-list" id="team-load-list"></div>
+    `);
+    const draw = () => {
+      const q = $('team-load-search').value.trim().toLowerCase();
+      const items = appState.teamsDB.filter(t => t.name.toLowerCase().includes(q));
+      $('team-load-list').innerHTML = items.length ? items.map((t, index) => `
+        <button class="team-load-row" data-load-team-index="${index}">
+          <strong>${escapeHtml(t.name)}</strong>
+          <span>${(t.players || []).length}名</span>
+        </button>
+      `).join('') : '<div class="empty-state">登録チームがありません</div>';
+      qsa('[data-load-team-index]').forEach(btn => press(btn, () => {
+        const record = items[Number(btn.dataset.loadTeamIndex)];
+        appState.game[team].name = record.name;
+        appState.game[team].players = normalizePlayers(record.players.map(p => ({ ...p, id: `${team}_${Date.now()}_${Math.random()}` })), team, false);
+        closeModal();
+        renderSetup();
+        renderScore();
+        saveState();
+      }));
+    };
+    $('team-load-search').addEventListener('input', draw);
+    draw();
+  }
+
+  function normalizeApiError(error, fallback) {
+    const raw = String(error?.message || '');
+    if (/Failed to fetch|Load failed|NetworkError/i.test(raw)) {
+      return `${fallback}。ローカルサーバーでAI用の/apiが動いていない可能性があります。`;
+    }
+    return raw || fallback;
+  }
+
+  async function getAiStatus() {
+    try {
+      const res = await fetch('/api/ai-status', { method: 'GET' });
+      const data = await res.json();
+      return { ok: res.ok, ...data };
+    } catch (e) {
+      return {
+        ok: false,
+        apiServer: false,
+        hasGoogleApiKey: null,
+        selectedModel: null,
+        availableModels: [],
+        message: 'APIサーバーに接続できません'
+      };
+    }
+  }
+
+  function aiStatusHtml(status) {
+    if (!status.apiServer) {
+      return '<span class="status-dot danger"></span>APIサーバーなし';
+    }
+    if (!status.hasGoogleApiKey) {
+      return '<span class="status-dot danger"></span>APIキー未設定';
+    }
+    if (status.selectedModel) {
+      const source = status.keySource ? ` / ${escapeHtml(status.keySource)}` : '';
+      const provider = status.selectedProvider ? `${escapeHtml(status.selectedProvider)} ` : '';
+      return `<span class="status-dot ok"></span>使用予定: ${provider}${escapeHtml(status.selectedModel)}${source}`;
+    }
+    const source = status.keySource ? ` / ${escapeHtml(status.keySource)}` : '';
+    return `<span class="status-dot warn"></span>${escapeHtml(status.message || 'AIモデル未取得')}${source}`;
+  }
+
+  async function handleOcrFile(file, team, done, useTeamDraft = !!teamDraft) {
+    if (!file) return;
+    const image = await imageToDataUrl(file);
+    await handleOcrImageData(image, team, done, useTeamDraft);
+  }
+
+  async function handleOcrImageData(image, team, done, useTeamDraft = !!teamDraft) {
+    try {
+      toast('AIで名簿を解析中');
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.details || data.error || '解析に失敗しました');
+      const draftTarget = useTeamDraft && teamDraft;
+      if (data.teamName && draftTarget) teamDraft.name = data.teamName;
+      const target = draftTarget ? teamDraft.players : appState.game[team].players;
+      [...(data.players || []), ...(data.coaches || [])].forEach((p, index) => {
+        target.push({ ...defaultPlayer(team, target.length + index), num: p.num || '', name: p.name || '不明選手', isOnCourt: false, isCoach: !!p.isCoach });
+      });
+      toast(data.model ? `名簿を追加しました / ${data.provider || 'AI'} ${data.model}` : '名簿を追加しました');
+      done?.();
+      saveState();
+    } catch (e) {
+      toast(normalizeApiError(e, '名簿解析に失敗しました'));
+    }
+  }
+
+  function openCameraOcr(team, done, useTeamDraft = !!teamDraft) {
+    let stream = null;
+    const stop = () => {
+      stream?.getTracks?.().forEach(track => track.stop());
+      stream = null;
+    };
+    openModal('名簿を撮影', `
+      <div class="ocr-camera-box">
+        <video id="ocr-video" autoplay playsinline muted></video>
+        <canvas id="ocr-canvas" hidden></canvas>
+      </div>
+      <p class="modal-note" id="ocr-camera-status">カメラを起動しています...</p>
+      <div class="modal-actions">
+        <button class="btn-primary" id="ocr-capture">撮影して解析</button>
+        <button class="btn-secondary" id="ocr-file-fallback">ファイルを選ぶ</button>
+      </div>
+      <input type="file" id="ocr-file-camera-fallback" accept="image/*" capture="environment" hidden />
+    `, 'modal-lg');
+    const video = $('ocr-video');
+    const status = $('ocr-camera-status');
+    const fallback = $('ocr-file-camera-fallback');
+    const originalClose = rootCloseHook(stop);
+
+    navigator.mediaDevices?.getUserMedia?.({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      .then(cameraStream => {
+        stream = cameraStream;
+        video.srcObject = stream;
+        status.textContent = 'メンバーシートを枠内に入れて撮影してください';
+      })
+      .catch(() => {
+        status.textContent = 'カメラを起動できませんでした。ファイル選択で続けられます。';
+        toast('カメラを起動できませんでした');
+      });
+
+    press($('ocr-capture'), async () => {
+      if (!video.videoWidth) return toast('カメラ映像を取得中です');
+      const canvas = $('ocr-canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const image = canvas.toDataURL('image/jpeg', 0.86);
+      stop();
+      closeModal();
+      originalClose?.();
+      await handleOcrImageData(image, team, done, useTeamDraft);
+    });
+    press($('ocr-file-fallback'), () => fallback.click());
+    fallback.addEventListener('change', async e => {
+      stop();
+      closeModal();
+      originalClose?.();
+      await handleOcrFile(e.target.files[0], team, done, useTeamDraft);
+    });
+  }
+
+  function rootCloseHook(cleanup) {
+    const close = document.querySelector('#rimly-modal-root .modal-close');
+    if (!close) return null;
+    const handler = () => cleanup?.();
+    close.addEventListener('pointerdown', handler, { once: true });
+    close.addEventListener('click', handler, { once: true });
+    return () => {
+      close.removeEventListener('pointerdown', handler);
+      close.removeEventListener('click', handler);
+    };
+  }
+
+  function imageToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderTeams() {
+    $('view-teams').innerHTML = `
+      <div class="section-heading">
+        <h1>チーム</h1>
+        <div class="button-row">
+          <button class="btn-secondary" id="share-teams">共有</button>
+          <button class="btn-secondary" id="import-teams">取込</button>
+          <button class="btn-primary" id="create-team">新規</button>
+        </div>
+      </div>
+      <div class="team-db-grid">
+        ${appState.teamsDB.length ? appState.teamsDB.map((team, index) => teamDbCard(team, index)).join('') : '<div class="empty-state">登録チームがありません</div>'}
+      </div>
+    `;
+    press($('create-team'), () => openTeamEditor(-1));
+    press($('share-teams'), openTeamShare);
+    press($('import-teams'), openTeamImport);
+    qsa('[data-edit-team]').forEach(btn => press(btn, () => openTeamEditor(Number(btn.dataset.editTeam))));
+    qsa('[data-delete-team]').forEach(btn => press(btn, () => confirmModal('このチームを削除しますか？', () => {
+      appState.teamsDB.splice(Number(btn.dataset.deleteTeam), 1);
+      saveState();
+      renderTeams();
+    })));
+  }
+
+  function teamDbCard(team, index) {
+    return `
+      <div class="ios-panel team-db-card">
+        <div>
+          <h2>${escapeHtml(team.name)}</h2>
+          <p>${(team.players || []).length}名</p>
+        </div>
+        <div class="button-row">
+          <button class="btn-secondary" data-edit-team="${index}">編集</button>
+          <button class="btn-secondary red" data-delete-team="${index}">削除</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function openTeamEditor(index) {
+    teamEditIndex = index;
+    teamDraft = index >= 0 ? JSON.parse(JSON.stringify(appState.teamsDB[index])) : { id: Date.now(), name: '', players: [] };
+    renderTeamEditorModal();
+  }
+
+  function renderTeamEditorModal() {
+    openModal('チーム編集', `
+      <input class="ios-input" id="team-edit-name" placeholder="チーム名" value="${escapeHtml(teamDraft.name)}" />
+      <div class="form-row">
+        <input class="ios-input" id="team-player-num" inputmode="numeric" placeholder="No." />
+        <input class="ios-input" id="team-player-name" placeholder="選手名" />
+        <button class="btn-primary" id="team-player-add">追加</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="team-ocr">カメラで名簿を撮影</button>
+        <button class="btn-primary" id="team-save">保存</button>
+      </div>
+      <input type="file" id="team-ocr-file" accept="image/*" capture="environment" hidden />
+      <div class="edit-list">
+        ${teamDraft.players.map((p, i) => `
+          <div class="edit-list-row">
+            <span>#${escapeHtml(p.num)} ${escapeHtml(p.name)}</span>
+            <button class="mini-button danger" data-team-player-delete="${i}">削除</button>
+          </div>
+        `).join('')}
+      </div>
+    `, 'modal-lg');
+    $('team-edit-name').addEventListener('input', e => teamDraft.name = e.target.value);
+    press($('team-player-add'), () => {
+      const num = $('team-player-num').value.trim();
+      const name = $('team-player-name').value.trim();
+      if (!num) return;
+      teamDraft.players.push({ id: Date.now() + Math.random(), num, name: name || `選手 ${num}` });
+      renderTeamEditorModal();
+    });
+    press($('team-save'), () => {
+      teamDraft.name = $('team-edit-name').value.trim() || '未設定チーム';
+      if (teamEditIndex >= 0) appState.teamsDB[teamEditIndex] = teamDraft;
+      else appState.teamsDB.push(teamDraft);
+      closeModal();
+      renderTeams();
+      saveState(true);
+      syncCloud('save');
+    });
+    press($('team-ocr'), () => openCameraOcr('home', renderTeamEditorModal, true));
+    $('team-ocr-file').addEventListener('change', e => handleOcrFile(e.target.files[0], 'home', renderTeamEditorModal, true));
+    qsa('[data-team-player-delete]').forEach(btn => press(btn, () => {
+      teamDraft.players.splice(Number(btn.dataset.teamPlayerDelete), 1);
+      renderTeamEditorModal();
+    }));
+  }
+
+  function openTeamShare() {
+    const payload = 'RIMLY_TEAMS:' + btoa(unescape(encodeURIComponent(JSON.stringify(appState.teamsDB))));
+    openModal('チーム共有', `
+      <textarea class="ios-textarea" id="share-text" readonly>${payload}</textarea>
+      <button class="btn-primary" id="copy-share">コピー</button>
+    `);
+    press($('copy-share'), async () => {
+      await navigator.clipboard?.writeText(payload);
+      toast('コピーしました');
+    });
+  }
+
+  function openTeamImport() {
+    openModal('チーム取込', `
+      <textarea class="ios-textarea" id="import-text" placeholder="共有テキスト"></textarea>
+      <button class="btn-primary" id="do-import">取り込む</button>
+    `);
+    press($('do-import'), () => {
+      try {
+        const raw = $('import-text').value.trim().replace(/^RIMLY_TEAMS:/, '');
+        const data = JSON.parse(decodeURIComponent(escape(atob(raw))));
+        if (!Array.isArray(data)) throw new Error('形式が違います');
+        data.forEach(team => {
+          if (!appState.teamsDB.some(t => t.name === team.name)) appState.teamsDB.push(team);
+        });
+        closeModal();
+        renderTeams();
+        saveState(true);
+      } catch (e) {
+        toast('取り込みに失敗しました');
+      }
+    });
+  }
+
+  function renderHistory() {
+    $('view-history').innerHTML = `
+      <div class="section-heading compact-heading">
+        <h1>履歴</h1>
+        <button class="mini-button danger header-delete" id="clear-history">全削除</button>
+      </div>
+      <div class="history-list-full">
+        ${appState.historyDB.length ? appState.historyDB.map((match, index) => historyCard(match, index)).join('') : '<div class="empty-state">履歴がありません</div>'}
+      </div>
+    `;
+    press($('clear-history'), () => confirmModal('全履歴を削除しますか？', () => {
+      appState.historyDB = [];
+      saveState();
+      renderHistory();
+    }));
+    qsa('[data-export-match]').forEach(btn => press(btn, () => openMatchExport(appState.historyDB[Number(btn.dataset.exportMatch)])));
+    qsa('[data-ai-match]').forEach(btn => press(btn, () => openAiAnalysis(appState.historyDB[Number(btn.dataset.aiMatch)])));
+    qsa('[data-delete-match]').forEach(btn => press(btn, () => confirmModal('この履歴を削除しますか？', () => {
+      appState.historyDB.splice(Number(btn.dataset.deleteMatch), 1);
+      saveState();
+      renderHistory();
+    })));
+  }
+
+  function historyCard(match, index) {
+    return `
+      <div class="ios-panel history-card">
+        <div class="history-summary">
+          <p>${escapeHtml(match.date || '')}</p>
+          <h2><span class="orange">${escapeHtml(match.home.name)}</span> ${match.score.home} - ${match.score.away} <span class="blue">${escapeHtml(match.away.name)}</span></h2>
+        </div>
+        <div class="button-row history-actions">
+          <button class="btn-secondary" data-export-match="${index}">共有</button>
+          <button class="btn-secondary" data-ai-match="${index}">AI</button>
+          <button class="btn-secondary red" data-delete-match="${index}">削除</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function endMatch() {
+    if (!appState.isGameActive) return;
+    confirmModal('試合を終了して履歴に保存しますか？', async () => {
+      const match = {
+        id: Date.now(),
+        date: new Date().toLocaleString('ja-JP'),
+        home: JSON.parse(JSON.stringify(appState.game.home)),
+        away: JSON.parse(JSON.stringify(appState.game.away)),
+        score: { ...appState.game.score },
+        logs: JSON.parse(JSON.stringify(appState.game.logs))
+      };
+      appState.historyDB.unshift(match);
+      appState.isGameActive = false;
+      saveState(true);
+      await syncCloud('save');
+      if (appState.settings.autoCopy === 'true') navigator.clipboard?.writeText(generateMatchExportText(match));
+      renderAll();
+      switchTabFull('history');
+    });
+  }
+
+  function openMatchExport(match) {
+    const text = generateMatchExportText(match);
+    openModal('試合共有', `
+      <textarea class="ios-textarea tall" id="match-export-text-full" readonly>${escapeHtml(text)}</textarea>
+      <button class="btn-primary" id="copy-match">コピー</button>
+    `);
+    press($('copy-match'), async () => {
+      await navigator.clipboard?.writeText(text);
+      toast('コピーしました');
+    });
+  }
+
+  function generateMatchExportText(match) {
+    const topHome = [...match.home.players].sort((a, b) => (b.pts || 0) - (a.pts || 0)).slice(0, 5);
+    const topAway = [...match.away.players].sort((a, b) => (b.pts || 0) - (a.pts || 0)).slice(0, 5);
+    const lines = [
+      `Rimly 試合記録`,
+      `${match.date}`,
+      `${match.home.name} ${match.score.home} - ${match.score.away} ${match.away.name}`,
+      '',
+      `[${match.home.name}]`,
+      ...topHome.map(p => `#${p.num} ${p.name}: ${p.pts || 0}PTS ${p.pf || 0}F`),
+      '',
+      `[${match.away.name}]`,
+      ...topAway.map(p => `#${p.num} ${p.name}: ${p.pts || 0}PTS ${p.pf || 0}F`)
+    ];
+    return lines.join('\n');
+  }
+
+  async function openAiAnalysis(match) {
+    openModal('AI分析', `
+      <div class="ai-status" id="ai-status-box"><span class="status-dot warn"></span>AI接続を確認中...</div>
+      <div id="ai-result-box" class="ai-result">${localAnalysis(match)}</div>
+      <button class="btn-primary" id="run-ai">AIで分析</button>
+    `, 'modal-lg');
+    getAiStatus().then(status => {
+      const box = $('ai-status-box');
+      if (box) box.innerHTML = aiStatusHtml(status);
+    });
+    press($('run-ai'), async () => {
+      $('ai-result-box').innerHTML = '分析中...';
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchData: match })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.details || data.error || '分析に失敗しました');
+        const providerLabel = data.provider ? `${escapeHtml(data.provider)} ` : '';
+        const modelLabel = data.model ? `<p class="model-used">使用モデル: ${providerLabel}${escapeHtml(data.model)}</p>` : '';
+        $('ai-result-box').innerHTML = `${modelLabel}${data.analysis}`;
+        const statusBox = $('ai-status-box');
+        if (statusBox && data.model) statusBox.innerHTML = `<span class="status-dot ok"></span>使用中: ${providerLabel}${escapeHtml(data.model)}`;
+      } catch (e) {
+        const message = normalizeApiError(e, 'AI分析に失敗しました');
+        toast(message);
+        $('ai-result-box').innerHTML = `<p class="api-error">${escapeHtml(message)}</p>${localAnalysis(match)}`;
+      }
+    });
+  }
+
+  function localAnalysis(match) {
+    const winner = match.score.home === match.score.away ? '同点' : (match.score.home > match.score.away ? match.home.name : match.away.name);
+    const all = [...match.home.players.map(p => ({ ...p, team: match.home.name })), ...match.away.players.map(p => ({ ...p, team: match.away.name }))];
+    const top = all.sort((a, b) => (b.pts || 0) - (a.pts || 0))[0];
+    return `<p><strong>結果:</strong> ${escapeHtml(winner)}</p><p><strong>トップ:</strong> #${escapeHtml(top?.num || '')} ${escapeHtml(top?.name || '')} ${top?.pts || 0}PTS</p>`;
+  }
+
+  function openPlayerStats(team, playerId) {
+    const p = findPlayer(team, playerId);
+    if (!p) return;
+    openModal(`#${escapeHtml(p.num)} ${escapeHtml(p.name)}`, `
+      <div class="stats-grid">
+        ${[
+          ['PTS', p.pts], ['3P', p.p3], ['2P', p.p2], ['FT', p.pt], ['FOUL', p.pf],
+          ['AST', p.ast], ['ORB', p.orb], ['DRB', p.drb], ['STL', p.stl], ['TOV', p.tov], ['BLK', p.blk]
+        ].map(([label, value]) => `<div class="stat-tile"><span>${label}</span><strong>${value || 0}</strong></div>`).join('')}
+      </div>
+    `);
+  }
+
+  function renderTactics() {
+    $('view-tactics').innerHTML = `
+      <div class="section-heading">
+        <h1>作戦板</h1>
+        <div class="button-row">
+          <button class="btn-secondary active" id="tactics-team-home">HOME</button>
+          <button class="btn-secondary" id="tactics-team-away">AWAY</button>
+          <button class="btn-secondary" id="tactics-draw">線</button>
+          <button class="btn-secondary" id="tactics-undo">戻す</button>
+          <button class="btn-secondary red" id="tactics-clear">消去</button>
+        </div>
+      </div>
+      <div class="tactics-board-wrap">
+        <canvas id="tactics-board"></canvas>
+        <div class="tactics-token-layer" id="tactics-token-layer"></div>
+      </div>
+      <div class="tactics-palette-full" id="tactics-palette-full"></div>
+    `;
+    press($('tactics-team-home'), () => setTacticTeam('home'));
+    press($('tactics-team-away'), () => setTacticTeam('away'));
+    press($('tactics-draw'), () => {
+      tacticState.drawMode = !tacticState.drawMode;
+      $('tactics-draw').classList.toggle('active', tacticState.drawMode);
+    });
+    press($('tactics-undo'), undoTacticStroke);
+    press($('tactics-clear'), clearTactics);
+    requestAnimationFrame(initTacticsCanvas);
+  }
+
+  function initTacticsCanvas() {
+    const canvas = $('tactics-board');
+    const wrap = canvas?.parentElement;
+    if (!canvas || !wrap) return;
+    if (!tacticState) tacticState = { team: 'home', drawMode: false, strokes: [], current: null, tokens: [] };
+    const rect = wrap.getBoundingClientRect();
+    canvas.width = Math.max(600, rect.width * devicePixelRatio);
+    canvas.height = Math.max(360, rect.height * devicePixelRatio);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    drawCourt();
+    bindTacticsDrawing(canvas);
+    renderTacticPalette();
+    renderTacticTokens();
+  }
+
+  function drawCourt() {
+    const canvas = $('tactics-board');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#f8f8fb';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(0,0,0,.18)';
+    ctx.lineWidth = 3 * devicePixelRatio;
+    ctx.strokeRect(20, 20, w - 40, h - 40);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 20);
+    ctx.lineTo(w / 2, h - 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, Math.min(w, h) * .12, 0, Math.PI * 2);
+    ctx.stroke();
+    tacticState?.strokes.forEach(points => drawStroke(points));
+  }
+
+  function bindTacticsDrawing(canvas) {
+    if (canvas.dataset.bound) return;
+    canvas.dataset.bound = 'true';
+    const point = e => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: (e.clientX - rect.left) * devicePixelRatio, y: (e.clientY - rect.top) * devicePixelRatio };
+    };
+    canvas.addEventListener('pointerdown', e => {
+      if (!tacticState.drawMode) return;
+      canvas.setPointerCapture(e.pointerId);
+      tacticState.current = [point(e)];
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!tacticState.current) return;
+      tacticState.current.push(point(e));
+      drawCourt();
+      drawStroke(tacticState.current);
+    });
+    canvas.addEventListener('pointerup', () => {
+      if (tacticState.current) tacticState.strokes.push(tacticState.current);
+      tacticState.current = null;
+      saveTactics();
+    });
+  }
+
+  function drawStroke(points) {
+    const ctx = $('tactics-board').getContext('2d');
+    ctx.strokeStyle = '#ff9500';
+    ctx.lineWidth = 4 * devicePixelRatio;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  function renderTacticPalette() {
+    const list = $('tactics-palette-full');
+    if (!list || !tacticState) return;
+    const players = appState.game[tacticState.team].players;
+    list.innerHTML = players.map(p => `<button class="player-chip ${tacticState.team}" data-tactic-add="${p.id}">#${escapeHtml(p.num)} ${escapeHtml(p.name)}</button>`).join('');
+    qsa('[data-tactic-add]').forEach(btn => press(btn, () => {
+      const p = findPlayer(tacticState.team, btn.dataset.tacticAdd);
+      tacticState.tokens.push({ id: Date.now() + Math.random(), team: tacticState.team, pid: p.id, num: p.num, name: p.name, x: 50, y: 50 });
+      renderTacticTokens();
+      saveTactics();
+    }));
+  }
+
+  function renderTacticTokens() {
+    const layer = $('tactics-token-layer');
+    if (!layer || !tacticState) return;
+    layer.innerHTML = tacticState.tokens.map(t => `
+      <button class="tactic-token ${t.team}" style="left:${t.x}%; top:${t.y}%;" data-token="${t.id}">#${escapeHtml(t.num)}</button>
+    `).join('');
+    qsa('[data-token]').forEach(token => {
+      token.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        token.setPointerCapture(e.pointerId);
+        const item = tacticState.tokens.find(t => String(t.id) === token.dataset.token);
+        const move = ev => {
+          const rect = layer.getBoundingClientRect();
+          item.x = Math.max(3, Math.min(97, ((ev.clientX - rect.left) / rect.width) * 100));
+          item.y = Math.max(3, Math.min(97, ((ev.clientY - rect.top) / rect.height) * 100));
+          token.style.left = item.x + '%';
+          token.style.top = item.y + '%';
+        };
+        const up = () => {
+          token.removeEventListener('pointermove', move);
+          token.removeEventListener('pointerup', up);
+          saveTactics();
+        };
+        token.addEventListener('pointermove', move);
+        token.addEventListener('pointerup', up);
+      });
+    });
+  }
+
+  function setTacticTeam(team) {
+    tacticState ||= { team: 'home', drawMode: false, strokes: [], tokens: [] };
+    tacticState.team = team;
+    $('tactics-team-home').classList.toggle('active', team === 'home');
+    $('tactics-team-away').classList.toggle('active', team === 'away');
+    renderTacticPalette();
+  }
+
+  function undoTacticStroke() {
+    tacticState?.strokes.pop();
+    drawCourt();
+    saveTactics();
+  }
+
+  function clearTactics() {
+    if (!tacticState) return;
+    tacticState.strokes = [];
+    tacticState.tokens = [];
+    drawCourt();
+    renderTacticTokens();
+    saveTactics();
+  }
+
+  function saveTactics() {
+    localStorage.setItem('rimly_tactics_state', JSON.stringify(tacticState || {}));
+  }
+
+  function loadTactics() {
+    try { tacticState = JSON.parse(localStorage.getItem('rimly_tactics_state')) || null; }
+    catch (e) { tacticState = null; }
+  }
+
+  function renderSettings() {
+    $('view-settings').innerHTML = `
+      <div class="section-heading"><h1>設定</h1></div>
+      <div class="settings-grid">
+        <div class="ios-panel settings-panel">
+          <div class="settings-field">
+            <label>データ保存</label>
+            <select class="ios-input" id="setting-storage-full">
+              <option value="local">ローカル保存</option>
+              <option value="db">クラウドDB</option>
+              <option value="hybrid">ハイブリッド</option>
+            </select>
+          </div>
+          <div class="settings-field">
+            <label>クラウド同期キー</label>
+            <input class="ios-input" id="setting-db-full" value="${escapeHtml(appState.settings.dbKey)}" />
+          </div>
+          <div class="settings-field">
+            <label>スタッツ</label>
+            <select class="ios-input" id="setting-stats-full">
+              <option value="basic">簡易</option>
+              <option value="advanced">詳細</option>
+            </select>
+          </div>
+          <div class="settings-field">
+            <label>試合終了時コピー</label>
+            <select class="ios-input" id="setting-copy-full">
+              <option value="false">しない</option>
+              <option value="true">する</option>
+            </select>
+          </div>
+          <div class="settings-action-grid settings-final-actions">
+            <button class="btn-primary" id="save-settings-full">保存</button>
+            <button class="btn-secondary" id="load-cloud-full">クラウド読込</button>
+          </div>
+        </div>
+        <div class="ios-panel settings-panel">
+          <div class="settings-field">
+            <label>起動パスコード</label>
+            <input class="ios-input" id="setting-pw-full" maxlength="6" inputmode="numeric" value="${escapeHtml(localStorage.getItem('rimly_app_pw') || '082655')}" />
+          </div>
+          <div class="settings-field">
+            <label>プライベートURLトークン</label>
+            <input class="ios-input" id="private-token-full" readonly value="${escapeHtml(localStorage.getItem('rimly_private_token') || '')}" />
+          </div>
+          <div class="settings-action-grid">
+              <button class="btn-secondary" id="generate-token-full">トークン生成</button>
+              <button class="btn-secondary" id="copy-token-url-full">URLコピー</button>
+          </div>
+          <div class="settings-field">
+            <label>リモート連携キー</label>
+            <input class="ios-input" id="auth-key-full" value="${escapeHtml(appState.settings.authKey || '')}" />
+          </div>
+          <div class="settings-action-grid settings-final-actions">
+            <button class="btn-primary" id="save-security-full">保存</button>
+            <button class="btn-secondary" id="face-auth-manage-full">顔認証管理</button>
+          </div>
+        </div>
+      </div>
+    `;
+    $('setting-storage-full').value = appState.settings.storageMode || 'local';
+    $('setting-stats-full').value = appState.settings.statsMode || 'basic';
+    $('setting-copy-full').value = appState.settings.autoCopy || 'false';
+    press($('save-settings-full'), () => {
+      appState.settings.storageMode = $('setting-storage-full').value;
+      appState.settings.dbKey = $('setting-db-full').value.trim() || appState.settings.dbKey;
+      appState.settings.statsMode = $('setting-stats-full').value;
+      appState.settings.autoCopy = $('setting-copy-full').value;
+      saveState(true);
+      renderScore();
+      syncCloud('save');
+    });
+    press($('load-cloud-full'), () => syncCloud('load').then(renderAll));
+    press($('generate-token-full'), () => {
+      const token = 'rimly_' + Math.random().toString(36).slice(2) + '_' + Date.now().toString(36);
+      localStorage.setItem('rimly_private_token', token);
+      $('private-token-full').value = token;
+      toast('生成しました');
+    });
+    press($('copy-token-url-full'), async () => {
+      const token = localStorage.getItem('rimly_private_token');
+      if (!token) return;
+      await navigator.clipboard?.writeText(`${location.origin}${location.pathname}?private=${token}`);
+      toast('コピーしました');
+    });
+    press($('save-security-full'), () => {
+      const pw = $('setting-pw-full').value.trim();
+      if (pw) localStorage.setItem('rimly_app_pw', pw);
+      appState.settings.authKey = $('auth-key-full').value.trim();
+      saveState(true);
+    });
+    press($('face-auth-manage-full'), openFaceAuthManager);
+  }
+
+  function setupFaceUnlockButton() {
+    const passwordScreen = $('password-screen');
+    if (!passwordScreen || $('face-unlock-lite')) return;
+    const host = document.createElement('div');
+    host.className = 'face-lite-actions';
+    host.innerHTML = `<button class="btn-secondary" id="face-unlock-lite" type="button">顔認証</button>`;
+    const numpad = passwordScreen.querySelector('.pw-numpad');
+    if (numpad) numpad.insertAdjacentElement('afterend', host);
+    press($('face-unlock-lite'), openFaceUnlock);
+  }
+
+  async function openFaceUnlock() {
+    openFaceOverlay('顔認証', async ({ video, canvas, status, close }) => {
+      try {
+        const engine = await ensureFaceAuth();
+        if (!engine.hasRegisteredFaces()) {
+          status.textContent = '登録済みの顔がありません';
+          return;
+        }
+        engine.canvasEl = canvas;
+        status.textContent = 'カメラを起動中';
+        const ok = await engine.startCamera(video);
+        if (!ok) {
+          status.textContent = 'カメラを開始できませんでした';
+          return;
+        }
+        engine.authenticate(
+          msg => { status.textContent = msg; },
+          user => {
+            status.textContent = `${user.name} さん`;
+            engine.stopCamera();
+            $('password-screen')?.classList.remove('active');
+            $('app-screen')?.classList.add('active');
+            close();
+          },
+          (count, reason) => { status.textContent = `${reason} (${count}/3)`; },
+          () => { status.textContent = 'PINで解除してください'; engine.stopCamera(); }
+        );
+      } catch (e) {
+        status.textContent = e.message || '顔認証を開始できませんでした';
+      }
+    });
+  }
+
+  async function openFaceAuthManager() {
+    openModal('顔認証管理', `
+      <div class="empty-state" id="face-auth-status">読み込み中</div>
+      <div class="edit-list" id="face-auth-list"></div>
+      <button class="btn-primary" id="face-register-open">新しい顔を登録</button>
+    `);
+    try {
+      const engine = await ensureFaceAuth();
+      await engine.loadRegisteredFaces();
+      renderFaceAuthList(engine);
+      $('face-auth-status').textContent = '端末内に保存されています';
+      press($('face-register-open'), openFaceRegister);
+    } catch (e) {
+      $('face-auth-status').textContent = e.message || '顔認証を読み込めませんでした';
+    }
+  }
+
+  function renderFaceAuthList(engine) {
+    const list = $('face-auth-list');
+    const faces = engine.getRegisteredFaces();
+    list.innerHTML = faces.length ? faces.map(face => `
+      <div class="edit-list-row">
+        <span>${escapeHtml(face.name)}</span>
+        <button class="mini-button danger" data-face-delete="${face.id}">削除</button>
+      </div>
+    `).join('') : '<div class="empty-state">登録がありません</div>';
+    qsa('[data-face-delete]').forEach(btn => press(btn, async () => {
+      await engine.deleteFace(btn.dataset.faceDelete);
+      renderFaceAuthList(engine);
+    }));
+  }
+
+  function openFaceRegister() {
+    openFaceOverlay('顔登録', async ({ video, canvas, status }) => {
+      try {
+        const engine = await ensureFaceAuth();
+        engine.canvasEl = canvas;
+        const ok = await engine.startCamera(video);
+        if (!ok) {
+          status.textContent = 'カメラを開始できませんでした';
+          return;
+        }
+        status.innerHTML = `
+          <input class="ios-input" id="face-register-name-lite" placeholder="ユーザー名" />
+          <button class="btn-primary" id="face-register-run">登録する</button>
+          <div id="face-register-message" class="empty-state">待機中</div>
+        `;
+        press($('face-register-run'), async () => {
+          const name = $('face-register-name-lite').value.trim() || 'User';
+          const msg = $('face-register-message');
+          try {
+            await engine.registerFace(name, text => { msg.textContent = text; });
+            await engine.loadRegisteredFaces();
+            msg.textContent = '登録しました';
+            engine.stopCamera();
+          } catch (e) {
+            msg.textContent = e.message || '登録に失敗しました';
+          }
+        });
+      } catch (e) {
+        status.textContent = e.message || '顔登録を開始できませんでした';
+      }
+    });
+  }
+
+  function openFaceOverlay(title, onReady) {
+    const overlay = document.createElement('div');
+    overlay.className = 'rimly-modal face-lite-modal';
+    overlay.innerHTML = `
+      <div class="rimly-modal-box modal-sm">
+        <div class="rimly-modal-header">
+          <div class="rimly-modal-title">${title}</div>
+          <button class="icon-button" id="face-lite-close" type="button">×</button>
+        </div>
+        <div class="rimly-modal-body">
+          <div class="face-lite-camera">
+            <video id="face-lite-video" autoplay playsinline muted></video>
+            <canvas id="face-lite-canvas"></canvas>
+          </div>
+          <div id="face-lite-status" class="empty-state">準備中</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = () => {
+      const engine = getFaceEngine();
+      if (engine) engine.stopCamera();
+      overlay.remove();
+    };
+    press(overlay.querySelector('#face-lite-close'), close);
+    onReady({
+      video: overlay.querySelector('#face-lite-video'),
+      canvas: overlay.querySelector('#face-lite-canvas'),
+      status: overlay.querySelector('#face-lite-status'),
+      close
+    });
+  }
+
+  async function openGameVision() {
+    if (typeof window.startRealtimeRecording !== 'function') {
+      try { await loadScriptOnce('game-vision-realtime.js'); } catch (e) { }
+    }
+    openModal('AIカメラ入力', `
+      <div class="camera-box"><video id="vision-video" autoplay playsinline muted></video><canvas id="vision-canvas" hidden></canvas></div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="vision-start">記録開始</button>
+        <button class="btn-secondary red" id="vision-stop">停止</button>
+      </div>
+      <div class="empty-state" id="vision-status">待機中</div>
+    `, 'modal-sm');
+    const video = $('vision-video');
+    try {
+      gameVisionStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = gameVisionStream;
+      await video.play();
+    } catch (e) {
+      $('vision-status').textContent = 'カメラを開始できませんでした';
+    }
+    press($('vision-start'), async () => {
+      gameVisionRecording = true;
+      $('vision-status').textContent = '記録中';
+      if (typeof window.startRealtimeRecording === 'function') {
+        window.startRealtimeRecording(video, $('vision-canvas'));
+      }
+    });
+    press($('vision-stop'), async () => {
+      if (typeof window.stopRealtimeRecording === 'function' && gameVisionRecording) {
+        await window.stopRealtimeRecording();
+      }
+      gameVisionRecording = false;
+      stopGameVision();
+      closeModal();
+    });
+  }
+
+  function stopGameVision() {
+    if (gameVisionStream) {
+      gameVisionStream.getTracks().forEach(track => track.stop());
+      gameVisionStream = null;
+    }
+  }
+
+  window.addScore = addScoreFull;
+  window.addFoul = addFoulFull;
+  window.useFoul = addFoulFull;
+
+  stopKnownLegacyErrors();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureState();
+    loadTactics();
+    setupFaceUnlockButton();
+    buildShell();
+    renderAll();
+  }, { once: true });
+})();
+
 
 // Canvas DB draw
 function setupRimlyCanvas() {
@@ -333,7 +2737,7 @@ function showPop(str) {
 
 // --- NAVIGATION TABS ---
 function setupTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.bottom-tab-item').forEach(btn => {
     btn.onclick = () => {
       const target = btn.dataset.tab;
 
@@ -354,8 +2758,8 @@ function setupTabs() {
 
 function switchTab(t) {
   appState.activeTab = t;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.tab-btn[data-tab="${t}"]`).classList.add('active');
+  document.querySelectorAll('.bottom-tab-item').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.bottom-tab-item[data-tab="${t}"]`).classList.add('active');
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById(`tab-content-${t}`).classList.add('active');
 
@@ -379,6 +2783,45 @@ function renderSettings() {
 
   const authKeyEl = document.getElementById('setting-auth-key');
   if (authKeyEl) authKeyEl.value = appState.settings.authKey || '';
+
+  // ================================================================
+  // ★ プライベートアクセストークン生成機能
+  // ================================================================
+  const btnGenerateToken = document.getElementById('btn-generate-token');
+  const privateTokenInput = document.getElementById('setting-private-token');
+  const privateUrlInput = document.getElementById('private-access-url');
+  const btnCopyUrl = document.getElementById('btn-copy-private-url');
+
+  // 既存トークンを読み込む
+  const existingToken = localStorage.getItem('rimly_private_token');
+  if (existingToken) {
+    privateTokenInput.value = existingToken;
+    privateUrlInput.value = `${window.location.origin}${window.location.pathname}?private=${existingToken}`;
+    btnCopyUrl.style.display = 'block';
+  }
+
+  if (btnGenerateToken) {
+    btnGenerateToken.onclick = () => {
+      // ランダムトークンを生成（32文字の英数字）
+      const token = 'rimly_' + Math.random().toString(36).substr(2) + '_' + Date.now().toString(36);
+      localStorage.setItem('rimly_private_token', token);
+
+      privateTokenInput.value = token;
+      privateUrlInput.value = `${window.location.origin}${window.location.pathname}?private=${token}`;
+      btnCopyUrl.style.display = 'block';
+
+      showAlert('✅ トークンを生成しました！\n\nこのURLをシェアすると、URLを知ってる人だけがアクセスできます。');
+    };
+  }
+
+  if (btnCopyUrl) {
+    btnCopyUrl.onclick = () => {
+      privateUrlInput.select();
+      document.execCommand('copy');
+      btnCopyUrl.textContent = 'コピー済み！';
+      setTimeout(() => { btnCopyUrl.textContent = 'コピー'; }, 2000);
+    };
+  }
 
   const btnPw = document.getElementById('btn-save-pw');
   if (btnPw) {
@@ -512,7 +2955,7 @@ document.getElementById('btn-start-match').onclick = () => {
   resetStats(g.away.players);
 
   appState.isGameActive = true;
-  document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+  document.querySelectorAll('.bottom-tab-item[data-tab="setup"], .bottom-tab-item[data-tab="history"]').forEach(b => b.disabled = true);
 
   // 3. ★追加：画面の表示も問答無用で「0」や「初期状態」に戻す
   const hs = document.getElementById('home-score');
@@ -607,8 +3050,8 @@ function renderScore() {
     }
   });
 
-  renderTableRoster('home');
-  renderTableRoster('away');
+  renderGridRoster('home');
+  renderGridRoster('away');
   renderQuarterScores();
   renderQuickUndo();
 
@@ -895,7 +3338,7 @@ function executeActualStartMatch() {
   resetStats(g.away.players);
 
   appState.isGameActive = true;
-  document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+  document.querySelectorAll('.bottom-tab-item[data-tab="setup"], .bottom-tab-item[data-tab="history"]').forEach(b => b.disabled = true);
 
   const hs = document.getElementById('home-score'); const as = document.getElementById('away-score');
   if (hs) hs.textContent = '0'; if (as) as.textContent = '0';
@@ -1098,7 +3541,7 @@ function executeActualStartMatch() {
     });
 
     appState.isGameActive = true;
-    document.querySelectorAll('.tab-btn[data-tab="setup"], .tab-btn[data-tab="history"]').forEach(b => b.disabled = true);
+    document.querySelectorAll('.bottom-tab-item[data-tab="setup"], .bottom-tab-item[data-tab="history"]').forEach(b => b.disabled = true);
 
     // 画面表示のリセット
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -1551,7 +3994,7 @@ document.getElementById('btn-end-match').onclick = () => {
       });
       saveData();
       appState.isGameActive = false;
-      document.querySelectorAll('.tab-btn').forEach(b => b.disabled = false);
+      document.querySelectorAll('.bottom-tab-item').forEach(b => b.disabled = false);
       switchTab('setup');
       showPop('MATCH SAVED!');
 
@@ -2011,12 +4454,8 @@ function processTeamDataArray(imported) {
 // --- CUSTOM DIALOGS ---
 function showAlert(msg) {
   return new Promise(resolve => {
-    document.getElementById('dialog-title').textContent = 'お知らせ';
-    document.getElementById('dialog-msg').textContent = msg;
-    document.getElementById('dialog-btn-cancel').style.display = 'none';
-    const okBtn = document.getElementById('dialog-btn-ok');
-    okBtn.onclick = () => { closeDialog(); resolve(); };
-    document.getElementById('overlay-custom-dialog').classList.add('open');
+    alert(msg);
+    resolve();
   });
 }
 function showConfirm(msg) {
@@ -2030,9 +4469,7 @@ function showConfirm(msg) {
     document.getElementById('overlay-custom-dialog').classList.add('open');
   });
 }
-function closeDialog() {
-  document.getElementById('overlay-custom-dialog').classList.remove('open');
-}
+function closeDialog() { }
 function isFoulOut(p) {
   const tud = (p.tud || 0);
   const tf = (p.tf || 0);
@@ -2790,30 +5227,30 @@ window.flipRosterView = function (tm) {
 (function setupFaceAuthUI() {
 
   // --- 要素取得 ---
-  const btnFaceAuth      = document.getElementById('btn-face-auth');
-  const faceOverlay      = document.getElementById('face-auth-overlay');
-  const btnFaceBack      = document.getElementById('btn-face-back');
-  const faceVideo        = document.getElementById('face-video');
-  const faceCanvas       = document.getElementById('face-canvas');
-  const faceStatus       = document.getElementById('face-status');
-  const progressFill     = document.getElementById('face-progress-fill');
-  const faceManageLink   = document.getElementById('face-manage-link');
-  const pwContainer      = document.querySelector('.pw-container');
+  const btnFaceAuth = document.getElementById('btn-face-auth');
+  const faceOverlay = document.getElementById('face-auth-overlay');
+  const btnFaceBack = document.getElementById('btn-face-back');
+  const faceVideo = document.getElementById('face-video');
+  const faceCanvas = document.getElementById('face-canvas');
+  const faceStatus = document.getElementById('face-status');
+  const progressFill = document.getElementById('face-progress-fill');
+  const faceManageLink = document.getElementById('face-manage-link');
+  const pwContainer = document.querySelector('.pw-container');
 
   // 登録モーダル
-  const registerOverlay  = document.getElementById('face-register-overlay');
-  const registerVideo    = document.getElementById('face-register-video');
-  const registerName     = document.getElementById('face-register-name');
-  const btnDoRegister    = document.getElementById('btn-do-register-face');
+  const registerOverlay = document.getElementById('face-register-overlay');
+  const registerVideo = document.getElementById('face-register-video');
+  const registerName = document.getElementById('face-register-name');
+  const btnDoRegister = document.getElementById('btn-do-register-face');
   const btnCloseRegister = document.getElementById('btn-close-face-register');
-  const registerStatus   = document.getElementById('face-register-status');
+  const registerStatus = document.getElementById('face-register-status');
 
   // 設定タブ内
-  const btnRegSettings   = document.getElementById('btn-register-face-settings');
-  const faceUserList     = document.getElementById('face-user-list');
+  const btnRegSettings = document.getElementById('btn-register-face-settings');
+  const faceUserList = document.getElementById('face-user-list');
 
   // ロック画面の顔管理ボタン
-  const btnFaceManagePw  = document.getElementById('btn-face-manage-pw');
+  const btnFaceManagePw = document.getElementById('btn-face-manage-pw');
 
   if (!btnFaceAuth || !faceOverlay) return; // 要素がなければ何もしない
 
@@ -2991,7 +5428,7 @@ window.flipRosterView = function (tm) {
       successDiv.remove();
       if (pwContainer) pwContainer.style.display = '';
       rimlyFaceAuth.resetFailCount();
-      
+
       // ロック解除！
       document.getElementById('password-screen').classList.remove('active');
       document.getElementById('app-screen').classList.add('active');
@@ -3039,7 +5476,7 @@ window.flipRosterView = function (tm) {
       try {
         // プレビューループを停止して登録処理へ
         rimlyFaceAuth.stopDetectionLoop();
-        
+
         const record = await rimlyFaceAuth.registerFace(name, (msg) => {
           if (registerStatus) registerStatus.textContent = msg;
         });
@@ -3130,7 +5567,7 @@ window.flipRosterView = function (tm) {
   const origRenderSettings = window.renderSettings || renderSettings;
   if (typeof origRenderSettings === 'function') {
     const _origRS = origRenderSettings;
-    window.renderSettings = function() {
+    window.renderSettings = function () {
       _origRS.apply(this, arguments);
       renderFaceUserList();
     };
@@ -3274,7 +5711,7 @@ function drawCourt(canvas) {
   ctx.font = `bold ${Math.max(12, ch * 0.06)}px "Inter"`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  
+
   ctx.save();
   ctx.translate(leftX + paintW + cw * 0.05, centerY);
   ctx.rotate(-Math.PI / 2);
@@ -3347,7 +5784,7 @@ function renderTacticsPalette() {
   customEl.className = `tact-palette-item tact-custom ${team}`;
   customEl.textContent = '+';
   customEl.title = 'カスタム番号を追加';
-  
+
   const handleCustomAdd = (e) => {
     if (e) e.preventDefault();
     const numStr = prompt('追加したい背番号や文字を入力してください (例: 99, ボール, コーチ など)');
@@ -3376,7 +5813,7 @@ function addPlayerToCourt(id, num, name, team) {
   playerEl.className = `tact-player ${team}`;
   playerEl.style.left = `${startX}px`;
   playerEl.style.top = `${startY}px`;
-  
+
   // 文字数によってフォントサイズを調整（長い文字も入るように）
   const numStr = String(num);
   let fontSize = '20px';
@@ -3420,7 +5857,7 @@ function setupPlayerDrag(el) {
     const wrap = document.getElementById('tactics-court-wrap');
     const rect = wrap.getBoundingClientRect();
     origLeft = parseFloat(el.style.left);
-    origTop  = parseFloat(el.style.top);
+    origTop = parseFloat(el.style.top);
     startX = clientX - rect.left;
     startY = clientY - rect.top;
     el.classList.add('selected');
@@ -3435,10 +5872,10 @@ function setupPlayerDrag(el) {
     const curX = clientX - rect.left;
     const curY = clientY - rect.top;
     const newLeft = origLeft + (curX - startX);
-    const newTop  = origTop  + (curY - startY);
+    const newTop = origTop + (curY - startY);
     // コート境界クランプ
     el.style.left = `${Math.max(24, Math.min(rect.width - 24, newLeft))}px`;
-    el.style.top  = `${Math.max(24, Math.min(rect.height - 24, newTop))}px`;
+    el.style.top = `${Math.max(24, Math.min(rect.height - 24, newTop))}px`;
   };
 
   // Touch
@@ -3506,14 +5943,14 @@ function setupTacticsEvents() {
     redrawStrokes();
   };
 
-  canvas.addEventListener('mousedown',  startDraw);
-  canvas.addEventListener('mousemove',  continueDraw);
-  canvas.addEventListener('mouseup',    endDraw);
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', continueDraw);
+  canvas.addEventListener('mouseup', endDraw);
   canvas.addEventListener('mouseleave', endDraw);
 
-  canvas.addEventListener('touchstart',  startDraw,    { passive: true });
-  canvas.addEventListener('touchmove',   continueDraw, { passive: false });
-  canvas.addEventListener('touchend',    endDraw);
+  canvas.addEventListener('touchstart', startDraw, { passive: true });
+  canvas.addEventListener('touchmove', continueDraw, { passive: false });
+  canvas.addEventListener('touchend', endDraw);
 }
 
 /* --- ストローク再描画 --- */
@@ -3559,6 +5996,167 @@ function clearTacticsBoard() {
   redrawStrokes();
   renderTacticsPalette();
 }
+// ================================================================
+// ★ クイックスコアフロー - 直感的な得点入力
+// ================================================================
+function quickScoreFlow(type) {
+  // チーム選択モーダルを表示
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 300px;
+    width: 90vw;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  `;
+
+  let title = '';
+  if (type === '2p') title = '2点を記録 - チーム選択';
+  else if (type === '3p') title = '3点を記録 - チーム選択';
+  else if (type === 'foul') title = 'ファウルを記録 - チーム選択';
+
+  dialog.innerHTML = `
+    <div style="margin-bottom: 20px;">
+      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-primary);">${title}</h3>
+      <p style="margin: 0; font-size: 13px; color: var(--text-muted);">チームを選択してください</p>
+    </div>
+    <div style="display: grid; gap: 10px;">
+      <button class="team-select-btn btn-home" data-team="home" style="padding: 14px; border: 2px solid #FF6B00; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #FF6B00;">
+        <span id="home-team-name-qs">HOME TEAM</span>
+      </button>
+      <button class="team-select-btn btn-away" data-team="away" style="padding: 14px; border: 2px solid #0066CC; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #0066CC;">
+        <span id="away-team-name-qs">AWAY TEAM</span>
+      </button>
+    </div>
+  `;
+
+  modal.appendChild(dialog);
+  document.body.appendChild(modal);
+
+  // チーム選択ハンドラー
+  dialog.querySelectorAll('.team-select-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const team = btn.dataset.team;
+      modal.remove();
+      selectPlayerForQuickScore(team, type);
+    });
+  });
+
+  // 背景クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+function selectPlayerForQuickScore(team, scoreType) {
+  // 選手一覧を取得
+  const rosterTable = team === 'home' ? document.getElementById('roster-home-table') : document.getElementById('roster-away-table');
+  const players = Array.from(rosterTable.querySelectorAll('tbody tr')).map(tr => ({
+    num: tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '?',
+    name: tr.querySelector('.td-name')?.textContent?.trim() || '不明'
+  })).filter(p => p.num !== '?');
+
+  // 選手選択モーダルを表示
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    overflow-y: auto;
+    padding: 20px 0;
+  `;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 320px;
+    width: 90vw;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  `;
+
+  const teamName = team === 'home' ? (document.getElementById('disp-home-name')?.textContent || 'HOME') : (document.getElementById('disp-away-name')?.textContent || 'AWAY');
+  const title = scoreType === '2p' ? '2点を記録 - 選手選択' : scoreType === '3p' ? '3点を記録 - 選手選択' : 'ファウルを記録 - 選手選択';
+
+  dialog.innerHTML = `
+    <div style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 16px; color: var(--text-primary);">${title}</h3>
+      <p style="margin: 0; font-size: 13px; color: var(--text-muted);">${teamName}</p>
+    </div>
+    <div style="display: grid; gap: 8px; max-height: 60vh; overflow-y: auto;">
+      ${players.map(p => `
+        <button class="player-select-btn" data-num="${p.num}" style="
+          padding: 12px;
+          border: 2px solid ${team === 'home' ? '#FF6B00' : '#0066CC'};
+          background: white;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          color: ${team === 'home' ? '#FF6B00' : '#0066CC'};
+          text-align: left;
+        ">
+          #${p.num} ${p.name}
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  modal.appendChild(dialog);
+  document.body.appendChild(modal);
+
+  // 選手選択ハンドラー
+  dialog.querySelectorAll('.player-select-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const playerNum = btn.dataset.num;
+      modal.remove();
+
+      // スコアを記録
+      if (scoreType === '2p') {
+        addScore(team, playerNum, 2, '2P');
+      } else if (scoreType === '3p') {
+        addScore(team, playerNum, 3, '3P');
+      } else if (scoreType === 'foul') {
+        const foulType = prompt('ファウルの種類を選択してください:\n1. Personal\n2. Technical\n3. Flagrant', '1');
+        if (foulType === '1' || foulType === null) {
+          useFoul(team, playerNum, 'Personal');
+        } else if (foulType === '2') {
+          useFoul(team, playerNum, 'Technical');
+        } else if (foulType === '3') {
+          useFoul(team, playerNum, 'Flagrant');
+        }
+      }
+    });
+  });
+
+  // 背景クリックで閉じる
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
 // ================================================================
 // AI GAME VISION – カメラ自動入力ロジック
 // ================================================================
@@ -3640,7 +6238,87 @@ function initGameVision() {
   captureBtn?.addEventListener('click', startRecording);
   stopBtn?.addEventListener('click', stopRecording);
 
-  
+
 }
 
 document.addEventListener('DOMContentLoaded', initGameVision);
+
+
+// ================================================================
+// ★ APPLE-LIKE UI NEW LOGIC
+// ================================================================
+
+function renderGridRoster(tm) {
+  const container = document.getElementById(`roster-${tm}-grid`);
+  if (!container) return;
+  container.innerHTML = '';
+
+  appState.game[tm].players.forEach(p => {
+    const card = document.createElement('div');
+    card.className = `player-card ${tm}`;
+    card.innerHTML = `
+      <div class="p-num">#${p.num}</div>
+      <div class="p-name">${p.name || 'Unknown'}</div>
+      <div class="p-pts">${p.pts || 0} pts</div>
+      <div class="p-foul">${p.pf || 0}F</div>
+    `;
+    card.onclick = () => openActionSheet(tm, p.id);
+    container.appendChild(card);
+  });
+}
+
+let activeSheetTarget = null;
+
+function openActionSheet(team, pid) {
+  const g = appState.game;
+  const p = g[team].players.find(x => x.id === pid);
+  activeSheetTarget = { team, pid };
+  document.getElementById('as-player-title').textContent = `#${p.num} ${p.name || 'Unknown'}`;
+  document.getElementById('action-sheet-overlay').classList.add('show');
+}
+
+function closeActionSheet() {
+  document.getElementById('action-sheet-overlay').classList.remove('show');
+  activeSheetTarget = null;
+}
+
+document.getElementById('as-btn-cancel').onclick = closeActionSheet;
+document.getElementById('action-sheet-overlay').onclick = (e) => {
+  if (e.target === document.getElementById('action-sheet-overlay')) {
+    closeActionSheet();
+  }
+};
+
+document.getElementById('as-btn-2p').onclick = () => {
+  if (!activeSheetTarget) return;
+  addScore(activeSheetTarget.team, activeSheetTarget.pid, 2, '2P');
+  closeActionSheet();
+};
+
+document.getElementById('as-btn-3p').onclick = () => {
+  if (!activeSheetTarget) return;
+  addScore(activeSheetTarget.team, activeSheetTarget.pid, 3, '3P');
+  closeActionSheet();
+};
+
+document.getElementById('as-btn-ft').onclick = () => {
+  if (!activeSheetTarget) return;
+  addScore(activeSheetTarget.team, activeSheetTarget.pid, 1, 'FT');
+  closeActionSheet();
+};
+
+document.getElementById('as-btn-foul').onclick = () => {
+  if (!activeSheetTarget) return;
+  // Trigger foul modal (existing logic in app.js opens the foul modal)
+  actTeamTarget = activeSheetTarget.team;
+  actPlayerTarget = activeSheetTarget.pid;
+  document.getElementById('mact-title').textContent = document.getElementById('as-player-title').textContent;
+  document.getElementById('modal-foul-action').parentElement.classList.add('open');
+  closeActionSheet();
+};
+
+document.getElementById('as-btn-to').onclick = () => {
+  if (!activeSheetTarget) return;
+  useTimeout(activeSheetTarget.team);
+  closeActionSheet();
+};

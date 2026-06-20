@@ -656,3 +656,4 @@ class RimlyFaceAuth {
 
 // グローバルインスタンス
 const rimlyFaceAuth = new RimlyFaceAuth();
+window.rimlyFaceAuth = rimlyFaceAuth;
