@@ -1,3 +1,5 @@
+const OPENAI_PREFERRED_MODELS = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-5-mini'];
+
 function keySource(name) {
   if (name === 'google') return process.env.RIMLY_GOOGLE_API_KEY_SOURCE || 'environment';
   if (name === 'openai') return process.env.RIMLY_OPENAI_API_KEY_SOURCE || 'environment';
@@ -33,10 +35,9 @@ async function listOpenAIModels(apiKey) {
   if (!listRes.ok) throw new Error(await listRes.text() || `OpenAI model list failed: ${listRes.status}`);
   const listData = await listRes.json();
   const models = Array.isArray(listData.data) ? listData.data : [];
-  return models
-    .map(model => model.id)
-    .filter(id => /^gpt/i.test(id))
-    .sort((a, b) => scoreModel(a) - scoreModel(b) || a.localeCompare(b));
+  const available = new Set(models.map(model => model.id));
+  const preferred = OPENAI_PREFERRED_MODELS.filter(model => available.has(model));
+  return preferred.length ? preferred : OPENAI_PREFERRED_MODELS;
 }
 
 async function listProviderModels(provider) {
@@ -80,7 +81,7 @@ async function generateGemini({ provider, prompt, image }) {
 }
 
 async function generateOpenAI({ provider, prompt, image }) {
-  const models = await safeModels(provider, ['gpt-5-mini', 'gpt-4.1-mini', 'gpt-4o-mini']);
+  const models = await safeModels(provider, OPENAI_PREFERRED_MODELS);
   let lastError = null;
 
   for (const model of models) {
