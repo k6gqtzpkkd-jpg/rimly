@@ -681,15 +681,16 @@ input:focus, select:focus { border-color: var(--blue); }
   opacity: .86;
   transform-box: fill-box;
   transform-origin: center;
+  will-change: transform;
 }
 
 .scan-loop-a {
-  animation: faceScanGyroA 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
+  animation: faceScanGyroA 1.65s ease-in-out infinite;
 }
 
 .scan-loop-b {
   opacity: .74;
-  animation: faceScanGyroB 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
+  animation: faceScanGyroB 1.65s ease-in-out infinite;
 }
 
 .face-id-check {
@@ -750,34 +751,28 @@ input:focus, select:focus { border-color: var(--blue); }
 
 @keyframes faceScanGyroA {
   0% {
-    stroke-dashoffset: 0;
     transform: rotate(-18deg) scale(1, .92);
   }
 
   50% {
-    stroke-dashoffset: -22;
     transform: rotate(22deg) scale(1.05, .86);
   }
 
   100% {
-    stroke-dashoffset: -44;
     transform: rotate(-18deg) scale(1, .92);
   }
 }
 
 @keyframes faceScanGyroB {
   0% {
-    stroke-dashoffset: -34;
     transform: rotate(34deg) scale(.9, 1.04);
   }
 
   50% {
-    stroke-dashoffset: -10;
     transform: rotate(-24deg) scale(.86, 1.1);
   }
 
   100% {
-    stroke-dashoffset: 14;
     transform: rotate(34deg) scale(.9, 1.04);
   }
 }
