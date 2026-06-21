@@ -158,7 +158,7 @@ async function loadData() {
           }
           showPop('✅ クラウド同期完了');
         } else if (json.error) {
-          if (mode === 'db') showAlert('DBエラー: ' + json.error + '\\n※Neon DBが未設定の可能性があります');
+          if (mode === 'db') showAlert('クラウドDBエラー: ' + json.error + '\\n通信状態またはクラウドDB設定を確認してください。');
         }
       } catch (e) {
         console.error(e);
