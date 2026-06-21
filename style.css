@@ -527,13 +527,15 @@ input:focus, select:focus { border-color: var(--blue); }
   pointer-events: none;
   transform: translate(-50%, -32px) scale(.3);
   transform-origin: top center;
+  filter: blur(10px);
   transition: none;
-  will-change: transform, opacity, border-radius;
+  will-change: transform, opacity, border-radius, filter;
 }
 
 .face-id-island.is-visible {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
+  filter: blur(0);
 }
 
 .face-id-island.is-loading,
@@ -546,9 +548,8 @@ input:focus, select:focus { border-color: var(--blue); }
   padding: 0;
 }
 
-.face-id-island.is-loading,
-.face-id-island.is-scanning {
-  animation: faceIslandOpen .34s cubic-bezier(.18, .92, .18, 1) both;
+.face-id-island.is-opening {
+  animation: faceIslandOpen .62s cubic-bezier(.16, 1.05, .24, 1) both;
 }
 
 .face-id-island.is-loading .face-id-label,
@@ -602,7 +603,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-closing {
-  animation: faceIslandClose .24s ease-in forwards;
+  animation: faceIslandClose .58s cubic-bezier(.42, 0, .28, 1) forwards;
 }
 
 .face-id-island.is-error .face-id-mark {
@@ -679,16 +680,17 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 @keyframes faceIslandOpen {
-  0% { opacity: 0; transform: translate(-50%, -34px) scale(.22); border-radius: 44px; }
-  35% { opacity: 1; transform: translate(-50%, -8px) scale(1.08, .92); border-radius: 38px; }
-  62% { opacity: 1; transform: translate(-50%, 3px) scale(1.025, 1.045); border-radius: 36px; }
-  82% { opacity: 1; transform: translate(-50%, -1px) scale(.992, .986); border-radius: 36px; }
-  100% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; }
+  0% { opacity: 0; transform: translate(-50%, -34px) scale(.24); border-radius: 44px; filter: blur(12px); }
+  38% { opacity: 1; transform: translate(-50%, -8px) scale(1.08, .92); border-radius: 38px; filter: blur(2px); }
+  62% { opacity: 1; transform: translate(-50%, 3px) scale(1.025, 1.045); border-radius: 36px; filter: blur(0); }
+  84% { opacity: 1; transform: translate(-50%, -1px) scale(.992, .986); border-radius: 36px; filter: blur(0); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; filter: blur(0); }
 }
 
 @keyframes faceIslandClose {
-  0% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; }
-  100% { opacity: 0; transform: translate(-50%, -24px) scale(.24); border-radius: 44px; }
+  0% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; filter: blur(0); }
+  54% { opacity: .58; transform: translate(-50%, -10px) scale(.68); border-radius: 40px; filter: blur(4px); }
+  100% { opacity: 0; transform: translate(-50%, -28px) scale(.22); border-radius: 44px; filter: blur(12px); }
 }
 
 @keyframes faceIconBreathe {

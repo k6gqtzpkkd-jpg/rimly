@@ -853,6 +853,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   let gameVisionRecording = false;
   let facePreloadStarted = false;
   let faceUnlockRunning = false;
+  let faceIslandOpenTimer = null;
   let modalCloseTimer = null;
 
   function stopKnownLegacyErrors() {
@@ -2637,13 +2638,19 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const ui = ensureFaceUnlockSurface();
     if (!ui) return;
     const island = ui.island;
+    const wasIdle = !island.classList.contains('is-visible') || island.dataset.state === 'idle';
+    clearTimeout(faceIslandOpenTimer);
     island.dataset.state = state;
     island.classList.toggle('is-visible', state !== 'idle');
+    island.classList.toggle('is-opening', state !== 'idle' && state !== 'closing' && wasIdle);
     island.classList.toggle('is-loading', state === 'loading');
     island.classList.toggle('is-scanning', state === 'scanning');
     island.classList.toggle('is-success', state === 'success');
     island.classList.toggle('is-error', state === 'error');
     island.classList.toggle('is-closing', state === 'closing');
+    if (state !== 'idle' && state !== 'closing' && wasIdle) {
+      faceIslandOpenTimer = setTimeout(() => island.classList.remove('is-opening'), 720);
+    }
     ui.status.textContent = state === 'idle' ? '' : label;
   }
 
@@ -2706,12 +2713,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           setFaceIslandState('success', 'Unlocked');
           setTimeout(() => {
             setFaceIslandState('closing', '');
-          }, 420);
+          }, 560);
           setTimeout(() => {
             $('password-screen')?.classList.remove('active');
             $('app-screen')?.classList.add('active');
             setFaceIslandState('idle', 'Face ID');
-          }, 680);
+          }, 1160);
         },
         (count, reason) => {
           faceUnlockRunning = false;
