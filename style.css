@@ -579,7 +579,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-error .face-id-mark {
   width: 70px;
   height: 70px;
-  animation: faceIdNoShake .48s cubic-bezier(.36, .07, .19, .97) both;
+  animation: faceIdNoShake .72s cubic-bezier(.36, .07, .19, .97) both;
 }
 
 .face-id-island.is-loading .face-id-mark {
@@ -808,12 +808,11 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 @keyframes faceIdNoShake {
-  0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
-  16% { transform: translate(calc(-50% - 7px), -50%) rotate(-8deg); }
-  32% { transform: translate(calc(-50% + 7px), -50%) rotate(8deg); }
-  48% { transform: translate(calc(-50% - 5px), -50%) rotate(-6deg); }
-  64% { transform: translate(calc(-50% + 5px), -50%) rotate(6deg); }
-  80% { transform: translate(calc(-50% - 2px), -50%) rotate(-2deg); }
+  0%, 100% { transform: translate(-50%, -50%) perspective(90px) rotateY(0deg) rotateZ(0deg); }
+  18% { transform: translate(-50%, -50%) perspective(90px) rotateY(30deg) rotateZ(1deg); }
+  38% { transform: translate(-50%, -50%) perspective(90px) rotateY(-34deg) rotateZ(-1deg); }
+  58% { transform: translate(-50%, -50%) perspective(90px) rotateY(26deg) rotateZ(.7deg); }
+  78% { transform: translate(-50%, -50%) perspective(90px) rotateY(-12deg) rotateZ(-.4deg); }
 }
 
 /* ================================================================

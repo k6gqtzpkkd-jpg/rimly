@@ -70,7 +70,9 @@ let appState = {
 };
 
 // --- Storage System, Settings, OS Checking ---
-const DB_API = '/api/db';
+const DB_API = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'https://rimly.vercel.app/api/db'
+  : '/api/db';
 
 async function loadData() {
   // Load settings first
@@ -806,7 +808,9 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   window.__rimlyUseInlineFaceID = true;
   const $ = (id) => document.getElementById(id);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const API_DB = '/api/db';
+  const API_DB = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+    ? 'https://rimly.vercel.app/api/db'
+    : '/api/db';
 
   const defaultSettings = () => ({
     storageMode: 'local',
