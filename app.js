@@ -2571,22 +2571,62 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   function openFeatureList() {
     openModal('機能一覧', `
       <div class="feature-list">
-        <button class="feature-help-card" type="button">
-          <span>Face ID</span>
-          <strong>パスコード画面で顔認証ロック解除</strong>
-        </button>
-        <button class="feature-help-card" type="button">
+        <div class="feature-help-card">
+          <span>準備</span>
+          <strong>試合前にHOME/AWAYのチームを選びます。チームカード下の試合開始からスタメンを選択し、スコア、得点、ファウル画面へ進みます。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>チーム</span>
+          <strong>チーム名、色、選手、背番号を管理します。名簿を撮影するとカメラでメンバー表を読み取り、AIで選手追加を補助します。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>スコア</span>
+          <strong>試合中の得点、クォーター、タイムアウト、チームファウルを確認します。試合の現在状態を一番大きく見るための画面です。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>得点</span>
+          <strong>選手を選び、1点、2点、3点を記録します。記録するとチーム得点と選手スタッツ、履歴へ反映されます。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>ファウル</span>
+          <strong>選手ごとのP/O/T/U/Dなどのファウルを記録します。ファウル数や退場判定に関係する記録を扱います。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>履歴</span>
+          <strong>保存した試合を確認、削除、コピーできます。AI分析では試合履歴をもとに振り返り文を生成します。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>設定</span>
+          <strong>保存方式、クラウド同期キー、スタッツの細かさ、パスコード、顔認証、プライベートURL、リモート連携キーを設定します。</strong>
+        </div>
+        <div class="feature-help-card">
           <span>保存</span>
-          <strong>ローカル、クラウドDB、ハイブリッド保存</strong>
-        </button>
-        <button class="feature-help-card" type="button">
+          <strong>ローカル保存は端末内、クラウドDBはチーム/選手/履歴をクラウド、ハイブリッドはチーム/選手を端末、履歴をクラウドへ保存します。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>同期</span>
+          <strong>クラウドDBやハイブリッドでは同期中、同期完了、スキップなどをトースト表示します。クラウド読込で同じ同期キーのデータを読み込めます。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>Face ID</span>
+          <strong>パスコード画面のFace IDボタンで顔認証できます。顔データは顔認証管理から登録、削除できます。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>共有</span>
+          <strong>プライベートURLトークンやクラウド同期キーを使い、別端末で同じデータへアクセスしやすくします。</strong>
+        </div>
+        <div class="feature-help-card">
           <span>AI</span>
-          <strong>名簿撮影と履歴分析のAI補助</strong>
-        </button>
-        <button class="feature-help-card" type="button">
-          <span>試合</span>
-          <strong>得点、ファウル、履歴、スタッツ管理</strong>
-        </button>
+          <strong>名簿撮影、履歴分析、試合の振り返りにAIを使います。利用モデルやAPI状態に応じて結果表示が変わります。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>記録</span>
+          <strong>得点、ファウル、タイムアウト、選手スタッツは履歴に残ります。誤記録は履歴や各操作画面から修正、取消できます。</strong>
+        </div>
+        <div class="feature-help-card">
+          <span>画面</span>
+          <strong>試合開始前は準備、チーム、履歴、設定を中心に表示します。試合開始後はスコア、得点、ファウル、履歴を中心に使います。</strong>
+        </div>
       </div>
     `, 'modal-lg help-modal');
   }

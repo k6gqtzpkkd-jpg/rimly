@@ -1648,13 +1648,13 @@ select.ios-input,
 .inline-help-mark {
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 1px solid rgba(0, 122, 255, .28);
   background: rgba(0, 122, 255, .1);
   color: var(--blue);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 900;
   line-height: 1;
 }
@@ -1679,8 +1679,8 @@ select.ios-input,
 
 .settings-action-help > .settings-help-button {
   position: absolute;
-  top: -9px;
-  right: -7px;
+  top: -7px;
+  right: -5px;
   background: #fff;
 }
 
@@ -1710,11 +1710,11 @@ select.ios-input,
 
 .feature-help-card {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  align-items: center;
+  grid-template-columns: 62px 1fr;
+  align-items: start;
   gap: 12px;
   width: 100%;
-  padding: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: rgba(255,255,255,.72);
@@ -1725,16 +1725,17 @@ select.ios-input,
 .feature-help-card span {
   display: grid;
   place-items: center;
-  min-height: 44px;
+  min-height: 38px;
   border-radius: 12px;
   background: rgba(0, 122, 255, .1);
   color: var(--blue);
+  font-size: 12px;
   font-weight: 900;
 }
 
 .feature-help-card strong {
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .api-error {
