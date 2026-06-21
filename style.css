@@ -576,6 +576,11 @@ input:focus, select:focus { border-color: var(--blue); }
   height: 82px;
 }
 
+.face-id-island.is-error .face-id-mark {
+  width: 70px;
+  height: 70px;
+}
+
 .face-id-island.is-loading .face-id-mark {
   animation: faceIconBreathe 1.05s ease-in-out infinite;
 }

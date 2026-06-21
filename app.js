@@ -2779,6 +2779,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function openFaceRegister() {
+    let registeredInThisSession = false;
     openFaceOverlay('顔登録', async ({ video, canvas, status }) => {
       try {
         const engine = await ensureFaceAuth();
@@ -2799,6 +2800,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           try {
             await engine.registerFace(name, text => { msg.textContent = text; });
             await engine.loadRegisteredFaces();
+            registeredInThisSession = true;
             msg.textContent = '登録しました';
             engine.stopCamera();
           } catch (e) {
@@ -2808,10 +2810,14 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       } catch (e) {
         status.textContent = e.message || '顔登録を開始できませんでした';
       }
+    }, {
+      onClose: () => {
+        if (registeredInThisSession) closeModal();
+      }
     });
   }
 
-  function openFaceOverlay(title, onReady) {
+  function openFaceOverlay(title, onReady, options = {}) {
     cleanupFaceOverlays();
     const overlay = document.createElement('div');
     overlay.className = 'rimly-modal face-lite-modal';
@@ -2835,6 +2841,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       const engine = getFaceEngine();
       if (engine) engine.stopCamera();
       overlay.remove();
+      options.onClose?.();
     };
     press(overlay.querySelector('#face-lite-close'), close);
     onReady({
