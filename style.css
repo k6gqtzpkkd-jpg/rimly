@@ -531,18 +531,6 @@ input:focus, select:focus { border-color: var(--blue); }
   will-change: transform, opacity, border-radius;
 }
 
-.face-id-island::before {
-  content: "";
-  position: absolute;
-  inset: 27px;
-  border-radius: 999px;
-  opacity: 0;
-  background: conic-gradient(from 0deg, transparent 0deg, transparent 72deg, var(--face-green) 132deg, var(--face-green) 210deg, transparent 282deg, transparent 360deg);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  pointer-events: none;
-}
-
 .face-id-island.is-visible {
   opacity: 1;
   transform: translate(-50%, 0) scale(1);
@@ -576,20 +564,14 @@ input:focus, select:focus { border-color: var(--blue); }
   height: 70px;
 }
 
-.face-id-island.is-loading::before,
-.face-id-island.is-scanning::before {
-  opacity: 1;
-  animation: faceSpinRing .9s linear infinite;
-}
-
-.face-id-island.is-loading .face-id-face-line,
-.face-id-island.is-scanning .face-id-face-line {
-  animation: faceLineTrace 1.05s ease-in-out infinite;
+.face-id-island.is-loading .face-id-mark,
+.face-id-island.is-scanning .face-id-mark {
+  animation: faceIconBreathe 1.05s ease-in-out infinite;
 }
 
 .face-id-island.is-loading .face-id-bracket,
 .face-id-island.is-scanning .face-id-bracket {
-  animation: faceBracketPulse 1.05s ease-in-out infinite;
+  opacity: 1;
 }
 
 .face-id-island.is-success {
@@ -603,8 +585,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-success .face-id-bracket,
-.face-id-island.is-success .face-id-face-line,
-.face-id-island.is-success::before {
+.face-id-island.is-success .face-id-face-line {
   opacity: 0;
 }
 
@@ -710,25 +691,16 @@ input:focus, select:focus { border-color: var(--blue); }
   100% { opacity: 0; transform: translate(-50%, -24px) scale(.24); border-radius: 44px; }
 }
 
-@keyframes faceBracketPulse {
-  0%, 100% { opacity: .72; transform: scale(.96); }
-  50% { opacity: 1; transform: scale(1.12); }
-}
-
-@keyframes faceLineTrace {
-  0%, 100% { opacity: .58; stroke-dasharray: 1 12; }
-  50% { opacity: 1; stroke-dasharray: 14 0; }
-}
-
-@keyframes faceSpinRing {
-  to { transform: rotate(360deg); }
+@keyframes faceIconBreathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(.92); }
+  50% { transform: translate(-50%, -50%) scale(1); }
 }
 
 @keyframes faceIdSuccessPop {
-  0% { transform: scale(.88); }
+  0% { transform: translate(-50%, -50%) scale(.88); }
   50% { opacity: 1; }
-  58% { transform: scale(1.08); }
-  100% { transform: scale(1); }
+  58% { transform: translate(-50%, -50%) scale(1.08); }
+  100% { transform: translate(-50%, -50%) scale(1); }
 }
 
 /* ================================================================

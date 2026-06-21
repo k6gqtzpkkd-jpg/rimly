@@ -2553,6 +2553,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
         <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
         <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
+        <path class="face-id-face-line face-id-nose" d="M21 18v8" />
         <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
         <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
         <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
