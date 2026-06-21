@@ -5,6 +5,7 @@
 :root {
   --orange: #FF9500;
   --blue: #007AFF;
+  --face-green: #63ff70;
   --bg-base: #F2F2F7; /* iOS System Gray 6 */
   --bg-card: #FFFFFF;
   --bg-panel: rgba(255, 255, 255, 0.85);
@@ -507,7 +508,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-trigger .face-id-mark {
   width: 22px;
   height: 22px;
-  color: rgba(0, 0, 0, .72);
+  color: var(--face-green);
 }
 
 .face-id-island {
@@ -516,18 +517,30 @@ input:focus, select:focus { border-color: var(--blue); }
   left: 50%;
   z-index: 2600;
   display: block;
-  width: min(258px, 50vw);
-  height: 88px;
+  width: 142px;
+  height: 142px;
   border-radius: 36px;
   background: #000;
-  color: #fff;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, .24);
+  color: var(--face-green);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, .28);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -30px) scale(.34, .18);
+  transform: translate(-50%, -32px) scale(.3);
   transform-origin: top center;
   transition: none;
   will-change: transform, opacity, border-radius;
+}
+
+.face-id-island::before {
+  content: "";
+  position: absolute;
+  inset: 27px;
+  border-radius: 999px;
+  opacity: 0;
+  background: conic-gradient(from 0deg, transparent 0deg, transparent 72deg, var(--face-green) 132deg, var(--face-green) 210deg, transparent 282deg, transparent 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  pointer-events: none;
 }
 
 .face-id-island.is-visible {
@@ -540,8 +553,8 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success,
 .face-id-island.is-error,
 .face-id-island.is-closing {
-  width: min(258px, 52vw);
-  height: 88px;
+  width: 142px;
+  height: 142px;
   padding: 0;
 }
 
@@ -559,13 +572,14 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .face-id-island.is-loading .face-id-mark,
 .face-id-island.is-scanning .face-id-mark {
-  width: 44px;
-  height: 44px;
+  width: 70px;
+  height: 70px;
 }
 
-.face-id-island.is-loading .face-id-bracket,
-.face-id-island.is-scanning .face-id-bracket {
-  animation: faceBracketPulse 1.05s ease-in-out infinite;
+.face-id-island.is-loading::before,
+.face-id-island.is-scanning::before {
+  opacity: 1;
+  animation: faceSpinRing .9s linear infinite;
 }
 
 .face-id-island.is-loading .face-id-face-line,
@@ -573,25 +587,37 @@ input:focus, select:focus { border-color: var(--blue); }
   animation: faceLineTrace 1.05s ease-in-out infinite;
 }
 
+.face-id-island.is-loading .face-id-bracket,
+.face-id-island.is-scanning .face-id-bracket {
+  animation: faceBracketPulse 1.05s ease-in-out infinite;
+}
+
 .face-id-island.is-success {
-  background: rgba(20, 20, 22, .97);
+  background: #000;
 }
 
 .face-id-island.is-success .face-id-mark {
-  width: 44px;
-  height: 44px;
+  width: 82px;
+  height: 82px;
   animation: faceIdSuccessPop .34s cubic-bezier(.2, .9, .25, 1.18);
 }
 
 .face-id-island.is-success .face-id-bracket,
-.face-id-island.is-success .face-id-face-line {
+.face-id-island.is-success .face-id-face-line,
+.face-id-island.is-success::before {
   opacity: 0;
+}
+
+.face-id-island.is-success .face-id-check-ring {
+  opacity: 1;
+  stroke-dashoffset: 0;
+  transition: opacity .08s ease, stroke-dashoffset .28s cubic-bezier(.2, .9, .2, 1);
 }
 
 .face-id-island.is-success .face-id-check {
   opacity: 1;
   stroke-dashoffset: 0;
-  transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1);
+  transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1) .08s;
 }
 
 .face-id-island.is-closing {
@@ -599,7 +625,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-error .face-id-mark {
-  color: #ff6961;
+  color: var(--face-green);
 }
 
 .face-id-mark {
@@ -614,7 +640,7 @@ input:focus, select:focus { border-color: var(--blue); }
   position: absolute;
   left: 50%;
   top: 50%;
-  color: #f7f7f7;
+  color: var(--face-green);
   transform: translate(-50%, -50%);
 }
 
@@ -627,11 +653,11 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-face-line {
-  stroke-width: 3.2;
+  stroke-width: 3.1;
 }
 
 .face-id-smile {
-  stroke-width: 2.9;
+  stroke-width: 3;
 }
 
 .face-id-bracket {
@@ -640,11 +666,17 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-check {
-  color: var(--green);
   opacity: 0;
-  stroke-width: 3.4;
-  stroke-dasharray: 24;
-  stroke-dashoffset: 24;
+  stroke-width: 4;
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+}
+
+.face-id-check-ring {
+  opacity: 0;
+  stroke-width: 3.8;
+  stroke-dasharray: 86;
+  stroke-dashoffset: 86;
 }
 
 .face-inline-status {
@@ -666,16 +698,16 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 @keyframes faceIslandOpen {
-  0% { opacity: 0; transform: translate(-50%, -34px) scale(.22, .1); border-radius: 999px; }
-  28% { opacity: 1; transform: translate(-50%, -8px) scale(1.08, .74); border-radius: 999px; }
-  58% { opacity: 1; transform: translate(-50%, 3px) scale(1.025, 1.045); border-radius: 36px; }
-  78% { opacity: 1; transform: translate(-50%, -1px) scale(.992, .986); border-radius: 36px; }
+  0% { opacity: 0; transform: translate(-50%, -34px) scale(.22); border-radius: 44px; }
+  35% { opacity: 1; transform: translate(-50%, -8px) scale(1.08, .92); border-radius: 38px; }
+  62% { opacity: 1; transform: translate(-50%, 3px) scale(1.025, 1.045); border-radius: 36px; }
+  82% { opacity: 1; transform: translate(-50%, -1px) scale(.992, .986); border-radius: 36px; }
   100% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; }
 }
 
 @keyframes faceIslandClose {
   0% { opacity: 1; transform: translate(-50%, 0) scale(1); border-radius: 36px; }
-  100% { opacity: 0; transform: translate(-50%, -24px) scale(.28, .12); border-radius: 999px; }
+  100% { opacity: 0; transform: translate(-50%, -24px) scale(.24); border-radius: 44px; }
 }
 
 @keyframes faceBracketPulse {
@@ -686,6 +718,10 @@ input:focus, select:focus { border-color: var(--blue); }
 @keyframes faceLineTrace {
   0%, 100% { opacity: .58; stroke-dasharray: 1 12; }
   50% { opacity: 1; stroke-dasharray: 14 0; }
+}
+
+@keyframes faceSpinRing {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes faceIdSuccessPop {
