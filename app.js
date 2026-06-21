@@ -2593,7 +2593,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       island.id = 'face-dynamic-island';
       island.className = 'face-id-island';
       island.setAttribute('aria-hidden', 'true');
-      island.innerHTML = `${faceIdMarkHtml()}<span class="face-id-label"></span>`;
+      island.innerHTML = faceIdMarkHtml();
       passwordScreen.appendChild(island);
     }
 
@@ -2642,8 +2642,6 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     island.classList.toggle('is-success', state === 'success');
     island.classList.toggle('is-error', state === 'error');
     island.classList.toggle('is-closing', state === 'closing');
-    const labelEl = island.querySelector('.face-id-label');
-    if (labelEl) labelEl.textContent = label;
     ui.status.textContent = state === 'idle' ? '' : label;
   }
 
