@@ -2534,8 +2534,13 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   function faceIdMarkHtml() {
     return `
       <span class="face-id-mark" aria-hidden="true">
+        <span class="face-id-corner face-id-corner-tl"></span>
+        <span class="face-id-corner face-id-corner-tr"></span>
+        <span class="face-id-corner face-id-corner-bl"></span>
+        <span class="face-id-corner face-id-corner-br"></span>
         <span class="face-id-eye face-id-eye-left"></span>
         <span class="face-id-eye face-id-eye-right"></span>
+        <span class="face-id-nose"></span>
         <span class="face-id-mouth"></span>
       </span>
     `;

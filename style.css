@@ -480,7 +480,17 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-loading .face-id-mark {
-  animation: faceIdPulse .9s ease-in-out infinite;
+  animation: faceIdBreathe 1.25s ease-in-out infinite;
+}
+
+.face-id-island.is-loading .face-id-corner {
+  animation: faceIdCornerScan 1.25s ease-in-out infinite;
+}
+
+.face-id-island.is-loading .face-id-eye,
+.face-id-island.is-loading .face-id-mouth,
+.face-id-island.is-loading .face-id-nose {
+  animation: faceIdLineGlow 1.25s ease-in-out infinite;
 }
 
 .face-id-island.is-success {
@@ -490,6 +500,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success .face-id-mark {
   border-color: rgba(52, 199, 89, .95);
   color: var(--green);
+  animation: faceIdSuccessPop .42s cubic-bezier(.2, .9, .25, 1.18);
 }
 
 .face-id-island.is-error .face-id-mark {
@@ -499,40 +510,89 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-mark {
   position: relative;
   display: block;
-  width: 24px;
-  height: 24px;
-  border: 2px solid rgba(255, 255, 255, .9);
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  color: rgba(255, 255, 255, .94);
 }
 
 .face-id-eye,
-.face-id-mouth {
+.face-id-mouth,
+.face-id-nose,
+.face-id-corner {
   position: absolute;
   display: block;
-  background: currentColor;
+}
+
+.face-id-corner {
+  width: 8px;
+  height: 8px;
+  border-color: currentColor;
+  border-style: solid;
+  opacity: .95;
+}
+
+.face-id-corner-tl {
+  top: 1px;
+  left: 1px;
+  border-width: 2px 0 0 2px;
+  border-radius: 5px 0 0 0;
+}
+
+.face-id-corner-tr {
+  top: 1px;
+  right: 1px;
+  border-width: 2px 2px 0 0;
+  border-radius: 0 5px 0 0;
+}
+
+.face-id-corner-bl {
+  bottom: 1px;
+  left: 1px;
+  border-width: 0 0 2px 2px;
+  border-radius: 0 0 0 5px;
+}
+
+.face-id-corner-br {
+  right: 1px;
+  bottom: 1px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 5px 0;
 }
 
 .face-id-eye {
-  top: 7px;
-  width: 2.5px;
-  height: 4px;
+  top: 8px;
+  width: 2.8px;
+  height: 4.5px;
   border-radius: 999px;
+  background: currentColor;
 }
 
 .face-id-eye-left {
-  left: 7px;
+  left: 8px;
 }
 
 .face-id-eye-right {
-  right: 7px;
+  right: 8px;
+}
+
+.face-id-nose {
+  top: 12px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  border-radius: 0 0 4px 0;
+  transform: translateX(-52%) rotate(8deg);
 }
 
 .face-id-mouth {
-  left: 7px;
-  right: 7px;
+  left: 8px;
+  right: 8px;
   bottom: 6px;
-  height: 2px;
-  border-radius: 999px;
+  height: 4px;
+  border-bottom: 1.8px solid currentColor;
+  border-radius: 0 0 999px 999px;
 }
 
 .face-inline-status {
@@ -553,9 +613,30 @@ input:focus, select:focus { border-color: var(--blue); }
   pointer-events: none;
 }
 
-@keyframes faceIdPulse {
-  0%, 100% { transform: scale(1); opacity: .92; }
-  50% { transform: scale(1.08); opacity: 1; }
+@keyframes faceIdBreathe {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 9px rgba(255, 255, 255, .45)); }
+}
+
+@keyframes faceIdCornerScan {
+  0%, 100% { opacity: .62; transform: translate(0, 0); }
+  45%, 55% { opacity: 1; transform: translate(var(--corner-x, 0), var(--corner-y, 0)); }
+}
+
+.face-id-corner-tl { --corner-x: -1px; --corner-y: -1px; }
+.face-id-corner-tr { --corner-x: 1px; --corner-y: -1px; }
+.face-id-corner-bl { --corner-x: -1px; --corner-y: 1px; }
+.face-id-corner-br { --corner-x: 1px; --corner-y: 1px; }
+
+@keyframes faceIdLineGlow {
+  0%, 100% { opacity: .72; }
+  50% { opacity: 1; }
+}
+
+@keyframes faceIdSuccessPop {
+  0% { transform: scale(.88); }
+  55% { transform: scale(1.14); }
+  100% { transform: scale(1); }
 }
 
 /* ================================================================
