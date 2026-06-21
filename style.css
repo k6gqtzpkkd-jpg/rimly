@@ -351,19 +351,29 @@ input:focus, select:focus { border-color: var(--blue); }
   align-items: center;
   justify-content: center;
   opacity: 0; visibility: hidden;
-  transition: 0.2s;
+  transition: opacity .22s ease, visibility .22s ease;
 }
-.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal-overlay.open,
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
 .modal-box {
   background: var(--bg-base);
   width: 90%;
   max-width: 400px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  transform: scale(0.95);
-  transition: 0.2s;
+  transform: translateY(16px) scale(.96);
+  transition: transform .26s cubic-bezier(.2, .9, .22, 1), opacity .22s ease;
+  opacity: 0;
+  transform-origin: center;
 }
-.modal-overlay.open .modal-box { transform: scale(1); }
+.modal-overlay.open .modal-box,
+.modal-overlay.active .modal-box {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
 .modal-header {
   padding: 16px;
   text-align: center;
@@ -382,6 +392,27 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 .modal-body { padding: 16px; background: var(--bg-base); }
 .action-grid { display: grid; gap: 10px; }
+
+@keyframes rimlyBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rimlyBackdropOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes rimlySheetIn {
+  from { opacity: 0; transform: translateY(18px) scale(.94); border-radius: 30px; }
+  58% { opacity: 1; transform: translateY(-2px) scale(1.012); }
+  to { opacity: 1; transform: translateY(0) scale(1); border-radius: 18px; }
+}
+
+@keyframes rimlySheetOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(12px) scale(.96); }
+}
 
 /* Password Screen iOS Setup Style */
 #password-screen.screen {
@@ -474,23 +505,44 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-loading,
+.face-id-island.is-scanning,
 .face-id-island.is-success,
-.face-id-island.is-error {
-  min-width: 150px;
+.face-id-island.is-error,
+.face-id-island.is-closing {
+  min-width: 92px;
+  height: 48px;
+  padding: 0 24px;
 }
 
-.face-id-island.is-loading .face-id-mark {
-  animation: faceIdBreathe 1.25s ease-in-out infinite;
+.face-id-island.is-loading,
+.face-id-island.is-scanning {
+  animation: faceIslandOpen .28s cubic-bezier(.18, .92, .18, 1);
 }
 
-.face-id-island.is-loading .face-id-corner {
-  animation: faceIdCornerScan 1.25s ease-in-out infinite;
+.face-id-island.is-loading .face-id-label,
+.face-id-island.is-scanning .face-id-label,
+.face-id-island.is-success .face-id-label,
+.face-id-island.is-closing .face-id-label {
+  width: 0;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 
-.face-id-island.is-loading .face-id-eye,
-.face-id-island.is-loading .face-id-mouth,
-.face-id-island.is-loading .face-id-nose {
-  animation: faceIdLineGlow 1.25s ease-in-out infinite;
+.face-id-island.is-loading .face-id-mark,
+.face-id-island.is-scanning .face-id-mark {
+  width: 32px;
+  height: 32px;
+}
+
+.face-id-island.is-loading .face-id-bracket,
+.face-id-island.is-scanning .face-id-bracket {
+  animation: faceBracketPulse 1.05s ease-in-out infinite;
+}
+
+.face-id-island.is-loading .face-id-face-line,
+.face-id-island.is-scanning .face-id-face-line {
+  animation: faceLineTrace 1.05s ease-in-out infinite;
 }
 
 .face-id-island.is-success {
@@ -498,101 +550,65 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-success .face-id-mark {
-  border-color: rgba(52, 199, 89, .95);
-  color: var(--green);
-  animation: faceIdSuccessPop .42s cubic-bezier(.2, .9, .25, 1.18);
+  width: 32px;
+  height: 32px;
+  animation: faceIdSuccessPop .34s cubic-bezier(.2, .9, .25, 1.18);
+}
+
+.face-id-island.is-success .face-id-bracket,
+.face-id-island.is-success .face-id-face-line {
+  opacity: 0;
+}
+
+.face-id-island.is-success .face-id-check {
+  opacity: 1;
+  stroke-dashoffset: 0;
+  transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1);
+}
+
+.face-id-island.is-closing {
+  animation: faceIslandClose .24s ease-in forwards;
 }
 
 .face-id-island.is-error .face-id-mark {
-  border-color: rgba(255, 69, 58, .95);
+  color: #ff6961;
 }
 
 .face-id-mark {
-  position: relative;
   display: block;
-  width: 26px;
-  height: 26px;
-  color: rgba(255, 255, 255, .94);
+  width: 27px;
+  height: 27px;
+  color: rgba(255, 255, 255, .96);
+  overflow: visible;
 }
 
-.face-id-eye,
-.face-id-mouth,
-.face-id-nose,
-.face-id-corner {
-  position: absolute;
-  display: block;
+.face-id-mark path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.face-id-corner {
-  width: 8px;
-  height: 8px;
-  border-color: currentColor;
-  border-style: solid;
-  opacity: .95;
+.face-id-face-line {
+  stroke-width: 3.2;
 }
 
-.face-id-corner-tl {
-  top: 1px;
-  left: 1px;
-  border-width: 2px 0 0 2px;
-  border-radius: 5px 0 0 0;
+.face-id-smile {
+  stroke-width: 2.9;
 }
 
-.face-id-corner-tr {
-  top: 1px;
-  right: 1px;
-  border-width: 2px 2px 0 0;
-  border-radius: 0 5px 0 0;
+.face-id-bracket {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.face-id-corner-bl {
-  bottom: 1px;
-  left: 1px;
-  border-width: 0 0 2px 2px;
-  border-radius: 0 0 0 5px;
-}
-
-.face-id-corner-br {
-  right: 1px;
-  bottom: 1px;
-  border-width: 0 2px 2px 0;
-  border-radius: 0 0 5px 0;
-}
-
-.face-id-eye {
-  top: 8px;
-  width: 2.8px;
-  height: 4.5px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.face-id-eye-left {
-  left: 8px;
-}
-
-.face-id-eye-right {
-  right: 8px;
-}
-
-.face-id-nose {
-  top: 12px;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  border-right: 1.8px solid currentColor;
-  border-bottom: 1.8px solid currentColor;
-  border-radius: 0 0 4px 0;
-  transform: translateX(-52%) rotate(8deg);
-}
-
-.face-id-mouth {
-  left: 8px;
-  right: 8px;
-  bottom: 6px;
-  height: 4px;
-  border-bottom: 1.8px solid currentColor;
-  border-radius: 0 0 999px 999px;
+.face-id-check {
+  color: var(--green);
+  opacity: 0;
+  stroke-width: 3.4;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
 }
 
 .face-inline-status {
@@ -613,29 +629,30 @@ input:focus, select:focus { border-color: var(--blue); }
   pointer-events: none;
 }
 
-@keyframes faceIdBreathe {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
-  50% { transform: scale(1.08); filter: drop-shadow(0 0 9px rgba(255, 255, 255, .45)); }
+@keyframes faceIslandOpen {
+  from { transform: translateY(4px) scale(.72); opacity: .35; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-@keyframes faceIdCornerScan {
-  0%, 100% { opacity: .62; transform: translate(0, 0); }
-  45%, 55% { opacity: 1; transform: translate(var(--corner-x, 0), var(--corner-y, 0)); }
+@keyframes faceIslandClose {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to { transform: translateY(-2px) scale(.72); opacity: 0; }
 }
 
-.face-id-corner-tl { --corner-x: -1px; --corner-y: -1px; }
-.face-id-corner-tr { --corner-x: 1px; --corner-y: -1px; }
-.face-id-corner-bl { --corner-x: -1px; --corner-y: 1px; }
-.face-id-corner-br { --corner-x: 1px; --corner-y: 1px; }
+@keyframes faceBracketPulse {
+  0%, 100% { opacity: .72; transform: scale(.96); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
 
-@keyframes faceIdLineGlow {
-  0%, 100% { opacity: .72; }
-  50% { opacity: 1; }
+@keyframes faceLineTrace {
+  0%, 100% { opacity: .58; stroke-dasharray: 1 12; }
+  50% { opacity: 1; stroke-dasharray: 14 0; }
 }
 
 @keyframes faceIdSuccessPop {
   0% { transform: scale(.88); }
-  55% { transform: scale(1.14); }
+  50% { opacity: 1; }
+  58% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
 
@@ -1261,6 +1278,11 @@ input:focus, select:focus { border-color: var(--blue); }
   justify-content: center;
   padding: 16px;
   background: rgba(0, 0, 0, .32);
+  animation: rimlyBackdropIn .22s ease both;
+}
+
+.rimly-modal.is-closing {
+  animation: rimlyBackdropOut .2s ease both;
 }
 
 .rimly-modal-box {
@@ -1270,6 +1292,15 @@ input:focus, select:focus { border-color: var(--blue); }
   border-radius: 18px;
   background: var(--bg-base);
   box-shadow: 0 20px 80px rgba(0,0,0,.25);
+  transform-origin: center;
+}
+
+.rimly-modal.is-opening .rimly-modal-box {
+  animation: rimlySheetIn .28s cubic-bezier(.18, .92, .18, 1) both;
+}
+
+.rimly-modal.is-closing .rimly-modal-box {
+  animation: rimlySheetOut .2s ease-in both;
 }
 
 .rimly-modal-box.modal-sm {

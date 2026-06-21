@@ -853,6 +853,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   let gameVisionRecording = false;
   let facePreloadStarted = false;
   let faceUnlockRunning = false;
+  let modalCloseTimer = null;
 
   function stopKnownLegacyErrors() {
     window.addEventListener('error', (event) => {
@@ -1061,8 +1062,9 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function openModal(title, body, className = '') {
     const root = $('rimly-modal-root');
+    clearTimeout(modalCloseTimer);
     root.innerHTML = `
-      <div class="rimly-modal open">
+      <div class="rimly-modal open is-opening">
         <div class="rimly-modal-box ${className}">
           <div class="rimly-modal-header">
             <div class="rimly-modal-title">${title}</div>
@@ -1080,9 +1082,20 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function closeModal() {
     const root = $('rimly-modal-root');
-    if (root) root.innerHTML = '';
     stopGameVision();
     cleanupFaceOverlays();
+    if (!root || !root.innerHTML) return;
+    const modal = root.querySelector('.rimly-modal');
+    if (!modal) {
+      root.innerHTML = '';
+      return;
+    }
+    modal.classList.remove('is-opening');
+    modal.classList.add('is-closing');
+    clearTimeout(modalCloseTimer);
+    modalCloseTimer = setTimeout(() => {
+      if (root.querySelector('.rimly-modal.is-closing')) root.innerHTML = '';
+    }, 240);
   }
 
   function confirmModal(message, onOk) {
@@ -2533,16 +2546,16 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function faceIdMarkHtml() {
     return `
-      <span class="face-id-mark" aria-hidden="true">
-        <span class="face-id-corner face-id-corner-tl"></span>
-        <span class="face-id-corner face-id-corner-tr"></span>
-        <span class="face-id-corner face-id-corner-bl"></span>
-        <span class="face-id-corner face-id-corner-br"></span>
-        <span class="face-id-eye face-id-eye-left"></span>
-        <span class="face-id-eye face-id-eye-right"></span>
-        <span class="face-id-nose"></span>
-        <span class="face-id-mouth"></span>
-      </span>
+      <svg class="face-id-mark" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
+        <path class="face-id-bracket face-id-bracket-tl" d="M14 5H9a4 4 0 0 0-4 4v5" />
+        <path class="face-id-bracket face-id-bracket-tr" d="M28 5h5a4 4 0 0 1 4 4v5" />
+        <path class="face-id-bracket face-id-bracket-bl" d="M5 28v5a4 4 0 0 0 4 4h5" />
+        <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
+        <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
+        <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
+        <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
+        <path class="face-id-check" d="M13 22.5l5.2 5.2L30 15.8" />
+      </svg>
     `;
   }
 
@@ -2612,9 +2625,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const ui = ensureFaceUnlockSurface();
     if (!ui) return;
     ui.button.dataset.state = state;
-    ui.button.classList.toggle('is-loading', state === 'loading' || state === 'scanning');
+    ui.button.classList.toggle('is-loading', state === 'loading');
+    ui.button.classList.toggle('is-scanning', state === 'scanning');
     ui.button.classList.toggle('is-success', state === 'success');
     ui.button.classList.toggle('is-error', state === 'error');
+    ui.button.classList.toggle('is-closing', state === 'closing');
     const labelEl = ui.button.querySelector('.face-id-label');
     if (labelEl) labelEl.textContent = label;
     ui.status.textContent = state === 'idle' ? '' : label;
@@ -2678,10 +2693,13 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           engine.stopCamera();
           setFaceIslandState('success', 'Unlocked');
           setTimeout(() => {
+            setFaceIslandState('closing', '');
+          }, 420);
+          setTimeout(() => {
             $('password-screen')?.classList.remove('active');
             $('app-screen')?.classList.add('active');
             setFaceIslandState('idle', 'Face ID');
-          }, 420);
+          }, 680);
         },
         (count, reason) => {
           faceUnlockRunning = false;
