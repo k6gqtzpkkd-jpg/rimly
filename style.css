@@ -684,12 +684,10 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .scan-loop-a {
-  stroke-dasharray: 58 10;
   animation: faceScanGyroA 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
 }
 
 .scan-loop-b {
-  stroke-dasharray: 54 12;
   opacity: .74;
   animation: faceScanGyroB 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
 }
