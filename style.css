@@ -675,24 +675,23 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-scan-loop {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.45;
+  stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 48 14;
-  opacity: .82;
+  opacity: .86;
   transform-box: fill-box;
   transform-origin: center;
-  animation: faceScanOrbit 1.25s ease-in-out infinite;
+}
+
+.scan-loop-a {
+  stroke-dasharray: 58 10;
+  animation: faceScanGyroA 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
 }
 
 .scan-loop-b {
-  opacity: .72;
-  animation-delay: -.38s;
-}
-
-.scan-loop-c {
-  opacity: .58;
-  animation-delay: -.76s;
+  stroke-dasharray: 54 12;
+  opacity: .74;
+  animation: faceScanGyroB 1.55s cubic-bezier(.45, 0, .55, 1) infinite;
 }
 
 .face-id-check {
@@ -751,20 +750,37 @@ input:focus, select:focus { border-color: var(--blue); }
   50% { transform: translate(-50%, -50%) scale(1.02); }
 }
 
-@keyframes faceScanOrbit {
+@keyframes faceScanGyroA {
   0% {
     stroke-dashoffset: 0;
-    transform: rotate(0deg) scale(.98);
+    transform: rotate(-18deg) scale(1, .92);
   }
 
-  48% {
-    stroke-dashoffset: -18;
-    transform: rotate(18deg) scale(1.04);
+  50% {
+    stroke-dashoffset: -22;
+    transform: rotate(22deg) scale(1.05, .86);
   }
 
   100% {
-    stroke-dashoffset: -38;
-    transform: rotate(36deg) scale(.98);
+    stroke-dashoffset: -44;
+    transform: rotate(-18deg) scale(1, .92);
+  }
+}
+
+@keyframes faceScanGyroB {
+  0% {
+    stroke-dashoffset: -34;
+    transform: rotate(34deg) scale(.9, 1.04);
+  }
+
+  50% {
+    stroke-dashoffset: -10;
+    transform: rotate(-24deg) scale(.86, 1.1);
+  }
+
+  100% {
+    stroke-dashoffset: 14;
+    transform: rotate(34deg) scale(.9, 1.04);
   }
 }
 
