@@ -1019,8 +1019,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   async function syncCloud(direction = 'save') {
-    if (!['db', 'hybrid'].includes(appState.settings.storageMode)) return;
+    const mode = appState.settings.storageMode;
+    if (!['db', 'hybrid'].includes(mode)) return;
+    clearTimeout(cloudSyncTimer);
     try {
+      const modeLabel = mode === 'hybrid' ? 'ハイブリッド' : 'クラウド';
+      toast(`${modeLabel}同期中...`);
       if (direction === 'load') {
         const res = await fetch(API_DB, {
           method: 'POST',
@@ -1028,23 +1032,34 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey })
         });
         const json = await res.json();
+        if (!res.ok || json.error) throw new Error(json.error || 'クラウド読込に失敗しました');
         if (json.success && json.data) {
-          if (Array.isArray(json.data.teams)) appState.teamsDB = json.data.teams;
+          if (mode === 'db' && Array.isArray(json.data.teams)) appState.teamsDB = json.data.teams;
           if (Array.isArray(json.data.history)) appState.historyDB = json.data.history;
           saveState(false, false);
-          toast('クラウドから読み込みました');
+          toast(`${modeLabel}同期完了`);
+        } else {
+          toast(`${modeLabel}データなし`);
         }
       } else {
-        await fetch(API_DB, {
+        const payload = {
+          action: 'save',
+          user_key: appState.settings.dbKey
+        };
+        if (mode === 'db') {
+          payload.teams = appState.teamsDB;
+          payload.history = appState.historyDB;
+        } else {
+          payload.history = appState.historyDB;
+        }
+        const res = await fetch(API_DB, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'save',
-            user_key: appState.settings.dbKey,
-            teams: appState.teamsDB,
-            history: appState.historyDB
-          })
+          body: JSON.stringify(payload)
         });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json.error) throw new Error(json.error || 'クラウド保存に失敗しました');
+        toast(`${modeLabel}同期完了`);
       }
     } catch (e) {
       toast('クラウド同期をスキップしました');

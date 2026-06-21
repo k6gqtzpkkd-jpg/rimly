@@ -54,15 +54,28 @@ module.exports = async function handler(req, res) {
     const body = req.body || {};
 
     if (body.action === 'save') {
+      const hasTeams = Object.prototype.hasOwnProperty.call(body, 'teams');
+      const hasHistory = Object.prototype.hasOwnProperty.call(body, 'history');
+      if (!hasTeams && !hasHistory) {
+        return res.status(400).json({ error: 'No data fields to save' });
+      }
+
       // historyを最新100件に制限
-      const limitedHistory = Array.isArray(body.history)
+      const limitedHistory = hasHistory && Array.isArray(body.history)
         ? body.history.slice(-100)
         : body.history;
 
       await p.query(
         `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (user_key) DO UPDATE SET teams = EXCLUDED.teams, history = EXCLUDED.history, updated_at = NOW()`,
-        [body.user_key, JSON.stringify(body.teams), JSON.stringify(limitedHistory)]
+         ON CONFLICT (user_key) DO UPDATE SET
+           teams = COALESCE(EXCLUDED.teams, rimly_users.teams),
+           history = COALESCE(EXCLUDED.history, rimly_users.history),
+           updated_at = NOW()`,
+        [
+          body.user_key,
+          hasTeams ? JSON.stringify(body.teams) : null,
+          hasHistory ? JSON.stringify(limitedHistory) : null
+        ]
       );
 
       // 7日以上古いシェアを自動削除

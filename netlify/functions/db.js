@@ -56,14 +56,27 @@ exports.handler = async function (event, context) {
     const req = JSON.parse(event.body || '{}');
 
     if (req.action === 'save') {
-      const limitedHistory = Array.isArray(req.history)
+      const hasTeams = Object.prototype.hasOwnProperty.call(req, 'teams');
+      const hasHistory = Object.prototype.hasOwnProperty.call(req, 'history');
+      if (!hasTeams && !hasHistory) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'No data fields to save' }) };
+      }
+
+      const limitedHistory = hasHistory && Array.isArray(req.history)
         ? req.history.slice(-100)
         : req.history;
 
       await p.query(
         `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (user_key) DO UPDATE SET teams = EXCLUDED.teams, history = EXCLUDED.history, updated_at = NOW()`,
-        [req.user_key, JSON.stringify(req.teams), JSON.stringify(limitedHistory)]
+         ON CONFLICT (user_key) DO UPDATE SET
+           teams = COALESCE(EXCLUDED.teams, rimly_users.teams),
+           history = COALESCE(EXCLUDED.history, rimly_users.history),
+           updated_at = NOW()`,
+        [
+          req.user_key,
+          hasTeams ? JSON.stringify(req.teams) : null,
+          hasHistory ? JSON.stringify(limitedHistory) : null
+        ]
       );
       await p.query(`DELETE FROM rimly_shares WHERE created_at < NOW() - INTERVAL '7 days'`);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
