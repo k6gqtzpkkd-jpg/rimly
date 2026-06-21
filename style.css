@@ -1039,7 +1039,8 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .quick-panel > button,
 .modal-actions > button,
-.settings-action-grid > button {
+.settings-action-grid > button,
+.settings-action-grid > .settings-action-help {
   width: 100%;
 }
 
@@ -1541,7 +1542,8 @@ select.ios-input,
 }
 
 .modal-actions > button,
-.settings-action-grid > button {
+.settings-action-grid > button,
+.settings-action-grid > .settings-action-help {
   flex: 1 1 0;
   width: 100%;
 }
@@ -1624,10 +1626,115 @@ select.ios-input,
   gap: 8px;
 }
 
+.settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-help-main {
+  min-width: 112px;
+  height: 42px;
+}
+
+.settings-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-help-button,
+.inline-help-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 122, 255, .28);
+  background: rgba(0, 122, 255, .1);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.settings-help-button {
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.inline-help-mark {
+  vertical-align: middle;
+}
+
+.settings-action-help {
+  position: relative;
+  display: grid;
+}
+
+.settings-action-help > .btn-secondary {
+  width: 100%;
+}
+
+.settings-action-help > .settings-help-button {
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  background: #fff;
+}
+
 .settings-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.help-copy {
+  margin: 0 0 16px;
+  color: var(--text-primary);
+  font-weight: 750;
+  line-height: 1.65;
+}
+
+.feedback-textarea {
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.feature-list {
+  display: grid;
+  gap: 10px;
+}
+
+.feature-help-card {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.72);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.feature-help-card span {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 122, 255, .1);
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.feature-help-card strong {
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .api-error {

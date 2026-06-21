@@ -2476,13 +2476,155 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     catch (e) { tacticState = null; }
   }
 
+  const settingHelp = {
+    storage: {
+      title: 'データ保存',
+      body: 'ローカル保存はチーム、選手、履歴を端末に保存します。クラウドDBはチーム、選手、履歴をクラウドにも保存します。ハイブリッドはチームや選手などの重要なデータを端末に置き、履歴をクラウドへ同期します。'
+    },
+    dbKey: {
+      title: 'クラウド同期キー',
+      body: '同じキーを使う端末同士でクラウドデータを読み書きできます。チーム用、個人用など分かりやすいキーにしておくと管理しやすくなります。'
+    },
+    stats: {
+      title: 'スタッツ',
+      body: '簡易は得点やファウル中心、詳細はアシスト、リバウンド、スティールなども扱うモードです。試合で記録したい細かさに合わせて選びます。'
+    },
+    autoCopy: {
+      title: '試合終了時コピー',
+      body: 'オンにすると試合終了時の記録をコピーしやすくします。試合後に共有やメモへ貼り付ける運用をする場合に便利です。'
+    },
+    passcode: {
+      title: '起動パスコード',
+      body: 'アプリ起動時に入力するパスコードです。数字で設定できます。変更後は保存を押すと次回から反映されます。'
+    },
+    privateToken: {
+      title: 'プライベートURLトークン',
+      body: '共有URLに付ける個人用トークンです。トークン生成後にURLコピーを押すと、専用URLを共有できます。'
+    },
+    remoteKey: {
+      title: 'リモート連携キー',
+      body: 'リモート連携や外部操作に使うキーです。同じキーを使う操作元とRimlyをつなぐために使います。'
+    },
+    faceAuth: {
+      title: '顔認証管理',
+      body: '端末内に顔データを登録、確認、削除できます。登録した顔はロック解除に使われます。'
+    }
+  };
+
+  function helpButton(key) {
+    return `<button class="settings-help-button" type="button" data-setting-help="${key}" aria-label="ヘルプ">?</button>`;
+  }
+
+  function settingLabel(text, key) {
+    return `<div class="settings-label-row"><label>${text}</label>${helpButton(key)}</div>`;
+  }
+
+  function bindSettingsHelp() {
+    qsa('[data-setting-help]').forEach(btn => press(btn, () => {
+      const item = settingHelp[btn.dataset.settingHelp];
+      if (!item) return;
+      openModal(item.title, `
+        <div class="help-copy">${escapeHtml(item.body)}</div>
+      `, 'modal-sm help-modal');
+    }));
+  }
+
+  function openSettingsHelp() {
+    openModal('ヘルプ', `
+      <div class="help-copy">
+        もしお困りになった場合は、各設定項目の右上にある
+        <span class="inline-help-mark">?</span>
+        をタップすると説明を閲覧できます。
+      </div>
+      <div class="settings-action-grid">
+        <button class="btn-secondary" id="open-feature-list">機能一覧</button>
+        <button class="btn-primary" id="open-feedback">フィードバック</button>
+      </div>
+    `, 'modal-sm help-modal');
+    press($('open-feature-list'), openFeatureList);
+    press($('open-feedback'), openFeedbackModal);
+  }
+
+  function openFeedbackModal() {
+    openModal('フィードバック', `
+      <div class="settings-field">
+        <label>内容</label>
+        <textarea class="ios-input feedback-textarea" id="feedback-message" placeholder="気づいたこと、困ったこと、欲しい機能などを書いてください"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="feedback-cancel">キャンセル</button>
+        <button class="btn-primary" id="feedback-send">送信</button>
+      </div>
+    `, 'modal-sm');
+    press($('feedback-cancel'), closeModal);
+    press($('feedback-send'), () => {
+      const message = $('feedback-message')?.value.trim();
+      if (!message) return toast('内容を入力してください');
+      const subject = encodeURIComponent('Rimly フィードバック');
+      const body = encodeURIComponent(`${message}\n\n---\nRimly feedback\nStorage: ${appState.settings.storageMode || 'local'}\n`);
+      location.href = `mailto:hinatasun1@icloud.com?subject=${subject}&body=${body}`;
+      closeModal();
+      toast('メールを開きます');
+    });
+  }
+
+  function openFeatureList() {
+    openModal('機能一覧', `
+      <div class="feature-list">
+        <button class="feature-help-card" type="button">
+          <span>Face ID</span>
+          <strong>パスコード画面で顔認証ロック解除</strong>
+        </button>
+        <button class="feature-help-card" type="button">
+          <span>保存</span>
+          <strong>ローカル、クラウドDB、ハイブリッド保存</strong>
+        </button>
+        <button class="feature-help-card" type="button">
+          <span>AI</span>
+          <strong>名簿撮影と履歴分析のAI補助</strong>
+        </button>
+        <button class="feature-help-card" type="button">
+          <span>試合</span>
+          <strong>得点、ファウル、履歴、スタッツ管理</strong>
+        </button>
+      </div>
+    `, 'modal-lg help-modal');
+  }
+
+  function showWhatsNewAfterFaceUnlock() {
+    const version = '2026-06-21-help-and-sync';
+    if (localStorage.getItem('rimly_whats_new_seen') === version) return;
+    localStorage.setItem('rimly_whats_new_seen', version);
+    setTimeout(() => {
+      openModal('新機能', `
+        <div class="feature-list">
+          <button class="feature-help-card" type="button">
+            <span>?</span>
+            <strong>設定項目ごとのヘルプを追加しました</strong>
+          </button>
+          <button class="feature-help-card" type="button">
+            <span>保存</span>
+            <strong>クラウドDBとハイブリッド同期の表示を整理しました</strong>
+          </button>
+          <button class="feature-help-card" type="button">
+            <span>Face ID</span>
+            <strong>軽量で自然な顔認証アニメーションに調整しました</strong>
+          </button>
+        </div>
+      `, 'modal-lg help-modal');
+    }, 520);
+  }
+
   function renderSettings() {
     $('view-settings').innerHTML = `
-      <div class="section-heading"><h1>設定</h1></div>
+      <div class="section-heading settings-heading">
+        <h1>設定</h1>
+        <button class="btn-secondary settings-help-main" id="settings-help-main" type="button">ヘルプ</button>
+      </div>
       <div class="settings-grid">
         <div class="ios-panel settings-panel">
           <div class="settings-field">
-            <label>データ保存</label>
+            ${settingLabel('データ保存', 'storage')}
             <select class="ios-input" id="setting-storage-full">
               <option value="local">ローカル保存</option>
               <option value="db">クラウドDB</option>
@@ -2490,18 +2632,18 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
             </select>
           </div>
           <div class="settings-field">
-            <label>クラウド同期キー</label>
+            ${settingLabel('クラウド同期キー', 'dbKey')}
             <input class="ios-input" id="setting-db-full" value="${escapeHtml(appState.settings.dbKey)}" />
           </div>
           <div class="settings-field">
-            <label>スタッツ</label>
+            ${settingLabel('スタッツ', 'stats')}
             <select class="ios-input" id="setting-stats-full">
               <option value="basic">簡易</option>
               <option value="advanced">詳細</option>
             </select>
           </div>
           <div class="settings-field">
-            <label>試合終了時コピー</label>
+            ${settingLabel('試合終了時コピー', 'autoCopy')}
             <select class="ios-input" id="setting-copy-full">
               <option value="false">しない</option>
               <option value="true">する</option>
@@ -2514,11 +2656,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         </div>
         <div class="ios-panel settings-panel">
           <div class="settings-field">
-            <label>起動パスコード</label>
+            ${settingLabel('起動パスコード', 'passcode')}
             <input class="ios-input" id="setting-pw-full" maxlength="6" inputmode="numeric" value="${escapeHtml(localStorage.getItem('rimly_app_pw') || '082655')}" />
           </div>
           <div class="settings-field">
-            <label>プライベートURLトークン</label>
+            ${settingLabel('プライベートURLトークン', 'privateToken')}
             <input class="ios-input" id="private-token-full" readonly value="${escapeHtml(localStorage.getItem('rimly_private_token') || '')}" />
           </div>
           <div class="settings-action-grid">
@@ -2526,12 +2668,15 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
               <button class="btn-secondary" id="copy-token-url-full">URLコピー</button>
           </div>
           <div class="settings-field">
-            <label>リモート連携キー</label>
+            ${settingLabel('リモート連携キー', 'remoteKey')}
             <input class="ios-input" id="auth-key-full" value="${escapeHtml(appState.settings.authKey || '')}" />
           </div>
           <div class="settings-action-grid settings-final-actions">
             <button class="btn-primary" id="save-security-full">保存</button>
-            <button class="btn-secondary" id="face-auth-manage-full">顔認証管理</button>
+            <div class="settings-action-help">
+              <button class="btn-secondary" id="face-auth-manage-full">顔認証管理</button>
+              ${helpButton('faceAuth')}
+            </div>
           </div>
         </div>
       </div>
@@ -2539,6 +2684,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     $('setting-storage-full').value = appState.settings.storageMode || 'local';
     $('setting-stats-full').value = appState.settings.statsMode || 'basic';
     $('setting-copy-full').value = appState.settings.autoCopy || 'false';
+    bindSettingsHelp();
+    press($('settings-help-main'), openSettingsHelp);
     press($('save-settings-full'), () => {
       appState.settings.storageMode = $('setting-storage-full').value;
       appState.settings.dbKey = $('setting-db-full').value.trim() || appState.settings.dbKey;
@@ -2747,6 +2894,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
             $('password-screen')?.classList.remove('active');
             $('app-screen')?.classList.add('active');
             setFaceIslandState('idle', 'Face ID');
+            showWhatsNewAfterFaceUnlock();
           }, 1160);
         },
         (count, reason) => {
