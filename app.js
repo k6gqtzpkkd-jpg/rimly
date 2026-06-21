@@ -854,6 +854,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   let facePreloadStarted = false;
   let faceUnlockRunning = false;
   let faceIslandOpenTimer = null;
+  let cloudSyncTimer = null;
   let modalCloseTimer = null;
 
   function stopKnownLegacyErrors() {
@@ -976,7 +977,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     ['home', 'away'].forEach(team => {
       appState.game[team].players = normalizePlayers(appState.game[team].players, team, true);
     });
-    saveState(false);
+    saveState(false, false);
   }
 
   function normalizePlayers(players, team, allowEmpty = false) {
@@ -993,7 +994,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     });
   }
 
-  function saveState(show = false) {
+  function saveState(show = false, sync = true) {
     const profile = appState.settings?.dbKey || 'default';
     localStorage.setItem('rimly_settings', JSON.stringify(appState.settings || {}));
     localStorage.setItem(`rimly_teams_${profile}`, JSON.stringify(appState.teamsDB || []));
@@ -1006,6 +1007,15 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       localStorage.removeItem('rimly_v4_active_match');
     }
     if (show) toast('保存しました');
+    if (sync) scheduleCloudSave();
+  }
+
+  function scheduleCloudSave() {
+    if (!['db', 'hybrid'].includes(appState.settings?.storageMode)) return;
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(() => {
+      syncCloud('save');
+    }, 900);
   }
 
   async function syncCloud(direction = 'save') {
@@ -1021,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         if (json.success && json.data) {
           if (Array.isArray(json.data.teams)) appState.teamsDB = json.data.teams;
           if (Array.isArray(json.data.history)) appState.historyDB = json.data.history;
-          saveState();
+          saveState(false, false);
           toast('クラウドから読み込みました');
         }
       } else {
