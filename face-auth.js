@@ -22,8 +22,8 @@ class RimlyFaceAuth {
     // 検知設定
     this.CONFIG = {
       MATCH_THRESHOLD: 0.6,
-      DETECTION_INTERVAL: 150, // 負荷軽減のため150msに変更
-      MIN_CONFIDENCE: 0.3,
+      DETECTION_INTERVAL: 80,
+      MIN_CONFIDENCE: 0.25,
       INPUT_SIZE: 128,
       ENABLE_SCAN_EFFECT: true,
       ENABLE_CENTER_FRAME: true, // センターフレーム機能を有効化
@@ -311,8 +311,11 @@ class RimlyFaceAuth {
 
     const startTime = Date.now();
 
-    this.detectionLoop = setInterval(async () => {
+    let detectionInFlight = false;
+    const scan = async () => {
       if (!this.isRunning) return;
+      if (detectionInFlight) return;
+      detectionInFlight = true;
 
       try {
         const detection = await faceapi
@@ -341,10 +344,9 @@ class RimlyFaceAuth {
         }
         
         if (match) {
-          // 最低でも800msはスキャンエフェクトを見せる
-          if (elapsed < 800) {
+          if (elapsed < 180) {
             if (onStatus) onStatus('スキャン中...');
-            return; // まだ成功判定を出さない
+            return;
           }
           
           // マッチ成功！ロック解除
@@ -368,8 +370,12 @@ class RimlyFaceAuth {
         }
       } catch (e) {
         console.error('Detection error:', e);
+      } finally {
+        detectionInFlight = false;
       }
-    }, this.CONFIG.DETECTION_INTERVAL);
+    };
+    scan();
+    this.detectionLoop = setInterval(scan, this.CONFIG.DETECTION_INTERVAL);
 
     // 15秒でタイムアウト
     setTimeout(() => {

@@ -850,6 +850,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   let tacticState = null;
   let gameVisionStream = null;
   let gameVisionRecording = false;
+  let facePreloadStarted = false;
 
   function stopKnownLegacyErrors() {
     window.addEventListener('error', (event) => {
@@ -896,6 +897,22 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     if (!engine) throw new Error('顔認証エンジンを読み込めませんでした');
     await engine.init();
     return engine;
+  }
+
+  function cleanupFaceOverlays() {
+    const engine = getFaceEngine();
+    if (engine) engine.stopCamera();
+    qsa('.face-lite-modal').forEach(overlay => overlay.remove());
+  }
+
+  function preloadFaceAuth() {
+    if (facePreloadStarted) return;
+    facePreloadStarted = true;
+    const run = () => ensureFaceAuth()
+      .then(engine => engine.hasRegisteredFaces() ? engine.loadModels?.() : null)
+      .catch(() => {});
+    if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 1800 });
+    else setTimeout(run, 600);
   }
 
   function press(el, handler) {
@@ -1053,6 +1070,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const root = $('rimly-modal-root');
     if (root) root.innerHTML = '';
     stopGameVision();
+    cleanupFaceOverlays();
   }
 
   function confirmModal(message, onOk) {
@@ -1133,6 +1151,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function switchTabFull(tab) {
     if (!visibleTabs().includes(tab)) tab = firstVisibleTab();
+    cleanupFaceOverlays();
+    closeModal();
     activeTab = tab;
     qsa('.rimly-tab').forEach(view => view.classList.toggle('active', view.id === `view-${tab}`));
     qsa('.rimly-nav-btn').forEach(btn => {
@@ -1902,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         <button class="btn-secondary" id="ocr-file-fallback">ファイルを選ぶ</button>
       </div>
       <input type="file" id="ocr-file-camera-fallback" accept="image/*" capture="environment" hidden />
-    `, 'modal-lg');
+    `, 'modal-lg ocr-modal');
     const video = $('ocr-video');
     const status = $('ocr-camera-status');
     const fallback = $('ocr-file-camera-fallback');
@@ -2508,6 +2528,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const numpad = passwordScreen.querySelector('.pw-numpad');
     if (numpad) numpad.insertAdjacentElement('afterend', host);
     press($('face-unlock-lite'), openFaceUnlock);
+    preloadFaceAuth();
   }
 
   async function openFaceUnlock() {
@@ -2528,11 +2549,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         engine.authenticate(
           msg => { status.textContent = msg; },
           user => {
-            status.textContent = `${user.name} さん`;
             engine.stopCamera();
-            $('password-screen')?.classList.remove('active');
-            $('app-screen')?.classList.add('active');
-            close();
+            showFaceUnlockSuccessLite(user, () => {
+              $('password-screen')?.classList.remove('active');
+              $('app-screen')?.classList.add('active');
+              close();
+            });
           },
           (count, reason) => { status.textContent = `${reason} (${count}/3)`; },
           () => { status.textContent = 'PINで解除してください'; engine.stopCamera(); }
@@ -2609,6 +2631,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function openFaceOverlay(title, onReady) {
+    cleanupFaceOverlays();
     const overlay = document.createElement('div');
     overlay.className = 'rimly-modal face-lite-modal';
     overlay.innerHTML = `
@@ -2639,6 +2662,30 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       status: overlay.querySelector('#face-lite-status'),
       close
     });
+  }
+
+  function showFaceUnlockSuccessLite(user, done) {
+    const overlay = document.querySelector('.face-lite-modal');
+    if (!overlay) {
+      done?.();
+      return;
+    }
+    const box = overlay.querySelector('.rimly-modal-box');
+    if (!box) {
+      done?.();
+      return;
+    }
+    box.classList.add('face-success-box');
+    box.innerHTML = `
+      <div class="face-success-card">
+        <div class="face-success-ring">
+          <div class="face-success-check">✓</div>
+        </div>
+        <div class="face-success-title">Unlocked</div>
+        <div class="face-success-user">${escapeHtml(user?.name || 'User')} さん</div>
+      </div>
+    `;
+    setTimeout(() => done?.(), 420);
   }
 
   async function openGameVision() {
@@ -2697,6 +2744,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     setupFaceUnlockButton();
     buildShell();
     renderAll();
+    preloadFaceAuth();
   }, { once: true });
 })();
 
