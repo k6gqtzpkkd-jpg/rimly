@@ -352,7 +352,7 @@ input:focus, select:focus { border-color: var(--blue); }
   align-items: center;
   justify-content: center;
   opacity: 0; visibility: hidden;
-  transition: opacity .22s ease, visibility .22s ease;
+  transition: opacity .3s ease, visibility .3s ease;
 }
 .modal-overlay.open,
 .modal-overlay.active {
@@ -365,8 +365,9 @@ input:focus, select:focus { border-color: var(--blue); }
   max-width: 400px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  transform: translateY(16px) scale(.96);
-  transition: transform .26s cubic-bezier(.2, .9, .22, 1), opacity .22s ease;
+  transform: translateY(48px) scale(.96);
+  filter: blur(6px);
+  transition: transform .34s cubic-bezier(.22, 1, .36, 1), opacity .3s ease, filter .3s ease;
   opacity: 0;
   transform-origin: center;
 }
@@ -374,6 +375,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .modal-overlay.active .modal-box {
   opacity: 1;
   transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 .modal-header {
   padding: 16px;
@@ -411,8 +413,8 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 @keyframes rimlySheetOut {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(12px) scale(.96); }
+  from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  to { opacity: 0; transform: translateY(56px) scale(.96); filter: blur(8px); }
 }
 
 /* Password Screen iOS Setup Style */
@@ -1331,7 +1333,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .rimly-modal.is-closing {
-  animation: rimlyBackdropOut .2s ease both;
+  animation: rimlyBackdropOut .34s ease both;
 }
 
 .rimly-modal-box {
@@ -1349,7 +1351,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .rimly-modal.is-closing .rimly-modal-box {
-  animation: rimlySheetOut .2s ease-in both;
+  animation: rimlySheetOut .34s cubic-bezier(.32, 0, .67, 0) both;
 }
 
 .rimly-modal-box.modal-sm {

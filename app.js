@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     clearTimeout(modalCloseTimer);
     modalCloseTimer = setTimeout(() => {
       if (root.querySelector('.rimly-modal.is-closing')) root.innerHTML = '';
-    }, 240);
+    }, 380);
   }
 
   function confirmModal(message, onOk) {
