@@ -2583,9 +2583,19 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       entry.appendChild(button);
     }
     button.type = 'button';
-    button.className = 'face-id-island';
+    button.className = 'face-id-trigger';
     button.setAttribute('aria-label', 'Face IDでロック解除');
     button.innerHTML = `${faceIdMarkHtml()}<span class="face-id-label">Face ID</span>`;
+
+    let island = $('face-dynamic-island');
+    if (!island) {
+      island = document.createElement('div');
+      island.id = 'face-dynamic-island';
+      island.className = 'face-id-island';
+      island.setAttribute('aria-hidden', 'true');
+      island.innerHTML = `${faceIdMarkHtml()}<span class="face-id-label"></span>`;
+      passwordScreen.appendChild(island);
+    }
 
     let status = $('face-inline-status');
     if (!status) {
@@ -2618,19 +2628,21 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     }
 
     $('face-unlock-lite')?.closest('.face-lite-actions')?.remove();
-    return { entry, button, status, video, canvas };
+    return { entry, button, island, status, video, canvas };
   }
 
   function setFaceIslandState(state = 'idle', label = 'Face ID') {
     const ui = ensureFaceUnlockSurface();
     if (!ui) return;
-    ui.button.dataset.state = state;
-    ui.button.classList.toggle('is-loading', state === 'loading');
-    ui.button.classList.toggle('is-scanning', state === 'scanning');
-    ui.button.classList.toggle('is-success', state === 'success');
-    ui.button.classList.toggle('is-error', state === 'error');
-    ui.button.classList.toggle('is-closing', state === 'closing');
-    const labelEl = ui.button.querySelector('.face-id-label');
+    const island = ui.island;
+    island.dataset.state = state;
+    island.classList.toggle('is-visible', state !== 'idle');
+    island.classList.toggle('is-loading', state === 'loading');
+    island.classList.toggle('is-scanning', state === 'scanning');
+    island.classList.toggle('is-success', state === 'success');
+    island.classList.toggle('is-error', state === 'error');
+    island.classList.toggle('is-closing', state === 'closing');
+    const labelEl = island.querySelector('.face-id-label');
     if (labelEl) labelEl.textContent = label;
     ui.status.textContent = state === 'idle' ? '' : label;
   }
