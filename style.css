@@ -384,7 +384,15 @@ input:focus, select:focus { border-color: var(--blue); }
 .action-grid { display: grid; gap: 10px; }
 
 /* Password Screen iOS Setup Style */
-#password-screen.screen { display: none; background: var(--bg-base); flex-direction: column; align-items: center; min-height: 100vh; }
+#password-screen.screen {
+  display: none;
+  min-height: 100vh;
+  padding: max(22px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
+  background: var(--bg-base);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 #password-screen.screen.active { display: flex; }
 .pw-numpad { display: grid; grid-template-columns: repeat(3, 80px); gap: 16px; margin-top: 30px; justify-content: center; }
 .num-btn {
@@ -403,6 +411,152 @@ input:focus, select:focus { border-color: var(--blue); }
 .dot { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--blue); }
 .dot.filled { background: var(--blue); }
 .dot.error { background: var(--red); border-color: var(--red); }
+
+.pw-container {
+  display: grid;
+  justify-items: center;
+  width: min(420px, calc(100vw - 32px));
+  margin: auto;
+}
+
+.pw-logo {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+#rimly-canvas {
+  width: min(300px, 78vw);
+  max-width: 100%;
+  height: auto;
+}
+
+.pw-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.pw-error {
+  min-height: 22px;
+  margin-top: 14px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.face-auth-entry {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-height: 54px;
+  margin-top: 18px;
+}
+
+.face-id-island,
+.btn-face-auth {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 138px;
+  height: 44px;
+  padding: 0 17px;
+  border-radius: 999px;
+  background: rgba(8, 8, 10, .96);
+  color: #fff;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .2), inset 0 0 0 1px rgba(255, 255, 255, .08);
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.face-id-island.is-loading,
+.face-id-island.is-success,
+.face-id-island.is-error {
+  min-width: 150px;
+}
+
+.face-id-island.is-loading .face-id-mark {
+  animation: faceIdPulse .9s ease-in-out infinite;
+}
+
+.face-id-island.is-success {
+  background: rgba(20, 20, 22, .97);
+}
+
+.face-id-island.is-success .face-id-mark {
+  border-color: rgba(52, 199, 89, .95);
+  color: var(--green);
+}
+
+.face-id-island.is-error .face-id-mark {
+  border-color: rgba(255, 69, 58, .95);
+}
+
+.face-id-mark {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, .9);
+  border-radius: 7px;
+}
+
+.face-id-eye,
+.face-id-mouth {
+  position: absolute;
+  display: block;
+  background: currentColor;
+}
+
+.face-id-eye {
+  top: 7px;
+  width: 2.5px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.face-id-eye-left {
+  left: 7px;
+}
+
+.face-id-eye-right {
+  right: 7px;
+}
+
+.face-id-mouth {
+  left: 7px;
+  right: 7px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 999px;
+}
+
+.face-inline-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.face-hidden-media {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes faceIdPulse {
+  0%, 100% { transform: scale(1); opacity: .92; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
 
 /* ================================================================
    Rimly Full Apple-Language App
@@ -1266,18 +1420,20 @@ select.ios-input,
 .ocr-camera-box {
   position: relative;
   width: 100%;
-  height: clamp(190px, 42vh, 340px);
+  height: clamp(280px, 52dvh, 480px);
   overflow: hidden;
   border-radius: 18px;
   background: #111;
 }
 
 .rimly-modal-box.ocr-modal {
-  width: min(760px, 100%);
+  width: min(820px, 100%);
+  max-height: min(92dvh, 860px);
 }
 
 .rimly-modal-box.ocr-modal .rimly-modal-body {
-  max-height: calc(100dvh - 112px);
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
 }
 
 .ocr-camera-box video,
@@ -1632,7 +1788,9 @@ select.ios-input,
   .rimly-nav-btn {
     height: 42px;
   }
-  .ocr-camera-box,
+  .ocr-camera-box {
+    height: clamp(250px, 46dvh, 340px);
+  }
   .face-lite-camera {
     height: min(34vh, 220px);
   }

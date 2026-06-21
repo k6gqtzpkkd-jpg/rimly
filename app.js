@@ -803,6 +803,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
 // --- Full Apple-language app rebuild ---
 (function setupRimlyFullAppleApp() {
+  window.__rimlyUseInlineFaceID = true;
   const $ = (id) => document.getElementById(id);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const API_DB = '/api/db';
@@ -851,6 +852,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   let gameVisionStream = null;
   let gameVisionRecording = false;
   let facePreloadStarted = false;
+  let faceUnlockRunning = false;
 
   function stopKnownLegacyErrors() {
     window.addEventListener('error', (event) => {
@@ -890,19 +892,29 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   async function ensureFaceAuth() {
-    if (getFaceEngine()) return getFaceEngine();
+    const existing = getFaceEngine();
+    if (existing) {
+      if (!existing.db) await existing.init();
+      return existing;
+    }
     await loadScriptOnce('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
     await loadScriptOnce('face-auth.js');
     const engine = getFaceEngine();
     if (!engine) throw new Error('顔認証エンジンを読み込めませんでした');
-    await engine.init();
+    if (!engine.db) await engine.init();
     return engine;
   }
 
   function cleanupFaceOverlays() {
     const engine = getFaceEngine();
     if (engine) engine.stopCamera();
+    faceUnlockRunning = false;
     qsa('.face-lite-modal').forEach(overlay => overlay.remove());
+    $('face-auth-overlay')?.classList.remove('active', 'scanning', 'matched');
+    $('face-register-overlay')?.classList.remove('active');
+    if ($('password-screen')?.classList.contains('active')) {
+      setFaceIslandState('idle', 'Face ID');
+    }
   }
 
   function preloadFaceAuth() {
@@ -2519,50 +2531,173 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     press($('face-auth-manage-full'), openFaceAuthManager);
   }
 
-  function setupFaceUnlockButton() {
+  function faceIdMarkHtml() {
+    return `
+      <span class="face-id-mark" aria-hidden="true">
+        <span class="face-id-eye face-id-eye-left"></span>
+        <span class="face-id-eye face-id-eye-right"></span>
+        <span class="face-id-mouth"></span>
+      </span>
+    `;
+  }
+
+  function ensureFaceUnlockSurface() {
     const passwordScreen = $('password-screen');
-    if (!passwordScreen || $('face-unlock-lite')) return;
-    const host = document.createElement('div');
-    host.className = 'face-lite-actions';
-    host.innerHTML = `<button class="btn-secondary" id="face-unlock-lite" type="button">顔認証</button>`;
-    const numpad = passwordScreen.querySelector('.pw-numpad');
-    if (numpad) numpad.insertAdjacentElement('afterend', host);
-    press($('face-unlock-lite'), openFaceUnlock);
+    if (!passwordScreen) return null;
+
+    let entry = $('face-auth-entry');
+    if (!entry) {
+      entry = document.createElement('div');
+      entry.id = 'face-auth-entry';
+      entry.className = 'face-auth-entry';
+      const dots = passwordScreen.querySelector('.pw-dots');
+      const container = passwordScreen.querySelector('.pw-container') || passwordScreen.firstElementChild || passwordScreen;
+      if (dots) dots.insertAdjacentElement('beforebegin', entry);
+      else container.appendChild(entry);
+    }
+
+    let button = $('btn-face-auth');
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'btn-face-auth';
+      entry.appendChild(button);
+    } else if (button.parentElement !== entry) {
+      entry.appendChild(button);
+    }
+    button.type = 'button';
+    button.className = 'face-id-island';
+    button.setAttribute('aria-label', 'Face IDでロック解除');
+    button.innerHTML = `${faceIdMarkHtml()}<span class="face-id-label">Face ID</span>`;
+
+    let status = $('face-inline-status');
+    if (!status) {
+      status = document.createElement('div');
+      status.id = 'face-inline-status';
+      status.className = 'face-inline-status';
+      status.setAttribute('aria-live', 'polite');
+      entry.appendChild(status);
+    }
+
+    let video = $('face-inline-video');
+    if (!video) {
+      video = document.createElement('video');
+      video.id = 'face-inline-video';
+      video.className = 'face-hidden-media';
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = true;
+      video.setAttribute('aria-hidden', 'true');
+      entry.appendChild(video);
+    }
+
+    let canvas = $('face-inline-canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.id = 'face-inline-canvas';
+      canvas.className = 'face-hidden-media';
+      canvas.setAttribute('aria-hidden', 'true');
+      entry.appendChild(canvas);
+    }
+
+    $('face-unlock-lite')?.closest('.face-lite-actions')?.remove();
+    return { entry, button, status, video, canvas };
+  }
+
+  function setFaceIslandState(state = 'idle', label = 'Face ID') {
+    const ui = ensureFaceUnlockSurface();
+    if (!ui) return;
+    ui.button.dataset.state = state;
+    ui.button.classList.toggle('is-loading', state === 'loading' || state === 'scanning');
+    ui.button.classList.toggle('is-success', state === 'success');
+    ui.button.classList.toggle('is-error', state === 'error');
+    const labelEl = ui.button.querySelector('.face-id-label');
+    if (labelEl) labelEl.textContent = label;
+    ui.status.textContent = state === 'idle' ? '' : label;
+  }
+
+  function setPasswordFaceMessage(message = '', isError = false) {
+    const errorEl = $('pw-error');
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.style.color = isError ? 'var(--red)' : 'var(--green)';
+  }
+
+  function setupFaceUnlockButton() {
+    const ui = ensureFaceUnlockSurface();
+    if (!ui || ui.button.dataset.faceBound === 'true') {
+      preloadFaceAuth();
+      return;
+    }
+    press(ui.button, openFaceUnlock);
+    ui.button.dataset.faceBound = 'true';
+    setFaceIslandState('idle', 'Face ID');
     preloadFaceAuth();
   }
 
   async function openFaceUnlock() {
-    openFaceOverlay('顔認証', async ({ video, canvas, status, close }) => {
-      try {
-        const engine = await ensureFaceAuth();
-        if (!engine.hasRegisteredFaces()) {
-          status.textContent = '登録済みの顔がありません';
-          return;
-        }
-        engine.canvasEl = canvas;
-        status.textContent = 'カメラを起動中';
-        const ok = await engine.startCamera(video);
-        if (!ok) {
-          status.textContent = 'カメラを開始できませんでした';
-          return;
-        }
-        engine.authenticate(
-          msg => { status.textContent = msg; },
-          user => {
-            engine.stopCamera();
-            showFaceUnlockSuccessLite(user, () => {
-              $('password-screen')?.classList.remove('active');
-              $('app-screen')?.classList.add('active');
-              close();
-            });
-          },
-          (count, reason) => { status.textContent = `${reason} (${count}/3)`; },
-          () => { status.textContent = 'PINで解除してください'; engine.stopCamera(); }
-        );
-      } catch (e) {
-        status.textContent = e.message || '顔認証を開始できませんでした';
+    const passwordScreen = $('password-screen');
+    if (!passwordScreen?.classList.contains('active') || faceUnlockRunning) return;
+
+    const ui = ensureFaceUnlockSurface();
+    if (!ui) return;
+    faceUnlockRunning = true;
+    setPasswordFaceMessage('');
+    setFaceIslandState('loading', '準備中');
+
+    try {
+      const engine = await ensureFaceAuth();
+      await engine.loadRegisteredFaces?.();
+      if (!engine.hasRegisteredFaces()) {
+        faceUnlockRunning = false;
+        setFaceIslandState('error', '未登録');
+        setPasswordFaceMessage('設定で顔を登録してください', true);
+        setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1400);
+        return;
       }
-    });
+
+      engine.canvasEl = ui.canvas;
+      setFaceIslandState('loading', 'カメラ確認');
+      const ok = await engine.startCamera(ui.video);
+      if (!ok) throw new Error('カメラを開始できませんでした');
+
+      setFaceIslandState('scanning', 'Face ID');
+      engine.authenticate(
+        msg => {
+          if (msg.includes('モデル')) setFaceIslandState('loading', '準備中');
+          else if (msg.includes('顔') || msg.includes('スキャン') || msg.includes('認識')) {
+            setFaceIslandState('scanning', 'Face ID');
+          }
+        },
+        user => {
+          faceUnlockRunning = false;
+          engine.stopCamera();
+          setFaceIslandState('success', 'Unlocked');
+          setTimeout(() => {
+            $('password-screen')?.classList.remove('active');
+            $('app-screen')?.classList.add('active');
+            setFaceIslandState('idle', 'Face ID');
+          }, 420);
+        },
+        (count, reason) => {
+          faceUnlockRunning = false;
+          setFaceIslandState('error', 'もう一度');
+          setPasswordFaceMessage(`${reason} (${count}/3)`, true);
+          setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1600);
+        },
+        () => {
+          faceUnlockRunning = false;
+          engine.stopCamera();
+          setFaceIslandState('idle', 'Face ID');
+          setPasswordFaceMessage('PINで解除してください', true);
+        }
+      );
+    } catch (e) {
+      faceUnlockRunning = false;
+      getFaceEngine()?.stopCamera();
+      setFaceIslandState('error', '失敗');
+      setPasswordFaceMessage(e.message || '顔認証を開始できませんでした', true);
+      setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1600);
+    }
   }
 
   async function openFaceAuthManager() {
@@ -5273,6 +5408,7 @@ window.flipRosterView = function (tm) {
 // 顔認証のUIイベント接続・画面遷移制御
 // ================================================================
 (function setupFaceAuthUI() {
+  if (window.__rimlyUseInlineFaceID) return;
 
   // --- 要素取得 ---
   const btnFaceAuth = document.getElementById('btn-face-auth');
