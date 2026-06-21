@@ -561,19 +561,34 @@ input:focus, select:focus { border-color: var(--blue); }
   display: none;
 }
 
-.face-id-island.is-loading .face-id-mark,
-.face-id-island.is-scanning .face-id-mark {
+.face-id-island.is-loading .face-id-mark {
   width: 70px;
   height: 70px;
 }
 
-.face-id-island.is-loading .face-id-mark,
 .face-id-island.is-scanning .face-id-mark {
+  width: 82px;
+  height: 82px;
+}
+
+.face-id-island.is-loading .face-id-mark {
   animation: faceIconBreathe 1.05s ease-in-out infinite;
 }
 
-.face-id-island.is-loading .face-id-bracket,
-.face-id-island.is-scanning .face-id-bracket {
+.face-id-island.is-scanning .face-id-mark {
+  animation: faceScanBreathe 1.18s ease-in-out infinite;
+}
+
+.face-id-island.is-loading .face-id-bracket {
+  opacity: 1;
+}
+
+.face-id-island.is-scanning .face-id-bracket,
+.face-id-island.is-scanning .face-id-face-line {
+  opacity: 0;
+}
+
+.face-id-island.is-scanning .face-id-scan-orbits {
   opacity: 1;
 }
 
@@ -588,7 +603,8 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .face-id-island.is-success .face-id-bracket,
-.face-id-island.is-success .face-id-face-line {
+.face-id-island.is-success .face-id-face-line,
+.face-id-island.is-success .face-id-scan-orbits {
   opacity: 0;
 }
 
@@ -649,6 +665,36 @@ input:focus, select:focus { border-color: var(--blue); }
   transform-origin: center;
 }
 
+.face-id-scan-orbits {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity .12s ease;
+}
+
+.face-id-scan-loop {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 48 14;
+  opacity: .82;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: faceScanOrbit 1.25s ease-in-out infinite;
+}
+
+.scan-loop-b {
+  opacity: .72;
+  animation-delay: -.38s;
+}
+
+.scan-loop-c {
+  opacity: .58;
+  animation-delay: -.76s;
+}
+
 .face-id-check {
   opacity: 0;
   stroke-width: 4;
@@ -698,6 +744,28 @@ input:focus, select:focus { border-color: var(--blue); }
 @keyframes faceIconBreathe {
   0%, 100% { transform: translate(-50%, -50%) scale(.92); }
   50% { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes faceScanBreathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(.94); }
+  50% { transform: translate(-50%, -50%) scale(1.02); }
+}
+
+@keyframes faceScanOrbit {
+  0% {
+    stroke-dashoffset: 0;
+    transform: rotate(0deg) scale(.98);
+  }
+
+  48% {
+    stroke-dashoffset: -18;
+    transform: rotate(18deg) scale(1.04);
+  }
+
+  100% {
+    stroke-dashoffset: -38;
+    transform: rotate(36deg) scale(.98);
+  }
 }
 
 @keyframes faceIdSuccessPop {
