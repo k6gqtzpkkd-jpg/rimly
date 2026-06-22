@@ -11,8 +11,12 @@
   --bg-panel: rgba(255, 255, 255, 0.85);
   --glass-alpha: 0.55;
   --glass-surface-alpha: 0.34;
+  --glass-surface-soft-alpha: 0.25;
   --glass-control-alpha: 0.29;
   --glass-highlight-alpha: 0.43;
+  --glass-blue-alpha: 0.35;
+  --glass-backdrop-alpha: 0.47;
+  --glass-toast-alpha: 0.65;
   --border: rgba(60, 60, 67, 0.1);
   --text-primary: #000000;
   --text-secondary: rgba(60, 60, 67, 0.6);
@@ -598,7 +602,6 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-scanning .face-id-mark {
   width: 82px;
   height: 82px;
-  opacity: 0;
 }
 
 .face-id-island.is-error .face-id-mark {
@@ -709,48 +712,33 @@ input:focus, select:focus { border-color: var(--blue); }
   transform-origin: center;
 }
 
-.face-id-island .face-id-scan-orbits {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 82px;
-  height: 82px;
+.face-id-scan-orbits {
   opacity: 0;
-  color: var(--face-green);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  transition: opacity .12s ease;
-  perspective: 180px;
-  transform-style: preserve-3d;
-}
-
-.face-id-scan-ring {
-  position: absolute;
-  display: block;
-  border: 3px solid currentColor;
-  border-radius: 50%;
-  opacity: .86;
+  transform-box: fill-box;
   transform-origin: center;
-  transform-style: preserve-3d;
+  transition: opacity .12s ease;
+  perspective: 120px;
+}
+
+.face-id-scan-loop {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .86;
+  transform-box: fill-box;
+  transform-origin: center;
   will-change: transform;
-  backface-visibility: visible;
 }
 
-.scan-ring-a {
-  left: 11px;
-  top: 23px;
-  width: 60px;
-  height: 36px;
-  animation: faceScanGyroA 1.24s linear infinite;
+.scan-loop-a {
+  animation: faceScanGyroA 1.45s ease-in-out infinite;
 }
 
-.scan-ring-b {
-  left: 23px;
-  top: 11px;
-  width: 36px;
-  height: 60px;
+.scan-loop-b {
   opacity: .74;
-  animation: faceScanGyroB 1.24s linear infinite;
+  animation: faceScanGyroB 1.45s ease-in-out infinite;
 }
 
 .face-id-check {
@@ -851,45 +839,29 @@ input:focus, select:focus { border-color: var(--blue); }
 
 @keyframes faceScanGyroA {
   0% {
-    transform: translate3d(-3px, -2px, 0) rotateZ(-22deg) rotateX(64deg) rotateY(-28deg) scale(1, .9);
-  }
-
-  25% {
-    transform: translate3d(2px, -4px, 0) rotateZ(52deg) rotateX(18deg) rotateY(58deg) scale(.92, 1.08);
+    transform: rotateZ(-18deg) rotateX(58deg) rotateY(-18deg) translateY(-1px) scale(1, .88);
   }
 
   50% {
-    transform: translate3d(4px, 3px, 0) rotateZ(128deg) rotateX(-62deg) rotateY(24deg) scale(1.08, .86);
-  }
-
-  75% {
-    transform: translate3d(-2px, 4px, 0) rotateZ(206deg) rotateX(-20deg) rotateY(-58deg) scale(.92, 1.1);
+    transform: rotateZ(24deg) rotateX(-58deg) rotateY(22deg) translateY(2px) scale(1.04, .82);
   }
 
   100% {
-    transform: translate3d(-3px, -2px, 0) rotateZ(338deg) rotateX(64deg) rotateY(-28deg) scale(1, .9);
+    transform: rotateZ(-18deg) rotateX(58deg) rotateY(-18deg) translateY(-1px) scale(1, .88);
   }
 }
 
 @keyframes faceScanGyroB {
   0% {
-    transform: translate3d(3px, 2px, 0) rotateZ(74deg) rotateY(66deg) rotateX(24deg) scale(.88, 1.06);
-  }
-
-  25% {
-    transform: translate3d(-3px, 4px, 0) rotateZ(154deg) rotateY(18deg) rotateX(-62deg) scale(1.08, .9);
+    transform: rotateZ(74deg) rotateY(62deg) rotateX(16deg) translateX(1px) scale(.82, 1.04);
   }
 
   50% {
-    transform: translate3d(-4px, -3px, 0) rotateZ(238deg) rotateY(-66deg) rotateX(-22deg) scale(.86, 1.1);
-  }
-
-  75% {
-    transform: translate3d(2px, -4px, 0) rotateZ(314deg) rotateY(-18deg) rotateX(62deg) scale(1.08, .88);
+    transform: rotateZ(112deg) rotateY(-62deg) rotateX(-18deg) translateX(-2px) scale(.78, 1.08);
   }
 
   100% {
-    transform: translate3d(3px, 2px, 0) rotateZ(434deg) rotateY(66deg) rotateX(24deg) scale(.88, 1.06);
+    transform: rotateZ(74deg) rotateY(62deg) rotateX(16deg) translateX(1px) scale(.82, 1.04);
   }
 }
 
@@ -995,7 +967,7 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .rimly-nav-btn.active {
-  background: rgba(0, 122, 255, calc(var(--glass-control-alpha) + .06));
+  background: rgba(0, 122, 255, var(--glass-blue-alpha));
   color: var(--blue);
 }
 
@@ -1035,7 +1007,7 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .ios-panel {
   background:
-    linear-gradient(145deg, rgba(255,255,255,var(--glass-highlight-alpha)), rgba(255,255,255,var(--glass-surface-alpha)) 54%, rgba(255,255,255,calc(var(--glass-surface-alpha) * .74)));
+    linear-gradient(145deg, rgba(255,255,255,var(--glass-highlight-alpha)), rgba(255,255,255,var(--glass-surface-alpha)) 54%, rgba(255,255,255,var(--glass-surface-soft-alpha)));
   border: 0.5px solid rgba(255, 255, 255, var(--glass-highlight-alpha));
   border-radius: 18px;
   padding: 16px;
@@ -1558,7 +1530,7 @@ input:focus, select:focus { border-color: var(--blue); }
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, calc(.18 + var(--glass-control-alpha)));
+  background: rgba(0, 0, 0, var(--glass-backdrop-alpha));
   backdrop-filter: blur(16px) saturate(1.2);
   -webkit-backdrop-filter: blur(16px) saturate(1.2);
   animation: rimlyBackdropIn .22s ease both;
@@ -2155,7 +2127,7 @@ select.ios-input,
   min-height: 38px;
   padding: 9px 14px;
   border-radius: 999px;
-  background: rgba(28, 28, 30, calc(.36 + var(--glass-control-alpha)));
+  background: rgba(28, 28, 30, var(--glass-toast-alpha));
   border: 0.5px solid rgba(255,255,255,.24);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 14px 38px rgba(0,0,0,.22);
   backdrop-filter: blur(22px) saturate(1.35);

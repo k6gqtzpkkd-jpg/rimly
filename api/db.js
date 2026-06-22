@@ -32,9 +32,11 @@ module.exports = async function handler(req, res) {
         user_key VARCHAR(50) PRIMARY KEY,
         teams JSONB,
         history JSONB,
+        settings JSONB,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await p.query(`ALTER TABLE rimly_users ADD COLUMN IF NOT EXISTS settings JSONB`);
     await p.query(`
       CREATE TABLE IF NOT EXISTS rimly_shares (
         share_id VARCHAR(20) PRIMARY KEY,
@@ -56,7 +58,8 @@ module.exports = async function handler(req, res) {
     if (body.action === 'save') {
       const hasTeams = Object.prototype.hasOwnProperty.call(body, 'teams');
       const hasHistory = Object.prototype.hasOwnProperty.call(body, 'history');
-      if (!hasTeams && !hasHistory) {
+      const hasSettings = Object.prototype.hasOwnProperty.call(body, 'settings');
+      if (!hasTeams && !hasHistory && !hasSettings) {
         return res.status(400).json({ error: 'No data fields to save' });
       }
 
@@ -66,15 +69,17 @@ module.exports = async function handler(req, res) {
         : body.history;
 
       await p.query(
-        `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
+        `INSERT INTO rimly_users (user_key, teams, history, settings, updated_at) VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (user_key) DO UPDATE SET
            teams = COALESCE(EXCLUDED.teams, rimly_users.teams),
            history = COALESCE(EXCLUDED.history, rimly_users.history),
+           settings = COALESCE(EXCLUDED.settings, rimly_users.settings),
            updated_at = NOW()`,
         [
           body.user_key,
           hasTeams ? JSON.stringify(body.teams) : null,
-          hasHistory ? JSON.stringify(limitedHistory) : null
+          hasHistory ? JSON.stringify(limitedHistory) : null,
+          hasSettings ? JSON.stringify(body.settings) : null
         ]
       );
 
@@ -86,7 +91,7 @@ module.exports = async function handler(req, res) {
 
     if (body.action === 'load') {
       const result = await p.query(
-        `SELECT teams, history FROM rimly_users WHERE user_key = $1`,
+        `SELECT teams, history, settings FROM rimly_users WHERE user_key = $1`,
         [body.user_key]
       );
       return res.status(200).json({ success: true, data: result.rows[0] || null });

@@ -814,13 +814,22 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     ? 'https://rimly.vercel.app/api/db'
     : '/api/db';
 
+  function getDeviceDbKey() {
+    let key = localStorage.getItem('rimly_device_db_key');
+    if (!key) {
+      key = 'DEVICE_' + Math.random().toString(36).slice(2, 8).toUpperCase() + '_' + Date.now().toString(36).toUpperCase();
+      localStorage.setItem('rimly_device_db_key', key);
+    }
+    return key;
+  }
+
   const defaultSettings = () => ({
     storageMode: 'local',
-    dbKey: 'USER_' + Math.random().toString(36).slice(2, 11).toUpperCase(),
+    dbKey: getDeviceDbKey(),
     statsMode: 'basic',
     autoCopy: 'false',
     authKey: '',
-    glassOpacity: '0.72',
+    glassOpacity: '0.55',
     requireAttention: 'false'
   });
 
@@ -1023,10 +1032,17 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function applyGlassOpacity() {
     const value = Math.min(0.92, Math.max(0.12, Number(appState.settings?.glassOpacity || 0.55)));
+    const surface = Math.max(0.12, value * 0.62);
+    const control = Math.max(0.10, value * 0.52);
+    const highlight = Math.min(0.76, value * 0.78);
     document.documentElement.style.setProperty('--glass-alpha', String(value));
-    document.documentElement.style.setProperty('--glass-surface-alpha', String(Math.max(0.12, value * 0.62)));
-    document.documentElement.style.setProperty('--glass-control-alpha', String(Math.max(0.10, value * 0.52)));
-    document.documentElement.style.setProperty('--glass-highlight-alpha', String(Math.min(0.76, value * 0.78)));
+    document.documentElement.style.setProperty('--glass-surface-alpha', String(surface));
+    document.documentElement.style.setProperty('--glass-surface-soft-alpha', String(Math.max(0.08, surface * 0.74)));
+    document.documentElement.style.setProperty('--glass-control-alpha', String(control));
+    document.documentElement.style.setProperty('--glass-highlight-alpha', String(highlight));
+    document.documentElement.style.setProperty('--glass-blue-alpha', String(Math.min(0.42, control + 0.06)));
+    document.documentElement.style.setProperty('--glass-backdrop-alpha', String(Math.min(0.62, 0.18 + control)));
+    document.documentElement.style.setProperty('--glass-toast-alpha', String(Math.min(0.78, 0.36 + control)));
   }
 
   function scheduleCloudSave() {
@@ -1055,6 +1071,16 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         if (json.success && json.data) {
           if (mode === 'db' && Array.isArray(json.data.teams)) appState.teamsDB = json.data.teams;
           if (Array.isArray(json.data.history)) appState.historyDB = json.data.history;
+          if (json.data.settings && typeof json.data.settings === 'object') {
+            const currentKey = appState.settings.dbKey || getDeviceDbKey();
+            appState.settings = {
+              ...appState.settings,
+              ...json.data.settings,
+              dbKey: currentKey,
+              storageMode: mode
+            };
+            applyGlassOpacity();
+          }
           saveState(false, false);
           toast(`${modeLabel}同期完了`);
         } else {
@@ -1063,7 +1089,14 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       } else {
         const payload = {
           action: 'save',
-          user_key: appState.settings.dbKey
+          user_key: appState.settings.dbKey,
+          settings: {
+            statsMode: appState.settings.statsMode,
+            autoCopy: appState.settings.autoCopy,
+            authKey: appState.settings.authKey,
+            glassOpacity: appState.settings.glassOpacity,
+            requireAttention: appState.settings.requireAttention
+          }
         };
         if (mode === 'db') {
           payload.teams = appState.teamsDB;
@@ -1081,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         toast(`${modeLabel}同期完了`);
       }
     } catch (e) {
-      toast('クラウド同期をスキップしました');
+      toast(`クラウド同期失敗: ${e.message || '設定を確認してください'}`);
     }
   }
 
@@ -2802,6 +2835,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       const pw = $('setting-pw-full').value.trim();
       if (pw) localStorage.setItem('rimly_app_pw', pw);
       appState.settings.authKey = $('auth-key-full').value.trim();
+      appState.settings.requireAttention = $('setting-attention-full')?.value || appState.settings.requireAttention || 'false';
       saveState(true);
     });
     press($('face-auth-manage-full'), openFaceAuthManager);
@@ -2818,18 +2852,13 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
         <path class="face-id-face-line face-id-nose" d="M21 18v8" />
         <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
+        <g class="face-id-scan-orbits">
+          <ellipse class="face-id-scan-loop scan-loop-a" cx="21" cy="21" rx="12.3" ry="7.2" />
+          <ellipse class="face-id-scan-loop scan-loop-b" cx="21" cy="21" rx="7.2" ry="12.3" />
+        </g>
         <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
         <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
       </svg>
-    `;
-  }
-
-  function faceIdScanOrbitsHtml() {
-    return `
-      <span class="face-id-scan-orbits" aria-hidden="true">
-        <span class="face-id-scan-ring scan-ring-a"></span>
-        <span class="face-id-scan-ring scan-ring-b"></span>
-      </span>
     `;
   }
 
@@ -2867,7 +2896,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       island.id = 'face-dynamic-island';
       island.className = 'face-id-island';
       island.setAttribute('aria-hidden', 'true');
-      island.innerHTML = `${faceIdMarkHtml()}${faceIdScanOrbitsHtml()}`;
+      island.innerHTML = faceIdMarkHtml();
       passwordScreen.appendChild(island);
     }
 
