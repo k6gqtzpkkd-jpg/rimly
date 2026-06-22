@@ -795,6 +795,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    if (window.__rimlyFullAppleApp) return;
     loadLocalState();
     bindAppleUI();
     renderAppleSetup();
@@ -806,6 +807,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 // --- Full Apple-language app rebuild ---
 (function setupRimlyFullAppleApp() {
   window.__rimlyUseInlineFaceID = true;
+  window.__rimlyFullAppleApp = true;
   const $ = (id) => document.getElementById(id);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const API_DB = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
@@ -947,12 +949,14 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function ensureState() {
+    const fallbackSettings = defaultSettings();
     const settings = (() => {
-      try { return JSON.parse(localStorage.getItem('rimly_settings')) || defaultSettings(); }
-      catch (e) { return defaultSettings(); }
+      try { return JSON.parse(localStorage.getItem('rimly_settings')) || fallbackSettings; }
+      catch (e) { return fallbackSettings; }
     })();
-    appState.settings = { ...defaultSettings(), ...settings };
-    if (!appState.settings.dbKey) appState.settings.dbKey = defaultSettings().dbKey;
+    appState.settings = { ...fallbackSettings, ...settings };
+    if (!appState.settings.dbKey) appState.settings.dbKey = fallbackSettings.dbKey;
+    localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
     applyGlassOpacity();
 
     const profile = appState.settings.dbKey || 'default';
@@ -1018,8 +1022,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function applyGlassOpacity() {
-    const value = Math.min(0.95, Math.max(0.35, Number(appState.settings?.glassOpacity || 0.72)));
+    const value = Math.min(0.92, Math.max(0.12, Number(appState.settings?.glassOpacity || 0.55)));
     document.documentElement.style.setProperty('--glass-alpha', String(value));
+    document.documentElement.style.setProperty('--glass-surface-alpha', String(Math.max(0.12, value * 0.62)));
+    document.documentElement.style.setProperty('--glass-control-alpha', String(Math.max(0.10, value * 0.52)));
+    document.documentElement.style.setProperty('--glass-highlight-alpha', String(Math.min(0.76, value * 0.78)));
   }
 
   function scheduleCloudSave() {
@@ -2711,7 +2718,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           </div>
           <div class="settings-field">
             ${settingLabel('リキッドグラス', 'glass')}
-            <input class="glass-slider" id="setting-glass-full" type="range" min="0.35" max="0.95" step="0.05" value="${escapeHtml(appState.settings.glassOpacity || '0.72')}" />
+            <input class="glass-slider" id="setting-glass-full" type="range" min="0.12" max="0.92" step="0.04" value="${escapeHtml(appState.settings.glassOpacity || '0.55')}" />
           </div>
           <div class="settings-action-grid settings-final-actions">
             <button class="btn-primary" id="save-settings-full">保存</button>
@@ -4911,6 +4918,7 @@ document.querySelectorAll('.modal-close').forEach(b => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.__rimlyFullAppleApp) return;
   checkOSUpdate();
   loadData();
 
