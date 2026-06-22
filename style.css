@@ -575,6 +575,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-scanning .face-id-mark {
   width: 82px;
   height: 82px;
+  opacity: 0;
 }
 
 .face-id-island.is-error .face-id-mark {
@@ -611,6 +612,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success .face-id-mark {
   width: 82px;
   height: 82px;
+  opacity: 1;
   animation: faceIdSuccessPop .34s cubic-bezier(.2, .9, .25, 1.18);
 }
 
@@ -662,7 +664,8 @@ input:focus, select:focus { border-color: var(--blue); }
   transform: translate(-50%, -50%);
 }
 
-.face-id-mark path {
+.face-id-mark path,
+.face-id-mark circle {
   fill: none;
   stroke: currentColor;
   stroke-width: 3;
@@ -683,31 +686,46 @@ input:focus, select:focus { border-color: var(--blue); }
   transform-origin: center;
 }
 
-.face-id-scan-orbits {
+.face-id-island .face-id-scan-orbits {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 82px;
+  height: 82px;
   opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
+  color: var(--face-green);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
   transition: opacity .12s ease;
-  perspective: 120px;
+  perspective: 180px;
+  transform-style: preserve-3d;
 }
 
-.face-id-scan-loop {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.face-id-scan-ring {
+  position: absolute;
+  display: block;
+  border: 3px solid currentColor;
+  border-radius: 999px;
   opacity: .86;
-  transform-box: fill-box;
   transform-origin: center;
+  transform-style: preserve-3d;
   will-change: transform;
+  backface-visibility: visible;
 }
 
-.scan-loop-a {
+.scan-ring-a {
+  left: 11px;
+  top: 23px;
+  width: 60px;
+  height: 36px;
   animation: faceScanGyroA 1.45s ease-in-out infinite;
 }
 
-.scan-loop-b {
+.scan-ring-b {
+  left: 23px;
+  top: 11px;
+  width: 36px;
+  height: 60px;
   opacity: .74;
   animation: faceScanGyroB 1.45s ease-in-out infinite;
 }
