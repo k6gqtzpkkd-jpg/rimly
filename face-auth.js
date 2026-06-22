@@ -294,7 +294,7 @@ class RimlyFaceAuth {
     return null;
   }
 
-  async authenticate(onStatus, onSuccess, onFail, onForcePIN) {
+  async authenticate(onStatus, onSuccess, onFail, onForcePIN, options = {}) {
     if (!this.isModelLoaded) {
       if (onStatus) onStatus('AIモデルを読み込み中...');
       await this.loadModels();
@@ -344,6 +344,10 @@ class RimlyFaceAuth {
         }
         
         if (match) {
+          if (options.requireAttention && !this.isLookingAtScreen(detection)) {
+            if (onStatus) onStatus('画面を注視してください');
+            return;
+          }
           if (elapsed < 180) {
             if (onStatus) onStatus('スキャン中...');
             return;
@@ -424,6 +428,28 @@ class RimlyFaceAuth {
     }
 
     return 'centered';
+  }
+
+  isLookingAtScreen(detection) {
+    const landmarks = detection?.landmarks;
+    if (!landmarks) return true;
+    const leftEye = landmarks.getLeftEye?.() || [];
+    const rightEye = landmarks.getRightEye?.() || [];
+    const nose = landmarks.getNose?.() || [];
+    if (leftEye.length === 0 || rightEye.length === 0 || nose.length === 0) return true;
+
+    const avg = points => points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    const left = avg(leftEye);
+    left.x /= leftEye.length; left.y /= leftEye.length;
+    const right = avg(rightEye);
+    right.x /= rightEye.length; right.y /= rightEye.length;
+    const eyeCenter = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+    const noseTip = nose[nose.length - 1];
+    const eyeDistance = Math.max(1, Math.hypot(right.x - left.x, right.y - left.y));
+    const horizontalOffset = Math.abs(noseTip.x - eyeCenter.x) / eyeDistance;
+    const verticalOffset = Math.abs(noseTip.y - eyeCenter.y) / eyeDistance;
+
+    return horizontalOffset < 0.22 && verticalOffset < 0.95;
   }
 
   // =========================================================

@@ -818,7 +818,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     statsMode: 'basic',
     autoCopy: 'false',
     authKey: '',
-    glassOpacity: '0.72'
+    glassOpacity: '0.72',
+    requireAttention: 'false'
   });
 
   const defaultPlayer = (team, index) => ({
@@ -2508,6 +2509,10 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       title: 'リキッドグラス',
       body: 'カードや画面パーツの透明感を調整します。低くすると見やすく、高くするとiOS/macOS風のガラス感が強くなります。'
     },
+    attention: {
+      title: '画面を注視してロック解除',
+      body: 'オンにすると、顔が登録済みでも画面を見ている状態に近い場合だけロック解除します。横を向いている時の誤解除を減らします。'
+    },
     passcode: {
       title: '起動パスコード',
       body: 'アプリ起動時に入力するパスコードです。数字で設定できます。変更後は保存を押すと次回から反映されます。'
@@ -2730,6 +2735,13 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
             ${settingLabel('リモート連携キー', 'remoteKey')}
             <input class="ios-input" id="auth-key-full" value="${escapeHtml(appState.settings.authKey || '')}" />
           </div>
+          <div class="settings-field">
+            ${settingLabel('画面を注視してロック解除', 'attention')}
+            <select class="ios-input" id="setting-attention-full">
+              <option value="false">オフ</option>
+              <option value="true">オン</option>
+            </select>
+          </div>
           <div class="settings-action-grid settings-final-actions">
             <button class="btn-primary" id="save-security-full">保存</button>
             <div class="settings-action-help">
@@ -2743,6 +2755,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     $('setting-storage-full').value = appState.settings.storageMode || 'local';
     $('setting-stats-full').value = appState.settings.statsMode || 'basic';
     $('setting-copy-full').value = appState.settings.autoCopy || 'false';
+    $('setting-attention-full').value = appState.settings.requireAttention || 'false';
     const glassSlider = $('setting-glass-full');
     const updateGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
@@ -2759,6 +2772,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       appState.settings.statsMode = $('setting-stats-full').value;
       appState.settings.autoCopy = $('setting-copy-full').value;
       appState.settings.glassOpacity = $('setting-glass-full').value;
+      appState.settings.requireAttention = $('setting-attention-full').value;
       applyGlassOpacity();
       saveState(true);
       renderScore();
@@ -2984,7 +2998,9 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       engine.authenticate(
         msg => {
           if (msg.includes('モデル')) setFaceIslandState('loading', '準備中');
-          else if (msg.includes('顔') || msg.includes('スキャン') || msg.includes('認識')) {
+          else if (msg.includes('見つかりません') || msg.includes('カメラを見て')) {
+            setFaceIslandState('loading', 'Face ID');
+          } else if (msg.includes('注視') || msg.includes('スキャン') || msg.includes('認識')) {
             setFaceIslandState('scanning', 'Face ID');
           }
         },
@@ -3011,9 +3027,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         () => {
           faceUnlockRunning = false;
           engine.stopCamera();
-          setFaceIslandState('idle', 'Face ID');
-          setPasswordFaceMessage('PINで解除してください', true);
-        }
+          setFaceIslandState('error', '失敗');
+          setPasswordFaceMessage('', true);
+          showFaceFailPrompt('顔を認証できませんでした', 2);
+        },
+        { requireAttention: appState.settings.requireAttention === 'true' }
       );
     } catch (e) {
       faceUnlockRunning = false;

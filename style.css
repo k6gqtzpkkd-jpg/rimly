@@ -623,6 +623,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success .face-id-check-ring {
   opacity: 1;
   stroke-dashoffset: 0;
+  stroke-width: 3.8;
   transition: opacity .08s ease, stroke-dashoffset .28s cubic-bezier(.2, .9, .2, 1);
 }
 
@@ -630,6 +631,7 @@ input:focus, select:focus { border-color: var(--blue); }
   opacity: 1;
   stroke-dashoffset: 0;
   transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1) .08s;
+  stroke-width: 3.8;
 }
 
 .face-id-island.is-closing {
@@ -686,6 +688,7 @@ input:focus, select:focus { border-color: var(--blue); }
   transform-box: fill-box;
   transform-origin: center;
   transition: opacity .12s ease;
+  perspective: 120px;
 }
 
 .face-id-scan-loop {
@@ -701,17 +704,17 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 .scan-loop-a {
-  animation: faceScanGyroA 1.65s ease-in-out infinite;
+  animation: faceScanGyroA 1.45s ease-in-out infinite;
 }
 
 .scan-loop-b {
   opacity: .74;
-  animation: faceScanGyroB 1.65s ease-in-out infinite;
+  animation: faceScanGyroB 1.45s ease-in-out infinite;
 }
 
 .face-id-check {
   opacity: 0;
-  stroke-width: 4;
+  stroke-width: 3.8;
   stroke-dasharray: 22;
   stroke-dashoffset: 22;
 }
@@ -807,29 +810,29 @@ input:focus, select:focus { border-color: var(--blue); }
 
 @keyframes faceScanGyroA {
   0% {
-    transform: rotate(-18deg) scale(1, .92);
+    transform: rotateZ(-18deg) rotateX(58deg) rotateY(-18deg) translateY(-1px) scale(1, .88);
   }
 
   50% {
-    transform: rotate(22deg) scale(1.05, .86);
+    transform: rotateZ(24deg) rotateX(-58deg) rotateY(22deg) translateY(2px) scale(1.04, .82);
   }
 
   100% {
-    transform: rotate(-18deg) scale(1, .92);
+    transform: rotateZ(-18deg) rotateX(58deg) rotateY(-18deg) translateY(-1px) scale(1, .88);
   }
 }
 
 @keyframes faceScanGyroB {
   0% {
-    transform: rotate(34deg) scale(.9, 1.04);
+    transform: rotateZ(74deg) rotateY(62deg) rotateX(16deg) translateX(1px) scale(.82, 1.04);
   }
 
   50% {
-    transform: rotate(-24deg) scale(.86, 1.1);
+    transform: rotateZ(112deg) rotateY(-62deg) rotateX(-18deg) translateX(-2px) scale(.78, 1.08);
   }
 
   100% {
-    transform: rotate(34deg) scale(.9, 1.04);
+    transform: rotateZ(74deg) rotateY(62deg) rotateX(16deg) translateX(1px) scale(.82, 1.04);
   }
 }
 
