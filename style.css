@@ -841,11 +841,11 @@ input:focus, select:focus { border-color: var(--blue); }
 }
 
 @keyframes faceIslandReject {
-  0%, 100% { transform: translate(-50%, 0) scale(1); }
-  18% { transform: translate(calc(-50% - 14px), 0) scale(1.02, .985); }
-  38% { transform: translate(calc(-50% + 14px), 0) scale(.985, 1.015); }
-  58% { transform: translate(calc(-50% - 10px), 0) scale(1.012, .992); }
-  78% { transform: translate(calc(-50% + 6px), 0) scale(.995, 1.006); }
+  0%, 100% { transform: translate(-50%, 0); }
+  18% { transform: translate(calc(-50% - 14px), 0); }
+  38% { transform: translate(calc(-50% + 14px), 0); }
+  58% { transform: translate(calc(-50% - 10px), 0); }
+  78% { transform: translate(calc(-50% + 6px), 0); }
 }
 
 /* ================================================================
