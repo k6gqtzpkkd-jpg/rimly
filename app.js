@@ -817,7 +817,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     dbKey: 'USER_' + Math.random().toString(36).slice(2, 11).toUpperCase(),
     statsMode: 'basic',
     autoCopy: 'false',
-    authKey: ''
+    authKey: '',
+    glassOpacity: '0.72'
   });
 
   const defaultPlayer = (team, index) => ({
@@ -951,6 +952,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     })();
     appState.settings = { ...defaultSettings(), ...settings };
     if (!appState.settings.dbKey) appState.settings.dbKey = defaultSettings().dbKey;
+    applyGlassOpacity();
 
     const profile = appState.settings.dbKey || 'default';
     try {
@@ -1012,6 +1014,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     }
     if (show) toast('保存しました');
     if (sync) scheduleCloudSave();
+  }
+
+  function applyGlassOpacity() {
+    const value = Math.min(0.95, Math.max(0.35, Number(appState.settings?.glassOpacity || 0.72)));
+    document.documentElement.style.setProperty('--glass-alpha', String(value));
   }
 
   function scheduleCloudSave() {
@@ -2497,6 +2504,10 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       title: '試合終了時コピー',
       body: 'オンにすると試合終了時の記録をコピーしやすくします。試合後に共有やメモへ貼り付ける運用をする場合に便利です。'
     },
+    glass: {
+      title: 'リキッドグラス',
+      body: 'カードや画面パーツの透明感を調整します。低くすると見やすく、高くするとiOS/macOS風のガラス感が強くなります。'
+    },
     passcode: {
       title: '起動パスコード',
       body: 'アプリ起動時に入力するパスコードです。数字で設定できます。変更後は保存を押すと次回から反映されます。'
@@ -2693,6 +2704,10 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
               <option value="true">する</option>
             </select>
           </div>
+          <div class="settings-field">
+            ${settingLabel('リキッドグラス', 'glass')}
+            <input class="glass-slider" id="setting-glass-full" type="range" min="0.35" max="0.95" step="0.05" value="${escapeHtml(appState.settings.glassOpacity || '0.72')}" />
+          </div>
           <div class="settings-action-grid settings-final-actions">
             <button class="btn-primary" id="save-settings-full">保存</button>
             <button class="btn-secondary" id="load-cloud-full">クラウド読込</button>
@@ -2728,6 +2743,14 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     $('setting-storage-full').value = appState.settings.storageMode || 'local';
     $('setting-stats-full').value = appState.settings.statsMode || 'basic';
     $('setting-copy-full').value = appState.settings.autoCopy || 'false';
+    const glassSlider = $('setting-glass-full');
+    const updateGlass = () => {
+      appState.settings.glassOpacity = $('setting-glass-full').value;
+      applyGlassOpacity();
+      saveState(false, false);
+    };
+    glassSlider?.addEventListener('input', updateGlass);
+    glassSlider?.addEventListener('change', updateGlass);
     bindSettingsHelp();
     press($('settings-help-main'), openSettingsHelp);
     press($('save-settings-full'), () => {
@@ -2735,6 +2758,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       appState.settings.dbKey = $('setting-db-full').value.trim() || appState.settings.dbKey;
       appState.settings.statsMode = $('setting-stats-full').value;
       appState.settings.autoCopy = $('setting-copy-full').value;
+      appState.settings.glassOpacity = $('setting-glass-full').value;
+      applyGlassOpacity();
       saveState(true);
       renderScore();
       syncCloud('save');
@@ -2881,6 +2906,41 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     errorEl.style.color = isError ? 'var(--red)' : 'var(--green)';
   }
 
+  function closeFaceFailPrompt() {
+    $('face-fail-prompt')?.remove();
+  }
+
+  function showFaceFailPrompt(message = '顔を認証できませんでした', count = 1) {
+    closeFaceFailPrompt();
+    const passwordScreen = $('password-screen');
+    if (!passwordScreen) return;
+    const prompt = document.createElement('div');
+    prompt.id = 'face-fail-prompt';
+    prompt.className = 'face-fail-prompt';
+    const primaryLabel = count >= 2 ? 'パスコードで試す' : '再度試す';
+    prompt.innerHTML = `
+      <div class="face-fail-card">
+        <div class="face-fail-title">${escapeHtml(message)}</div>
+        <button class="btn-primary" id="face-fail-primary" type="button">${primaryLabel}</button>
+        <button class="btn-secondary" id="face-fail-cancel" type="button">キャンセル</button>
+      </div>
+    `;
+    passwordScreen.appendChild(prompt);
+    press($('face-fail-cancel'), () => {
+      closeFaceFailPrompt();
+      setFaceIslandState('idle', 'Face ID');
+    });
+    press($('face-fail-primary'), () => {
+      closeFaceFailPrompt();
+      if (count >= 2) {
+        setFaceIslandState('idle', 'Face ID');
+        setPasswordFaceMessage('パスコードで解除してください', true);
+      } else {
+        setTimeout(openFaceUnlock, 120);
+      }
+    });
+  }
+
   function setupFaceUnlockButton() {
     const ui = ensureFaceUnlockSurface();
     if (!ui || ui.button.dataset.faceBound === 'true') {
@@ -2899,6 +2959,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
     const ui = ensureFaceUnlockSurface();
     if (!ui) return;
+    closeFaceFailPrompt();
     faceUnlockRunning = true;
     setPasswordFaceMessage('');
     setFaceIslandState('loading', '準備中');
@@ -2909,8 +2970,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
       if (!engine.hasRegisteredFaces()) {
         faceUnlockRunning = false;
         setFaceIslandState('error', '未登録');
-        setPasswordFaceMessage('設定で顔を登録してください', true);
-        setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1400);
+        setPasswordFaceMessage('', true);
+        showFaceFailPrompt('顔が登録されていません', 2);
         return;
       }
 
@@ -2944,8 +3005,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         (count, reason) => {
           faceUnlockRunning = false;
           setFaceIslandState('error', 'もう一度');
-          setPasswordFaceMessage(`${reason} (${count}/3)`, true);
-          setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1600);
+          setPasswordFaceMessage('', true);
+          showFaceFailPrompt('顔を認証できませんでした', count);
         },
         () => {
           faceUnlockRunning = false;
