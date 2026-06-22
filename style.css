@@ -651,7 +651,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success .face-id-check-ring {
   opacity: 1;
   stroke-dashoffset: 0;
-  stroke-width: 3.8;
+  stroke-width: 2.6;
   transition: opacity .08s ease, stroke-dashoffset .28s cubic-bezier(.2, .9, .2, 1);
 }
 
@@ -659,7 +659,7 @@ input:focus, select:focus { border-color: var(--blue); }
   opacity: 1;
   stroke-dashoffset: 0;
   transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1) .08s;
-  stroke-width: 3.8;
+  stroke-width: 2.6;
 }
 
 .face-id-island.is-closing {
@@ -743,14 +743,14 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .face-id-check {
   opacity: 0;
-  stroke-width: 3.8;
+  stroke-width: 2.6;
   stroke-dasharray: 22;
   stroke-dashoffset: 22;
 }
 
 .face-id-check-ring {
   opacity: 0;
-  stroke-width: 3.8;
+  stroke-width: 2.6;
   stroke-dasharray: 86;
   stroke-dashoffset: 86;
 }

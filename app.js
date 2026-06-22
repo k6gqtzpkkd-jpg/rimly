@@ -349,12 +349,6 @@ function setupPassword() {
           // iPhone側で解除が行われた！
           clearInterval(pollInterval);
 
-          // 💡 ここがマルチユーザーの切り替えの要！
-          // 解除に使ったキーをそのままこの端末のアクティブなユーザーとしてセットし、そのユーザーのデータを読み込む
-          appState.settings.dbKey = sk;
-          localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
-          await loadData(); // その人のチーム情報や履歴に画面を切り替える
-
           document.getElementById('pw-error').style.color = '#00e676';
           document.getElementById('pw-error').textContent = `✅ 解除完了 (ユーザー: ${sk.substring(0, 8)})`;
 
@@ -1031,11 +1025,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function applyGlassOpacity() {
-    const value = Math.min(0.92, Math.max(0.12, Number(appState.settings?.glassOpacity || 0.55)));
-    const surface = Math.max(0.12, value * 0.62);
-    const control = Math.max(0.10, value * 0.52);
-    const highlight = Math.min(0.76, value * 0.78);
-    document.documentElement.style.setProperty('--glass-alpha', String(value));
+    const slider = Math.min(0.92, Math.max(0.12, Number(appState.settings?.glassOpacity || 0.55)));
+    const opacity = 1.04 - slider;
+    const surface = Math.max(0.12, opacity * 0.62);
+    const control = Math.max(0.10, opacity * 0.52);
+    const highlight = Math.min(0.76, opacity * 0.78);
+    document.documentElement.style.setProperty('--glass-alpha', String(opacity));
     document.documentElement.style.setProperty('--glass-surface-alpha', String(surface));
     document.documentElement.style.setProperty('--glass-surface-soft-alpha', String(Math.max(0.08, surface * 0.74)));
     document.documentElement.style.setProperty('--glass-control-alpha', String(control));
@@ -1057,11 +1052,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const mode = appState.settings.storageMode;
     if (!['db', 'hybrid'].includes(mode)) return;
     clearTimeout(cloudSyncTimer);
+    const localSettingsSnapshot = { ...(appState.settings || {}) };
     try {
       const modeLabel = mode === 'hybrid' ? 'ハイブリッド' : 'クラウド';
       toast(`${modeLabel}同期中...`);
       if (direction === 'load') {
-        const res = await fetch(API_DB, {
+        const res = await fetchWithTimeout(API_DB, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'load', user_key: appState.settings.dbKey })
@@ -1104,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         } else {
           payload.history = appState.historyDB;
         }
-        const res = await fetch(API_DB, {
+        const res = await fetchWithTimeout(API_DB, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -1114,7 +1110,22 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
         toast(`${modeLabel}同期完了`);
       }
     } catch (e) {
-      toast(`クラウド同期失敗: ${e.message || '設定を確認してください'}`);
+      appState.settings = { ...localSettingsSnapshot };
+      localStorage.setItem('rimly_settings', JSON.stringify(appState.settings));
+      applyGlassOpacity();
+      const message = e.message || '設定を確認してください';
+      localStorage.setItem('rimly_last_cloud_error', message);
+      toast(`クラウド同期失敗: ${message}`);
+    }
+  }
+
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
     }
   }
 
