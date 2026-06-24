@@ -2858,6 +2858,11 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     updateGlassSliderVisual(glassSlider);
     glassSlider?.addEventListener('input', previewGlass);
     glassSlider?.addEventListener('change', commitGlass);
+    $('setting-attention-full')?.addEventListener('change', () => {
+      appState.settings.requireAttention = $('setting-attention-full').value;
+      saveState(false, true);
+      toast('保存しました');
+    });
     bindSettingsHelp();
     press($('settings-help-main'), openSettingsHelp);
     press($('save-settings-full'), () => {
