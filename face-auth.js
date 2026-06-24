@@ -36,6 +36,8 @@ class RimlyFaceAuth {
     this.renderLoopId = null;
     this.faceCenteringStatus = 'centered'; // 'centered', 'left', 'right', 'top', 'bottom'
     this.orientationChangeListener = null;
+    this.attentionCanvas = null;
+    this.attentionContext = null;
   }
 
   // =========================================================
@@ -449,7 +451,101 @@ class RimlyFaceAuth {
     const horizontalOffset = Math.abs(noseTip.x - eyeCenter.x) / eyeDistance;
     const verticalOffset = Math.abs(noseTip.y - eyeCenter.y) / eyeDistance;
 
-    return horizontalOffset < 0.22 && verticalOffset < 0.95;
+    const faceLooksForward = horizontalOffset < 0.22 && verticalOffset < 0.95;
+    if (!faceLooksForward) return false;
+
+    const gaze = this.estimateEyeGaze(leftEye, rightEye);
+    if (!gaze) return faceLooksForward;
+
+    return Math.abs(gaze.x) < 0.34 && Math.abs(gaze.y) < 0.42 && gaze.confidence > 0.18;
+  }
+
+  estimateEyeGaze(leftEye, rightEye) {
+    if (!this.videoEl || !this.videoEl.videoWidth || !this.videoEl.videoHeight) return null;
+    if (!this.attentionCanvas) {
+      this.attentionCanvas = document.createElement('canvas');
+      this.attentionContext = this.attentionCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const canvas = this.attentionCanvas;
+    const ctx = this.attentionContext;
+    canvas.width = this.videoEl.videoWidth;
+    canvas.height = this.videoEl.videoHeight;
+    ctx.drawImage(this.videoEl, 0, 0, canvas.width, canvas.height);
+
+    const left = this.estimateSingleEyeGaze(ctx, leftEye);
+    const right = this.estimateSingleEyeGaze(ctx, rightEye);
+    const valid = [left, right].filter(Boolean);
+    if (valid.length === 0) return null;
+
+    const avg = valid.reduce((acc, eye) => ({
+      x: acc.x + eye.x,
+      y: acc.y + eye.y,
+      confidence: acc.confidence + eye.confidence
+    }), { x: 0, y: 0, confidence: 0 });
+
+    return {
+      x: avg.x / valid.length,
+      y: avg.y / valid.length,
+      confidence: avg.confidence / valid.length
+    };
+  }
+
+  estimateSingleEyeGaze(ctx, eye) {
+    if (!Array.isArray(eye) || eye.length < 6) return null;
+    const xs = eye.map(p => p.x);
+    const ys = eye.map(p => p.y);
+    const minX = Math.max(0, Math.floor(Math.min(...xs)));
+    const maxX = Math.min(this.videoEl.videoWidth - 1, Math.ceil(Math.max(...xs)));
+    const minY = Math.max(0, Math.floor(Math.min(...ys)));
+    const maxY = Math.min(this.videoEl.videoHeight - 1, Math.ceil(Math.max(...ys)));
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    if (width < 6 || height < 3 || height / width < 0.10) return null;
+
+    const padX = Math.max(2, Math.round(width * 0.08));
+    const padY = Math.max(1, Math.round(height * 0.20));
+    const sx = Math.max(0, minX - padX);
+    const sy = Math.max(0, minY - padY);
+    const sw = Math.min(this.videoEl.videoWidth - sx, width + padX * 2);
+    const sh = Math.min(this.videoEl.videoHeight - sy, height + padY * 2);
+    const data = ctx.getImageData(sx, sy, sw, sh).data;
+
+    const centerX = sw / 2;
+    const centerY = sh / 2;
+    const radiusX = Math.max(1, sw * 0.46);
+    const radiusY = Math.max(1, sh * 0.42);
+    let weightSum = 0;
+    let xSum = 0;
+    let ySum = 0;
+
+    for (let y = 0; y < sh; y += 1) {
+      for (let x = 0; x < sw; x += 1) {
+        const nx = (x - centerX) / radiusX;
+        const ny = (y - centerY) / radiusY;
+        if ((nx * nx + ny * ny) > 1) continue;
+        const i = (y * sw + x) * 4;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        const darkness = Math.max(0, 168 - luminance);
+        if (darkness < 24) continue;
+        const centerBias = Math.max(0.35, 1 - Math.abs(ny) * 0.55);
+        const weight = darkness * darkness * centerBias;
+        weightSum += weight;
+        xSum += x * weight;
+        ySum += y * weight;
+      }
+    }
+
+    if (weightSum <= 0) return null;
+    const pupilX = xSum / weightSum;
+    const pupilY = ySum / weightSum;
+    return {
+      x: (pupilX - centerX) / radiusX,
+      y: (pupilY - centerY) / radiusY,
+      confidence: Math.min(1, weightSum / (sw * sh * 900))
+    };
   }
 
   // =========================================================
