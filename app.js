@@ -2847,11 +2847,12 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const glassSlider = $('setting-glass-full');
     const previewGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
-      applyGlassOpacity();
       updateGlassSliderVisual(glassSlider);
     };
     const commitGlass = () => {
-      previewGlass();
+      appState.settings.glassOpacity = $('setting-glass-full').value;
+      updateGlassSliderVisual(glassSlider);
+      applyGlassOpacity();
       saveState(false, false);
     };
     updateGlassSliderVisual(glassSlider);
