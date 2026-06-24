@@ -381,12 +381,26 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function onPress(el, handler) {
     if (!el) return;
-    const wrapped = (e) => {
-      e.preventDefault();
-      handler(e);
-    };
-    if (window.PointerEvent) el.addEventListener('pointerdown', wrapped);
-    else el.addEventListener('click', wrapped);
+    if (window.PointerEvent) {
+      let start = null;
+      el.addEventListener('pointerdown', e => {
+        start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      }, { passive: true });
+      el.addEventListener('pointerup', e => {
+        if (!start || start.id !== e.pointerId) return;
+        const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+        start = null;
+        if (moved > 10) return;
+        e.preventDefault();
+        handler(e);
+      });
+      el.addEventListener('pointercancel', () => { start = null; });
+    } else {
+      el.addEventListener('click', e => {
+        e.preventDefault();
+        handler(e);
+      });
+    }
   }
 
   function makeDefaultPlayers(team) {
@@ -943,12 +957,26 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function press(el, handler) {
     if (!el) return;
-    const wrapped = (event) => {
-      if (event.type === 'pointerdown') event.preventDefault();
-      handler(event);
-    };
-    if (window.PointerEvent) el.addEventListener('pointerdown', wrapped);
-    else el.addEventListener('click', wrapped);
+    if (window.PointerEvent) {
+      let start = null;
+      el.addEventListener('pointerdown', event => {
+        start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      }, { passive: true });
+      el.addEventListener('pointerup', event => {
+        if (!start || start.id !== event.pointerId) return;
+        const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+        start = null;
+        if (moved > 10) return;
+        event.preventDefault();
+        handler(event);
+      });
+      el.addEventListener('pointercancel', () => { start = null; });
+    } else {
+      el.addEventListener('click', event => {
+        event.preventDefault();
+        handler(event);
+      });
+    }
   }
 
   function ensureState() {
@@ -2817,15 +2845,18 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     $('setting-copy-full').value = appState.settings.autoCopy || 'false';
     $('setting-attention-full').value = appState.settings.requireAttention || 'false';
     const glassSlider = $('setting-glass-full');
-    const updateGlass = () => {
+    const previewGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
       applyGlassOpacity();
       updateGlassSliderVisual(glassSlider);
+    };
+    const commitGlass = () => {
+      previewGlass();
       saveState(false, false);
     };
     updateGlassSliderVisual(glassSlider);
-    glassSlider?.addEventListener('input', updateGlass);
-    glassSlider?.addEventListener('change', updateGlass);
+    glassSlider?.addEventListener('input', previewGlass);
+    glassSlider?.addEventListener('change', commitGlass);
     bindSettingsHelp();
     press($('settings-help-main'), openSettingsHelp);
     press($('save-settings-full'), () => {
