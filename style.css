@@ -17,6 +17,9 @@
   --glass-blue-alpha: 0.35;
   --glass-backdrop-alpha: 0.47;
   --glass-toast-alpha: 0.65;
+  --glass-tint-rgb: 255, 255, 255;
+  --glass-track-rgb: 232, 236, 242;
+  --glass-shadow-rgb: 0, 0, 0;
   --border: rgba(60, 60, 67, 0.1);
   --text-primary: #000000;
   --text-secondary: rgba(60, 60, 67, 0.6);
@@ -26,6 +29,21 @@
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-base: #08080A;
+    --bg-card: #111114;
+    --bg-panel: rgba(22, 22, 24, 0.86);
+    --border: rgba(235, 235, 245, 0.14);
+    --text-primary: #F5F5F7;
+    --text-secondary: rgba(235, 235, 245, 0.68);
+    --text-muted: rgba(235, 235, 245, 0.36);
+    --glass-tint-rgb: 20, 20, 22;
+    --glass-track-rgb: 42, 42, 46;
+    --glass-shadow-rgb: 0, 0, 0;
+  }
 }
 
 *, *::before, *::after {
@@ -38,7 +56,7 @@
 body {
   position: relative;
   background:
-    linear-gradient(135deg, rgba(8, 10, 18, .12), rgba(255, 255, 255, .3) 36%, rgba(0, 122, 255, .12)),
+    linear-gradient(135deg, rgba(8, 10, 18, .12), rgba(var(--glass-tint-rgb), .3) 36%, rgba(0, 122, 255, .12)),
     var(--bg-base);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
@@ -455,26 +473,45 @@ input:focus, select:focus { border-color: var(--blue); }
   display: none;
   min-height: 100vh;
   padding: max(22px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
-  background: var(--bg-base);
+  background:
+    linear-gradient(145deg, rgba(0,122,255,.10), transparent 38%, rgba(255,149,0,.08)),
+    var(--bg-base);
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  color: var(--text-primary);
 }
 #password-screen.screen.active { display: flex; }
 .pw-numpad { display: grid; grid-template-columns: repeat(3, 80px); gap: 16px; margin-top: 30px; justify-content: center; }
 .num-btn {
   width: 80px; height: 80px;
   border-radius: 40px;
-  background: white;
+  background:
+    linear-gradient(145deg, rgba(var(--glass-tint-rgb), var(--glass-highlight-alpha)), rgba(var(--glass-tint-rgb), var(--glass-surface-alpha)));
+  border: 0.5px solid rgba(255,255,255,var(--glass-highlight-alpha));
   font-size: 28px;
   font-weight: 500;
-  color: black;
-  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.46), 0 10px 30px rgba(var(--glass-shadow-rgb), .09);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
-.pw-dots { display: flex; gap: 16px; margin-top: 20px; justify-content: center; }
+.pw-dots {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(var(--glass-tint-rgb), var(--glass-control-alpha));
+  border: 0.5px solid rgba(255,255,255,var(--glass-highlight-alpha));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
 .dot { width: 16px; height: 16px; border-radius: 8px; border: 1.5px solid var(--blue); }
 .dot.filled { background: var(--blue); }
 .dot.error { background: var(--red); border-color: var(--red); }
@@ -484,6 +521,13 @@ input:focus, select:focus { border-color: var(--blue); }
   justify-items: center;
   width: min(420px, calc(100vw - 32px));
   margin: auto;
+  padding: 24px 18px;
+  border-radius: 32px;
+  background: rgba(var(--glass-tint-rgb), var(--glass-surface-soft-alpha));
+  border: 0.5px solid rgba(255,255,255,var(--glass-highlight-alpha));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.46), 0 18px 54px rgba(var(--glass-shadow-rgb), .08);
+  backdrop-filter: blur(30px) saturate(1.35);
+  -webkit-backdrop-filter: blur(30px) saturate(1.35);
 }
 
 .pw-logo {
@@ -532,9 +576,12 @@ input:focus, select:focus { border-color: var(--blue); }
   height: 40px;
   padding: 0 15px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, .06);
-  color: rgba(0, 0, 0, .72);
-  box-shadow: inset 0 0 0 1px rgba(60, 60, 67, .08);
+  background: rgba(var(--glass-tint-rgb), var(--glass-control-alpha));
+  color: var(--text-secondary);
+  border: 0.5px solid rgba(255,255,255,var(--glass-highlight-alpha));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.44), 0 10px 28px rgba(var(--glass-shadow-rgb), .08);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
   font-size: 14px;
   font-weight: 850;
   letter-spacing: 0;
@@ -651,7 +698,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-island.is-success .face-id-check-ring {
   opacity: 1;
   stroke-dashoffset: 0;
-  stroke-width: 2.6;
+  stroke-width: 2.1;
   transition: opacity .08s ease, stroke-dashoffset .28s cubic-bezier(.2, .9, .2, 1);
 }
 
@@ -659,7 +706,7 @@ input:focus, select:focus { border-color: var(--blue); }
   opacity: 1;
   stroke-dashoffset: 0;
   transition: opacity .08s ease, stroke-dashoffset .26s cubic-bezier(.2, .9, .2, 1) .08s;
-  stroke-width: 2.6;
+  stroke-width: 2.1;
 }
 
 .face-id-island.is-closing {
@@ -694,17 +741,17 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-mark circle {
   fill: none;
   stroke: currentColor;
-  stroke-width: 3;
+  stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .face-id-face-line {
-  stroke-width: 3.1;
+  stroke-width: 2.2;
 }
 
 .face-id-smile {
-  stroke-width: 3;
+  stroke-width: 2.2;
 }
 
 .face-id-bracket {
@@ -723,7 +770,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .face-id-scan-loop {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.6;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: .86;
@@ -743,14 +790,14 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .face-id-check {
   opacity: 0;
-  stroke-width: 2.6;
+  stroke-width: 2.1;
   stroke-dasharray: 22;
   stroke-dashoffset: 22;
 }
 
 .face-id-check-ring {
   opacity: 0;
-  stroke-width: 2.6;
+  stroke-width: 2.1;
   stroke-dasharray: 86;
   stroke-dashoffset: 86;
 }
@@ -1818,7 +1865,73 @@ select.ios-input,
 
 .glass-slider {
   width: 100%;
-  accent-color: var(--blue);
+  height: 36px;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+  --glass-slider-progress: 54%;
+  touch-action: pan-y;
+}
+
+.glass-slider::-webkit-slider-runnable-track {
+  height: 12px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, var(--blue) 0 var(--glass-slider-progress), rgba(var(--glass-track-rgb), 1) var(--glass-slider-progress) 100%);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.12);
+  transition: transform .18s cubic-bezier(.2,.9,.2,1), filter .18s ease;
+}
+
+.glass-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 34px;
+  height: 22px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: #fff;
+  border: 0.5px solid rgba(0,0,0,.08);
+  box-shadow:
+    -8px 0 14px rgba(0,122,255,.24),
+    0 2px 8px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.95);
+  transition: width .18s cubic-bezier(.2,.9,.2,1), transform .18s cubic-bezier(.2,.9,.2,1), box-shadow .18s ease;
+}
+
+.glass-slider:active::-webkit-slider-runnable-track {
+  transform: scaleX(1.015);
+  filter: saturate(1.08);
+}
+
+.glass-slider:active::-webkit-slider-thumb {
+  width: 48px;
+  transform: scaleY(1.08);
+  box-shadow:
+    -18px 0 22px rgba(0,122,255,.30),
+    0 4px 14px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,1);
+}
+
+.glass-slider::-moz-range-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(var(--glass-track-rgb), 1);
+}
+
+.glass-slider::-moz-range-progress {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.glass-slider::-moz-range-thumb {
+  width: 34px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  border: 0.5px solid rgba(0,0,0,.08);
+  box-shadow: -8px 0 14px rgba(0,122,255,.24), 0 2px 8px rgba(0,0,0,.18);
 }
 
 .feature-list {

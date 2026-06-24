@@ -1026,18 +1026,27 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function applyGlassOpacity() {
     const slider = Math.min(0.92, Math.max(0.12, Number(appState.settings?.glassOpacity || 0.55)));
-    const opacity = 1.04 - slider;
-    const surface = Math.max(0.12, opacity * 0.62);
-    const control = Math.max(0.10, opacity * 0.52);
-    const highlight = Math.min(0.76, opacity * 0.78);
+    const opacity = Math.min(0.94, Math.max(0.08, 1.04 - slider));
+    const surface = Math.max(0.08, opacity * 0.68);
+    const control = Math.max(0.08, opacity * 0.56);
+    const highlight = Math.min(0.78, Math.max(0.10, opacity * 0.84));
     document.documentElement.style.setProperty('--glass-alpha', String(opacity));
     document.documentElement.style.setProperty('--glass-surface-alpha', String(surface));
-    document.documentElement.style.setProperty('--glass-surface-soft-alpha', String(Math.max(0.08, surface * 0.74)));
+    document.documentElement.style.setProperty('--glass-surface-soft-alpha', String(Math.max(0.06, surface * 0.64)));
     document.documentElement.style.setProperty('--glass-control-alpha', String(control));
     document.documentElement.style.setProperty('--glass-highlight-alpha', String(highlight));
     document.documentElement.style.setProperty('--glass-blue-alpha', String(Math.min(0.42, control + 0.06)));
-    document.documentElement.style.setProperty('--glass-backdrop-alpha', String(Math.min(0.62, 0.18 + control)));
-    document.documentElement.style.setProperty('--glass-toast-alpha', String(Math.min(0.78, 0.36 + control)));
+    document.documentElement.style.setProperty('--glass-backdrop-alpha', String(Math.min(0.64, 0.16 + control)));
+    document.documentElement.style.setProperty('--glass-toast-alpha', String(Math.min(0.80, 0.34 + control)));
+  }
+
+  function updateGlassSliderVisual(slider) {
+    if (!slider) return;
+    const min = Number(slider.min || 0);
+    const max = Number(slider.max || 1);
+    const value = Number(slider.value || min);
+    const percent = max > min ? ((value - min) / (max - min)) * 100 : 0;
+    slider.style.setProperty('--glass-slider-progress', `${Math.max(0, Math.min(100, percent))}%`);
   }
 
   function scheduleCloudSave() {
@@ -2811,8 +2820,10 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const updateGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
       applyGlassOpacity();
+      updateGlassSliderVisual(glassSlider);
       saveState(false, false);
     };
+    updateGlassSliderVisual(glassSlider);
     glassSlider?.addEventListener('input', updateGlass);
     glassSlider?.addEventListener('change', updateGlass);
     bindSettingsHelp();
@@ -3277,6 +3288,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   document.addEventListener('DOMContentLoaded', () => {
     ensureState();
     loadTactics();
+    setupRimlyCanvas();
     setupFaceUnlockButton();
     buildShell();
     renderAll();
