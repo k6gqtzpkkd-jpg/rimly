@@ -470,6 +470,8 @@ input:focus, select:focus { border-color: var(--blue); }
 
 /* Password Screen iOS Setup Style */
 #password-screen.screen {
+  position: relative;
+  overflow: hidden;
   display: none;
   min-height: 100vh;
   padding: max(22px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
@@ -481,23 +483,103 @@ input:focus, select:focus { border-color: var(--blue); }
   justify-content: center;
   color: var(--text-primary);
 }
+
+#password-screen.screen::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255,255,255,.34) 0 7%, transparent 18%),
+    radial-gradient(ellipse at 50% 58%, rgba(0,0,0,.18) 0 8%, transparent 22%),
+    conic-gradient(from 0deg at 50% 48%,
+      transparent 0 7deg,
+      rgba(88,86,214,.18) 8deg 20deg,
+      transparent 21deg 36deg,
+      rgba(255,255,255,.20) 37deg 48deg,
+      transparent 49deg 64deg,
+      rgba(0,122,255,.13) 65deg 76deg,
+      transparent 77deg 96deg,
+      rgba(88,86,214,.20) 97deg 112deg,
+      transparent 113deg 132deg,
+      rgba(255,255,255,.18) 133deg 146deg,
+      transparent 147deg 168deg,
+      rgba(88,86,214,.18) 169deg 186deg,
+      transparent 187deg 208deg,
+      rgba(255,255,255,.20) 209deg 222deg,
+      transparent 223deg 244deg,
+      rgba(0,122,255,.12) 245deg 258deg,
+      transparent 259deg 280deg,
+      rgba(88,86,214,.18) 281deg 296deg,
+      transparent 297deg 320deg,
+      rgba(255,255,255,.18) 321deg 334deg,
+      transparent 335deg 360deg);
+  filter: blur(18px) saturate(1.18);
+  opacity: .72;
+}
+
 #password-screen.screen.active { display: flex; }
 .pw-numpad { display: grid; grid-template-columns: repeat(3, 80px); gap: 16px; margin-top: 30px; justify-content: center; }
 .num-btn {
+  position: relative;
+  overflow: hidden;
   width: 80px; height: 80px;
   border-radius: 40px;
   background:
-    linear-gradient(145deg, rgba(var(--glass-tint-rgb), var(--glass-highlight-alpha)), rgba(var(--glass-tint-rgb), var(--glass-surface-alpha)));
-  border: 0.5px solid rgba(255,255,255,var(--glass-highlight-alpha));
+    radial-gradient(circle at 50% 24%, rgba(255,255,255,.50), transparent 32%),
+    radial-gradient(circle at 50% 84%, rgba(88,86,214,.20), transparent 42%),
+    linear-gradient(145deg, rgba(var(--glass-tint-rgb), var(--glass-alpha)), rgba(var(--glass-tint-rgb), var(--glass-surface-alpha)));
+  border: 0.75px solid rgba(255,255,255,.58);
   font-size: 28px;
   font-weight: 500;
   color: var(--text-primary);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.46), 0 10px 30px rgba(var(--glass-shadow-rgb), .09);
-  backdrop-filter: blur(24px) saturate(1.35);
-  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.64),
+    inset 0 -10px 20px rgba(38,33,88,.10),
+    0 0 0 1px rgba(255,255,255,.12),
+    0 12px 30px rgba(var(--glass-shadow-rgb), .13);
+  backdrop-filter: blur(28px) saturate(1.55) brightness(1.03);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55) brightness(1.03);
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.num-btn::before {
+  content: "";
+  position: absolute;
+  inset: -28%;
+  border-radius: inherit;
+  background:
+    conic-gradient(from 32deg at 50% 50%,
+      rgba(255,255,255,.42),
+      rgba(255,255,255,.04) 20%,
+      rgba(73,62,148,.22) 34%,
+      rgba(255,255,255,.18) 52%,
+      rgba(0,122,255,.16) 66%,
+      rgba(255,255,255,.04) 82%,
+      rgba(255,255,255,.42));
+  filter: blur(10px);
+  opacity: .74;
+  mix-blend-mode: screen;
+}
+
+.num-btn::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255,255,255,.46), transparent 22%),
+    radial-gradient(circle at 70% 74%, rgba(255,255,255,.12), transparent 30%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.20);
+  pointer-events: none;
+}
+
+.num-btn:active {
+  transform: scale(.965);
+  filter: brightness(1.04);
 }
 .pw-dots {
   display: flex;
@@ -517,6 +599,8 @@ input:focus, select:focus { border-color: var(--blue); }
 .dot.error { background: var(--red); border-color: var(--red); }
 
 .pw-container {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: center;
   width: min(420px, calc(100vw - 32px));
@@ -560,6 +644,8 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .face-id-trigger,
 .btn-face-auth {
+  position: relative;
+  overflow: hidden;
   display: inline-grid;
   grid-auto-flow: column;
   align-items: center;
@@ -578,6 +664,26 @@ input:focus, select:focus { border-color: var(--blue); }
   font-size: 14px;
   font-weight: 850;
   letter-spacing: 0;
+}
+
+.face-id-trigger::before,
+.btn-face-auth::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  background:
+    radial-gradient(circle at 24% 50%, rgba(255,255,255,.42), transparent 28%),
+    radial-gradient(circle at 78% 50%, rgba(99,255,112,.18), transparent 32%),
+    linear-gradient(90deg, transparent, rgba(255,255,255,.20), transparent);
+  filter: blur(12px);
+  opacity: .74;
+  pointer-events: none;
+}
+
+.face-id-trigger > *,
+.btn-face-auth > * {
+  position: relative;
+  z-index: 1;
 }
 
 .face-id-trigger .face-id-mark {
@@ -1900,8 +2006,8 @@ select.ios-input,
 .glass-slider:active::-webkit-slider-thumb {
   width: 48px;
   transform: scaleY(1.08);
-  background: rgba(var(--glass-tint-rgb), .10);
-  border-color: rgba(255,255,255,.72);
+  background: rgba(var(--glass-tint-rgb), 0);
+  border-color: rgba(255,255,255,.82);
   backdrop-filter: blur(18px) saturate(1.45);
   -webkit-backdrop-filter: blur(18px) saturate(1.45);
   box-shadow:
@@ -1933,8 +2039,8 @@ select.ios-input,
 
 .glass-slider:active::-moz-range-thumb {
   width: 48px;
-  background: rgba(var(--glass-tint-rgb), .10);
-  border-color: rgba(255,255,255,.72);
+  background: rgba(var(--glass-tint-rgb), 0);
+  border-color: rgba(255,255,255,.82);
 }
 
 .feature-list {
