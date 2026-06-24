@@ -451,13 +451,18 @@ class RimlyFaceAuth {
     const horizontalOffset = Math.abs(noseTip.x - eyeCenter.x) / eyeDistance;
     const verticalOffset = Math.abs(noseTip.y - eyeCenter.y) / eyeDistance;
 
-    const faceLooksForward = horizontalOffset < 0.22 && verticalOffset < 0.95;
-    if (!faceLooksForward) return false;
+    // The goal is attention to the screen, not a perfectly front-facing head.
+    // Keep only a loose pose gate to reject clear side profiles, then let gaze
+    // decide whether the user is looking toward the display.
+    const faceIsUsableForGaze = horizontalOffset < 0.38 && verticalOffset < 1.10;
 
     const gaze = this.estimateEyeGaze(leftEye, rightEye);
-    if (!gaze) return faceLooksForward;
+    if (!gaze) return horizontalOffset < 0.24 && verticalOffset < 0.98;
 
-    return Math.abs(gaze.x) < 0.34 && Math.abs(gaze.y) < 0.42 && gaze.confidence > 0.18;
+    return faceIsUsableForGaze
+      && Math.abs(gaze.x) < 0.44
+      && Math.abs(gaze.y) < 0.50
+      && gaze.confidence > 0.12;
   }
 
   estimateEyeGaze(leftEye, rightEye) {
