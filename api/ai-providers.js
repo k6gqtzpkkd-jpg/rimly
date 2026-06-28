@@ -58,13 +58,14 @@ function scoreModel(id) {
 }
 
 async function generateGemini({ provider, prompt, image }) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(provider.key);
   const models = await safeModels(provider, ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']);
   let lastError = null;
 
   for (const modelId of models) {
+    // まずSDKを試みる
     try {
+      const { GoogleGenerativeAI } = require('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(provider.key);
       const model = genAI.getGenerativeModel({ model: modelId });
       const content = image
         ? [prompt, { inlineData: { data: image.split(',')[1] || image, mimeType: 'image/jpeg' } }]
@@ -72,13 +73,36 @@ async function generateGemini({ provider, prompt, image }) {
       const result = await model.generateContent(content);
       const response = await result.response;
       return { text: response.text(), provider: provider.label, model: modelId };
-    } catch (error) {
-      lastError = error;
-      console.warn(`Gemini model ${modelId} failed:`, error.message);
+    } catch (sdkError) {
+      console.warn(`Gemini SDK model ${modelId} failed:`, sdkError.message);
+      // SDKが失敗した場合はREST APIで再試行
+      try {
+        const parts = [{ text: prompt }];
+        if (image) {
+          parts.push({ inlineData: { data: image.split(',')[1] || image, mimeType: 'image/jpeg' } });
+        }
+        const restRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${provider.key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] })
+          }
+        );
+        const restData = await restRes.json();
+        if (!restRes.ok) throw new Error(restData.error?.message || `REST API error ${restRes.status}`);
+        const text = restData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!text) throw new Error('Gemini REST返答が空でした');
+        return { text, provider: provider.label, model: modelId };
+      } catch (restError) {
+        console.warn(`Gemini REST model ${modelId} failed:`, restError.message);
+        lastError = restError;
+      }
     }
   }
   throw lastError || new Error('Geminiの利用可能なモデルが応答しませんでした。');
 }
+
 
 async function generateOpenAI({ provider, prompt, image }) {
   const models = await safeModels(provider, OPENAI_PREFERRED_MODELS);

@@ -558,7 +558,8 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     if (!container) return;
     container.innerHTML = '';
     appState.game[team].players = normalizePlayers(appState.game[team].players, team);
-    appState.game[team].players.forEach(player => {
+    // コート上の選手のみ表示
+    appState.game[team].players.filter(player => player.isOnCourt).forEach(player => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = `player-card ${team}`;
@@ -1526,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function rosterPanel(team) {
     const color = team === 'home' ? 'orange' : 'blue';
-    const players = appState.game[team].players;
+    const players = appState.game[team].players.filter(p => p.isOnCourt); // コート上の選手のみ表示
     const advanced = appState.settings.statsMode === 'advanced';
     const extraHead = advanced ? '<th>AST</th><th>ORB</th><th>DRB</th><th>STL</th><th>TOV</th><th>BLK</th>' : '';
     return `
@@ -1545,7 +1546,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
           <table class="rimly-table">
             <thead><tr><th>#</th><th>PLAYER</th><th>PTS</th><th>3P</th><th>2P</th><th>FT</th><th>F</th>${extraHead}</tr></thead>
             <tbody>
-              ${players.map(p => playerRow(team, p, advanced)).join('')}
+              ${players.length ? players.map(p => playerRow(team, p, advanced)).join('') : '<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">選手未選択</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -1797,15 +1798,86 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
 
   function logView(kind) {
     const isScore = kind === 'SCORE';
-    const logs = appState.game.logs.filter(l => isScore ? ['SCORE', 'TO', 'STAT'].includes(l.type) : l.type === 'FOUL');
-    return `
-      <div class="section-heading">
-        <h1>${isScore ? '得点ログ' : 'ファウルログ'}</h1>
-      </div>
-      <div class="log-list">
-        ${logs.length ? logs.map(logItem).join('') : '<div class="empty-state">まだ記録がありません</div>'}
-      </div>
-    `;
+    const g = appState.game;
+
+    if (isScore) {
+      // 得点タブ：両チームを縦に、古い順（logs配列の末尾が古い）
+      const logs = [...g.logs].filter(l => ['SCORE', 'TO', 'STAT'].includes(l.type)).reverse();
+      const homeSection = logs.filter(l => l.team === 'home');
+      const awaySection = logs.filter(l => l.team === 'away');
+      const renderSection = (teamLogs, teamKey) => {
+        const color = teamKey === 'home' ? 'orange' : 'blue';
+        const tName = escapeHtml(g[teamKey].name);
+        if (!teamLogs.length) return '';
+        return `
+          <div class="log-team-section">
+            <div class="log-team-header ${color}">${tName}</div>
+            ${teamLogs.map(logItem).join('')}
+          </div>
+        `;
+      };
+      return `
+        <div class="section-heading"><h1>得点ログ</h1></div>
+        <div class="log-list">
+          ${(homeSection.length || awaySection.length) ? renderSection(homeSection, 'home') + renderSection(awaySection, 'away') : '<div class="empty-state">まだ記録がありません</div>'}
+        </div>
+      `;
+    } else {
+      // ファウルタブ：両チーム別、選手ごとのファウル回数サマリー（選手番号昇順）
+      const foulLogs = [...g.logs].filter(l => l.type === 'FOUL').reverse();
+      const renderFoulSection = (teamKey) => {
+        const color = teamKey === 'home' ? 'orange' : 'blue';
+        const tName = escapeHtml(g[teamKey].name);
+        const teamFouls = foulLogs.filter(l => l.team === teamKey);
+        if (!teamFouls.length) return '';
+        // 選手ごとのファウル集計
+        const playerFoulMap = {};
+        teamFouls.forEach(l => {
+          const p = g[teamKey].players.find(x => x.id === l.pid);
+          if (!p) return;
+          if (!playerFoulMap[p.id]) playerFoulMap[p.id] = { num: p.num, name: p.name, count: 0, logs: [] };
+          playerFoulMap[p.id].count++;
+          playerFoulMap[p.id].logs.push(l);
+        });
+        // 選手番号昇順ソート
+        const sorted = Object.values(playerFoulMap).sort((a, b) => {
+          const na = parseInt(a.num, 10); const nb = parseInt(b.num, 10);
+          return (isNaN(na) || isNaN(nb)) ? String(a.num).localeCompare(String(b.num)) : na - nb;
+        });
+        return `
+          <div class="log-team-section">
+            <div class="log-team-header ${color}">${tName}</div>
+            ${sorted.map(entry => `
+              <div class="log-item foul-summary-item">
+                <div class="log-main">
+                  <strong>#${escapeHtml(entry.num)} ${escapeHtml(entry.name)}</strong>
+                  <span class="foul-count-badge">${entry.count}F</span>
+                </div>
+                <div class="foul-detail-list">
+                  ${entry.logs.map(l => `
+                    <div class="foul-detail-row">
+                      <span class="text-secondary">${escapeHtml(l.qStr)}</span>
+                      <span>${escapeHtml(l.detail.replace(/^#\S+\s+\S+\s+/, ''))}</span>
+                      <div class="button-row">
+                        <button class="mini-button danger" data-log-delete="${l.id}">取消</button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      };
+      const homeHtml = renderFoulSection('home');
+      const awayHtml = renderFoulSection('away');
+      return `
+        <div class="section-heading"><h1>ファウルログ</h1></div>
+        <div class="log-list">
+          ${(homeHtml || awayHtml) ? homeHtml + awayHtml : '<div class="empty-state">まだ記録がありません</div>'}
+        </div>
+      `;
+    }
   }
 
   function logItem(log) {
@@ -1933,12 +2005,48 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
   }
 
   function openSubstitution(team) {
+    const color = team === 'home' ? 'orange' : 'blue';
+    const renderSubList = () => {
+      const listEl = $('sub-edit-list');
+      if (!listEl) return;
+      listEl.innerHTML = appState.game[team].players.map(p => {
+        const isOn = p.isOnCourt;
+        const isFOut = isFoulOut(p);
+        return `
+          <div class="edit-list-row sub-row" data-sub-pid="${team}:${p.id}" style="opacity:${isFOut ? '0.5' : '1'}; background:${isOn ? 'rgba(var(--c-' + (team === 'home' ? 'orange' : 'blue') + '-raw,255,100,0),0.08)' : 'transparent'}; border:2px solid ${isOn ? 'var(--' + (team === 'home' ? 'orange' : 'blue') + ')' : 'transparent'}; border-radius:8px; cursor:${isFOut ? 'not-allowed' : 'pointer'}; transition:0.15s;">
+            <span style="font-weight:900; font-size:15px; min-width:34px;">#${escapeHtml(p.num)}</span>
+            <span style="flex:1; font-size:15px;">${escapeHtml(p.name)}</span>
+            <span class="mini-button ${isOn ? color + ' active' : ''}" style="pointer-events:none; min-width:38px; text-align:center;">${isOn ? 'ON' : 'OFF'}</span>
+          </div>
+        `;
+      }).join('');
+      // バインド
+      qsa('[data-sub-pid]', $('sub-edit-list')).forEach(row => {
+        press(row, () => {
+          const [t, pid] = row.dataset.subPid.split(':');
+          const player = findPlayer(t, pid);
+          if (!player || isFoulOut(player)) return;
+          const count = appState.game[t].players.filter(x => x.isOnCourt).length;
+          if (!player.isOnCourt && count >= 5) return toast('コート上は5名までです');
+          player.isOnCourt = !player.isOnCourt;
+          renderSubList(); // スクロール位置を保持したままその場で更新
+        });
+      });
+    };
     openModal('選手交代', `
-      <div class="edit-list">
-        ${appState.game[team].players.map(p => editPlayerRow(team, p)).join('')}
+      <div class="sub-count-row" id="sub-count-disp" style="text-align:center; font-weight:700; margin-bottom:8px; color:var(--${color});"></div>
+      <div class="edit-list" id="sub-edit-list"></div>
+      <div class="modal-actions" style="margin-top:12px;">
+        <button class="btn-primary ${color}" id="sub-confirm">確定</button>
       </div>
     `);
-    bindEditList();
+    renderSubList();
+    press($('sub-confirm'), () => {
+      closeModal();
+      renderScore();
+      saveState();
+      toast('交代しました');
+    });
   }
 
   function saveCurrentRosterAsTeam(team) {
@@ -2848,6 +2956,7 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     const previewGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
       updateGlassSliderVisual(glassSlider);
+      applyGlassOpacity(); // リアルタイムで即時反映
     };
     const commitGlass = () => {
       appState.settings.glassOpacity = $('setting-glass-full').value;
@@ -6888,7 +6997,8 @@ function renderGridRoster(tm) {
   if (!container) return;
   container.innerHTML = '';
 
-  appState.game[tm].players.forEach(p => {
+  // コート上の選手のみ表示
+  appState.game[tm].players.filter(p => p.isOnCourt).forEach(p => {
     const card = document.createElement('div');
     card.className = `player-card ${tm}`;
     card.innerHTML = `

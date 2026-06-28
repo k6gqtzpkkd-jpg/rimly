@@ -2536,3 +2536,85 @@ select.ios-input,
     height: min(34vh, 220px);
   }
 }
+
+/* ── チーム別ログセクション ── */
+.log-team-section {
+  display: grid;
+  gap: 8px;
+}
+
+.log-team-header {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border-left: 3px solid currentColor;
+  text-transform: uppercase;
+}
+
+.log-team-header.orange { color: var(--orange); }
+.log-team-header.blue   { color: var(--blue); }
+
+/* ── ファウルサマリー ── */
+.foul-summary-item {
+  display: block !important;
+}
+
+.foul-summary-item .log-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.foul-count-badge {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--red);
+  background: rgba(255,59,48,0.12);
+  border-radius: 8px;
+  padding: 2px 10px;
+  flex-shrink: 0;
+}
+
+.foul-detail-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.foul-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+
+.foul-detail-row .text-secondary {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 28px;
+}
+
+.foul-detail-row span:nth-child(2) {
+  flex: 1;
+}
+
+.foul-detail-row .button-row {
+  flex-shrink: 0;
+}
+
+/* ── 交代モーダル行 ── */
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
