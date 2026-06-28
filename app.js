@@ -558,19 +558,47 @@ document.addEventListener('DOMContentLoaded', setupPassword, { once: true });
     if (!container) return;
     container.innerHTML = '';
     appState.game[team].players = normalizePlayers(appState.game[team].players, team);
-    // コート上の選手のみ表示
+    
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-wrap';
+    tableWrap.style.width = '100%';
+    
+    const table = document.createElement('table');
+    table.className = 'rimly-table';
+    table.style.width = '100%';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th style="width: 40px; text-align: center;">#</th>
+          <th style="text-align: left;">PLAYER</th>
+          <th style="width: 50px; text-align: center;">PTS</th>
+          <th style="width: 40px; text-align: center;">3P</th>
+          <th style="width: 40px; text-align: center;">2P</th>
+          <th style="width: 40px; text-align: center;">FT</th>
+          <th style="width: 40px; text-align: center;">F</th>
+        </tr>
+      </thead>
+      <tbody id="roster-${team}-table-body"></tbody>
+    `;
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
+
+    const tbody = $(`roster-${team}-table-body`);
+    // コート上の選手のみ表示（最大5人）
     appState.game[team].players.filter(player => player.isOnCourt).forEach(player => {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = `player-card ${team}`;
-      card.innerHTML = `
-        <div class="p-num">#${player.num}</div>
-        <div class="p-name">${player.name || '選手'}</div>
-        <div class="p-pts">${player.pts || 0} pts</div>
-        <div class="p-foul">${player.pf || 0}F</div>
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.innerHTML = `
+        <td style="text-align: center; font-weight: 800;">#${player.num}</td>
+        <td style="text-align: left; font-weight: 700;">${escapeHtml(player.name || '選手')}</td>
+        <td style="text-align: center; font-weight: 700;">${player.pts || 0}</td>
+        <td style="text-align: center;">${player.p3 || 0}</td>
+        <td style="text-align: center;">${player.p2 || 0}</td>
+        <td style="text-align: center;">${player.pt || 0}</td>
+        <td style="text-align: center; color: var(--red); font-weight: 700;">${player.pf || 0}</td>
       `;
-      onPress(card, () => openAppleActionSheet(team, player.id));
-      container.appendChild(card);
+      onPress(tr, () => openAppleActionSheet(team, player.id));
+      tbody.appendChild(tr);
     });
   }
 
@@ -6997,18 +7025,46 @@ function renderGridRoster(tm) {
   if (!container) return;
   container.innerHTML = '';
 
-  // コート上の選手のみ表示
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'table-wrap';
+  tableWrap.style.width = '100%';
+
+  const table = document.createElement('table');
+  table.className = 'rimly-table';
+  table.style.width = '100%';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width: 40px; text-align: center;">#</th>
+        <th style="text-align: left;">PLAYER</th>
+        <th style="width: 50px; text-align: center;">PTS</th>
+        <th style="width: 40px; text-align: center;">3P</th>
+        <th style="width: 40px; text-align: center;">2P</th>
+        <th style="width: 40px; text-align: center;">FT</th>
+        <th style="width: 40px; text-align: center;">F</th>
+      </tr>
+    </thead>
+    <tbody id="roster-${tm}-table-body-grid"></tbody>
+  `;
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
+
+  const tbody = document.getElementById(`roster-${tm}-table-body-grid`);
+  // コート上の選手のみ表示（最大5人）
   appState.game[tm].players.filter(p => p.isOnCourt).forEach(p => {
-    const card = document.createElement('div');
-    card.className = `player-card ${tm}`;
-    card.innerHTML = `
-      <div class="p-num">#${p.num}</div>
-      <div class="p-name">${p.name || 'Unknown'}</div>
-      <div class="p-pts">${p.pts || 0} pts</div>
-      <div class="p-foul">${p.pf || 0}F</div>
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.innerHTML = `
+      <td style="text-align: center; font-weight: 800;">#${p.num}</td>
+      <td style="text-align: left; font-weight: 700;">${escapeHtml(p.name || 'Unknown')}</td>
+      <td style="text-align: center; font-weight: 700;">${p.pts || 0}</td>
+      <td style="text-align: center;">${p.p3 || 0}</td>
+      <td style="text-align: center;">${p.p2 || 0}</td>
+      <td style="text-align: center;">${p.pt || 0}</td>
+      <td style="text-align: center; color: var(--red); font-weight: 700;">${p.pf || 0}</td>
     `;
-    card.onclick = () => openActionSheet(tm, p.id);
-    container.appendChild(card);
+    tr.onclick = () => openActionSheet(tm, p.id);
+    tbody.appendChild(tr);
   });
 }
 

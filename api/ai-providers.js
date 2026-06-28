@@ -1,18 +1,21 @@
 const OPENAI_PREFERRED_MODELS = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-5-mini'];
 
 function keySource(name) {
-  if (name === 'google') return process.env.RIMLY_GOOGLE_API_KEY_SOURCE || 'environment';
-  if (name === 'openai') return process.env.RIMLY_OPENAI_API_KEY_SOURCE || 'environment';
+  if (name === 'google') return process.env.RIMLY_GOOGLE_API_KEY_SOURCE || (process.env.gemini ? 'vercel-gemini' : 'environment');
+  if (name === 'openai') return process.env.RIMLY_OPENAI_API_KEY_SOURCE || (process.env.chatgpt ? 'vercel-chatgpt' : 'environment');
   return 'environment';
 }
 
 function getProviders() {
   const providers = [];
-  if (process.env.GOOGLE_API_KEY) {
-    providers.push({ name: 'google', label: 'Gemini', key: process.env.GOOGLE_API_KEY, keySource: keySource('google') });
+  const googleApiKey = process.env.GOOGLE_API_KEY || process.env.gemini || process.env.GEMINI_API_KEY;
+  const openaiApiKey = process.env.OPENAI_API_KEY || process.env.chatgpt || process.env.OPENAI_API_KEY;
+
+  if (googleApiKey) {
+    providers.push({ name: 'google', label: 'Gemini', key: googleApiKey, keySource: keySource('google') });
   }
-  if (process.env.OPENAI_API_KEY) {
-    providers.push({ name: 'openai', label: 'OpenAI', key: process.env.OPENAI_API_KEY, keySource: keySource('openai') });
+  if (openaiApiKey) {
+    providers.push({ name: 'openai', label: 'OpenAI', key: openaiApiKey, keySource: keySource('openai') });
   }
   return providers;
 }

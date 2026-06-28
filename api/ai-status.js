@@ -46,8 +46,8 @@ module.exports = async (req, res) => {
   const primary = providerStatuses.find(status => status.ok) || providerStatuses[0];
   return res.status(200).json({
     apiServer: true,
-    hasGoogleApiKey: !!process.env.GOOGLE_API_KEY,
-    hasOpenAiApiKey: !!process.env.OPENAI_API_KEY,
+    hasGoogleApiKey: !!(process.env.GOOGLE_API_KEY || process.env.gemini || process.env.GEMINI_API_KEY),
+    hasOpenAiApiKey: !!(process.env.OPENAI_API_KEY || process.env.chatgpt || process.env.OPENAI_API_KEY),
     keySource: primary.keySource,
     selectedProvider: primary.provider,
     selectedModel: primary.selectedModel,
