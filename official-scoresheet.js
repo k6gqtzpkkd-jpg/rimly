@@ -99,7 +99,7 @@ function generateOfficialScoresheet() {
     for(let i=0; i<Math.min(q4, 4); i++) addCross(360 + i*25, startY + 25, 20, 20);
   }
   drawTeamFouls('home', 200);
-  drawTeamFouls('away', 620);
+  drawTeamFouls('away', 610);
 
 
   // 4. PLAYERS
@@ -110,7 +110,7 @@ function generateOfficialScoresheet() {
       const y = startY + i * 16;
       
       // Name
-      addDiv(145, y, 182, 16, p.name, 'left-align');
+      addDiv(155, y, 172, 16, p.name, 'left-align');
       
       // Number
       addDiv(330, y, 21, 16, p.num);
@@ -131,8 +131,8 @@ function generateOfficialScoresheet() {
     }
   }
 
-  drawPlayers('home', 288); // Team A players start at Y=288
-  drawPlayers('away', 600); // Team B players start at Y=600
+  drawPlayers('home', 240); // Team A players start at Y=240
+  drawPlayers('away', 654); // Team B players start at Y=654
 
 
   // 5. RUNNING SCORE
@@ -148,8 +148,8 @@ function generateOfficialScoresheet() {
     { aN: 837, aS: 857, bS: 878, bN: 898 } // Extended artificially
   ];
 
-  const startYRunning = 116; // Approx start Y for row 1
-  const rowH = 24.3; // 973 / 40 = 24.3
+  const startYRunning = 236; // Exact start Y for row 1
+  const rowH = 16; // Exact row height
 
   // We need to trace the score progression to write the player number next to the scored point.
   // Sort score logs
@@ -192,12 +192,12 @@ function generateOfficialScoresheet() {
           addDiv(col.aN, y, 20, rowH, getPlayerNum('home', l.pid));
         }
         // Draw a circle or cross on the score
-        addDiv(col.aS, y, 21, rowH, '/', 'cross'); 
+        addDiv(col.aS, y, 21, rowH, '<b>/</b>', 'cross'); 
       } else {
         if (pt === points) {
           addDiv(col.bN, y, 20, rowH, getPlayerNum('away', l.pid));
         }
-        addDiv(col.bS, y, 20, rowH, '/', 'cross');
+        addDiv(col.bS, y, 20, rowH, '<b>/</b>', 'cross');
       }
     }
   });
