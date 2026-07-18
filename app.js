@@ -729,18 +729,28 @@ window.useTimeout = function (t) {
   const hf = getQHalf(g.quarter, g.isOT);
   if (g.timeouts[t][hf] >= TO_LIMS[hf]) { showAlert('このハーフ(延長)でのタイムアウト上限です。'); return; }
 
-  const timeStr = prompt('経過時間を入力してください (例: 5:34)');
+  const timeStr = prompt('残り試合時間を入力してください (例: 5:34)');
   if (timeStr === null) return; // User cancelled
 
-  let displayTime = timeStr;
+  let displayTime = '';
   if (timeStr && timeStr.includes(':')) {
     const parts = timeStr.split(':');
     const m = parseInt(parts[0], 10) || 0;
     const s = parseInt(parts[1], 10) || 0;
-    const roundedM = s >= 30 ? m + 1 : m;
-    displayTime = `${roundedM}分`;
+    const remainingSeconds = (m * 60) + s;
+    const elapsedSeconds = 480 - remainingSeconds; // 8 minutes = 480 seconds
+    
+    const elapsedM = Math.floor(elapsedSeconds / 60);
+    const remainderS = elapsedSeconds % 60;
+    const roundedM = remainderS >= 30 ? elapsedM + 1 : elapsedM;
+    
+    displayTime = `${Math.max(0, roundedM)}分`;
   } else if (timeStr && !isNaN(parseInt(timeStr, 10))) {
-    displayTime = `${parseInt(timeStr, 10)}分`;
+    const m = parseInt(timeStr, 10);
+    const elapsedM = 8 - m;
+    displayTime = `${Math.max(0, elapsedM)}分`;
+  } else {
+    displayTime = '0分';
   }
 
   g.timeouts[t][hf]++;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rimly-v21-cache';
+const CACHE_NAME = 'rimly-v22-cache';
 const ASSETS = [
   './',
   './index.html',
