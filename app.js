@@ -675,7 +675,7 @@ function renderScore() {
     for (let i = 1; i <= max; i++) {
       const p = document.createElement('div');
       p.className = 'to-pip';
-      if (i > rem) p.classList.add('used');
+      if (i <= use) p.classList.add('used');
       tpips.appendChild(p);
     }
   });
