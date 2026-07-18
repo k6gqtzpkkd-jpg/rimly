@@ -732,8 +732,19 @@ window.useTimeout = function (t) {
   const timeStr = prompt('経過時間を入力してください (例: 5:34)');
   if (timeStr === null) return; // User cancelled
 
+  let displayTime = timeStr;
+  if (timeStr && timeStr.includes(':')) {
+    const parts = timeStr.split(':');
+    const m = parseInt(parts[0], 10) || 0;
+    const s = parseInt(parts[1], 10) || 0;
+    const roundedM = s >= 30 ? m + 1 : m;
+    displayTime = `${roundedM}分`;
+  } else if (timeStr && !isNaN(parseInt(timeStr, 10))) {
+    displayTime = `${parseInt(timeStr, 10)}分`;
+  }
+
   g.timeouts[t][hf]++;
-  g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: `TIMEOUT (${timeStr})`, val: 0 });
+  g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: `TIMEOUT (${displayTime})`, val: 0 });
 
   showPop('TIMEOUT!');
   renderScore();
@@ -1537,7 +1548,7 @@ function renderLogs() {
   const g = appState.game;
 
   [...g.logs].reverse().forEach(l => {
-    const isS = l.type === 'SCORE' || l.type === 'TO';
+    const isS = l.type === 'SCORE';
     const isF = l.type === 'FOUL';
     const isTO = l.type === 'TO';
     if (appState.activeTab === 'plays' && !isS) return;
