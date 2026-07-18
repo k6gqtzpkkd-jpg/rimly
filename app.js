@@ -3632,7 +3632,7 @@ function quickScoreFlow(type) {
 
   const dialog = document.createElement('div');
   dialog.style.cssText = `
-    background: white;
+    background: var(--bg-card);
     border-radius: 16px;
     padding: 24px;
     max-width: 300px;
@@ -3651,10 +3651,10 @@ function quickScoreFlow(type) {
       <p style="margin: 0; font-size: 13px; color: var(--text-muted);">チームを選択してください</p>
     </div>
     <div style="display: grid; gap: 10px;">
-      <button class="team-select-btn btn-home" data-team="home" style="padding: 14px; border: 2px solid #FF6B00; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #FF6B00;">
+      <button class="team-select-btn btn-home" data-team="home" style="padding: 14px; border: 2px solid #FF6B00; background: var(--bg-card); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
         <span id="home-team-name-qs">HOME TEAM</span>
       </button>
-      <button class="team-select-btn btn-away" data-team="away" style="padding: 14px; border: 2px solid #0066CC; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #0066CC;">
+      <button class="team-select-btn btn-away" data-team="away" style="padding: 14px; border: 2px solid #0066CC; background: var(--bg-card); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--text-primary);">
         <span id="away-team-name-qs">AWAY TEAM</span>
       </button>
     </div>
@@ -3680,11 +3680,7 @@ function quickScoreFlow(type) {
 
 function selectPlayerForQuickScore(team, scoreType) {
   // 選手一覧を取得
-  const rosterTable = team === 'home' ? document.getElementById('roster-home-table') : document.getElementById('roster-away-table');
-  const players = Array.from(rosterTable.querySelectorAll('tbody tr')).map(tr => ({
-    num: tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '?',
-    name: tr.querySelector('.td-name')?.textContent?.trim() || '不明'
-  })).filter(p => p.num !== '?');
+  const players = appState.game[team].players;
 
   // 選手選択モーダルを表示
   const modal = document.createElement('div');
@@ -3705,7 +3701,7 @@ function selectPlayerForQuickScore(team, scoreType) {
 
   const dialog = document.createElement('div');
   dialog.style.cssText = `
-    background: white;
+    background: var(--bg-card);
     border-radius: 16px;
     padding: 24px;
     max-width: 320px;
@@ -3723,14 +3719,14 @@ function selectPlayerForQuickScore(team, scoreType) {
     </div>
     <div style="display: grid; gap: 8px; max-height: 60vh; overflow-y: auto;">
       ${players.map(p => `
-        <button class="player-select-btn" data-num="${p.num}" style="
+        <button class="player-select-btn" data-id="${p.id}" style="
           padding: 12px;
           border: 2px solid ${team === 'home' ? '#FF6B00' : '#0066CC'};
-          background: white;
+          background: var(--bg-card);
           border-radius: 8px;
           font-weight: 600;
           cursor: pointer;
-          color: ${team === 'home' ? '#FF6B00' : '#0066CC'};
+          color: var(--text-primary);
           text-align: left;
         ">
           #${p.num} ${p.name}
@@ -3745,23 +3741,16 @@ function selectPlayerForQuickScore(team, scoreType) {
   // 選手選択ハンドラー
   dialog.querySelectorAll('.player-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const playerNum = btn.dataset.num;
+      const pid = btn.dataset.id;
       modal.remove();
       
       // スコアを記録
       if (scoreType === '2p') {
-        addScore(team, playerNum, 2, '2P');
+        addScore(team, pid, 2, '2P');
       } else if (scoreType === '3p') {
-        addScore(team, playerNum, 3, '3P');
+        addScore(team, pid, 3, '3P');
       } else if (scoreType === 'foul') {
-        const foulType = prompt('ファウルの種類を選択してください:\n1. Personal\n2. Technical\n3. Flagrant', '1');
-        if (foulType === '1' || foulType === null) {
-          useFoul(team, playerNum, 'Personal');
-        } else if (foulType === '2') {
-          useFoul(team, playerNum, 'Technical');
-        } else if (foulType === '3') {
-          useFoul(team, playerNum, 'Flagrant');
-        }
+        openActionSheet(pid, team);
       }
     });
   });

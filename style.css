@@ -3520,3 +3520,169 @@ button,
   font-size: 12px;
   letter-spacing: 0.5px;
 }
+
+/* --- Face Registration Overlay --- */
+.face-register-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  animation: fadeInFace 0.3s ease;
+}
+
+.face-register-overlay.active {
+  display: flex;
+}
+
+.face-register-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.face-register-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.face-register-header h3 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.face-register-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.face-register-camera {
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  height: 320px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #000;
+  border: 3px solid rgba(0, 230, 118, 0.3);
+  box-shadow: 0 0 30px rgba(0, 230, 118, 0.1);
+}
+
+.face-register-camera video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.face-register-camera canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(-1);
+}
+
+.face-register-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.face-register-status {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--orange);
+  text-align: center;
+  min-height: 20px;
+}
+
+/* --- Settings: Face User List --- */
+.face-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.face-user-item:hover {
+  border-color: rgba(255, 107, 0, 0.2);
+}
+
+.face-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.face-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 107, 0, 0.2), rgba(255, 140, 53, 0.1));
+  border: 1px solid rgba(255, 107, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.face-user-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.face-user-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.face-user-delete {
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+}
+
+.face-user-delete:hover {
+  background: var(--red-dim);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.face-user-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
