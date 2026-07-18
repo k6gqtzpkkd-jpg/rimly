@@ -1441,6 +1441,7 @@ document.querySelectorAll('.foul-play').forEach(btn => {
       setTimeout(() => showAlert(`🏀 ${g[tm].name} のチームファウルが5個に達しました！以降のファウルはフリースロー対象です。`), isFoulOut(p) || p.pf >= 4 ? 1500 : 200);
     }
     renderScore();
+    if (typeof renderLogs === 'function') renderLogs();
   };
 });
 
@@ -3741,7 +3742,8 @@ function selectPlayerForQuickScore(team, scoreType) {
   // 選手選択ハンドラー
   dialog.querySelectorAll('.player-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const pid = btn.dataset.id;
+      let pid = btn.dataset.id;
+      if (!isNaN(pid)) pid = Number(pid);
       modal.remove();
       
       // スコアを記録
