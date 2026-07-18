@@ -30,8 +30,8 @@ function generateOfficialScoresheet() {
   addDiv(350, 100, 200, 20, g.firstUmpire || '', 'left-align');// First Umpire
 
   // TEAM NAMES
-  addDiv(50, 125, 200, 30, `<b>${g.home.name}</b>`, 'left-align'); // Team A Name
-  addDiv(50, 545, 200, 30, `<b>${g.away.name}</b>`, 'left-align'); // Team B Name
+  addDiv(50, 140, 200, 30, `<b>${g.home.name}</b>`, 'left-align'); // Team A Name
+  addDiv(50, 560, 200, 30, `<b>${g.away.name}</b>`, 'left-align'); // Team B Name
 
   // 2. TIMEOUTS (Using 8 - remaining_minutes rule)
   // Find timeouts in g.logs
@@ -110,10 +110,10 @@ function generateOfficialScoresheet() {
       const y = startY + i * 16;
       
       // Name
-      addDiv(143, y, 182, 16, p.name, 'left-align');
+      addDiv(145, y, 182, 16, p.name, 'left-align');
       
       // Number
-      addDiv(325, y, 21, 16, p.num);
+      addDiv(330, y, 21, 16, p.num);
       
       // Participation (draw X if they played)
       // Since Rimly v4 doesn't strictly track who entered the court vs who didn't, 
@@ -131,8 +131,8 @@ function generateOfficialScoresheet() {
     }
   }
 
-  drawPlayers('home', 304); // Team A players start at Y=304
-  drawPlayers('away', 616); // Team B players start at Y=616
+  drawPlayers('home', 288); // Team A players start at Y=288
+  drawPlayers('away', 600); // Team B players start at Y=600
 
 
   // 5. RUNNING SCORE
@@ -148,8 +148,8 @@ function generateOfficialScoresheet() {
     { aN: 837, aS: 857, bS: 878, bN: 898 } // Extended artificially
   ];
 
-  const startYRunning = 145; // Approx start Y for row 1
-  const rowH = 23.4; // 944 / 40 = 23.6, let's use 23.4
+  const startYRunning = 116; // Approx start Y for row 1
+  const rowH = 24.3; // 973 / 40 = 24.3
 
   // We need to trace the score progression to write the player number next to the scored point.
   // Sort score logs
@@ -157,6 +157,12 @@ function generateOfficialScoresheet() {
 
   let homeScore = 0;
   let awayScore = 0;
+
+  function getPlayerNum(team, pid) {
+    if (!pid) return '';
+    const p = g[team].players.find(x => x.id === pid);
+    return p ? p.num : '';
+  }
 
   scoreLogs.forEach(l => {
     // Add to score
@@ -183,13 +189,13 @@ function generateOfficialScoresheet() {
         // Draw strike on score (or we can just put a dark overlay)
         // Officially, you strike out the number and write the player num.
         if (pt === points) { // Only write player number on the LAST point of this scoring event
-          addDiv(col.aN, y, 20, rowH, l.pid || '');
+          addDiv(col.aN, y, 20, rowH, getPlayerNum('home', l.pid));
         }
         // Draw a circle or cross on the score
         addDiv(col.aS, y, 21, rowH, '/', 'cross'); 
       } else {
         if (pt === points) {
-          addDiv(col.bN, y, 20, rowH, l.pid || '');
+          addDiv(col.bN, y, 20, rowH, getPlayerNum('away', l.pid));
         }
         addDiv(col.bS, y, 20, rowH, '/', 'cross');
       }
