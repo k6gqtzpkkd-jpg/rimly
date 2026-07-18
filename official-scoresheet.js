@@ -1,5 +1,8 @@
 function openOfficialScoresheet() {
-  document.getElementById('modal-official-scoresheet').classList.add('open');
+  const modal = document.getElementById('modal-official-scoresheet');
+  if (modal) {
+    modal.classList.add('open');
+  }
   generateOfficialScoresheet();
 }
 
@@ -71,17 +74,18 @@ function generateOfficialScoresheet() {
 
     if (g[tm] && g[tm].players) {
       g[tm].players.forEach(p => {
-      if (p.num === 'コーチ' || p.num === 'A.コーチ') return;
-      let fList = playerFouls[p.id] || [];
-      leftHtml += `
-        <tr>
-          <td>${p.num}</td>
-          <td style="text-align:left;">${p.name}</td>
-          <td>
-            ${[0,1,2,3,4].map(i => `<div class="foul-box">${fList[i] || ''}</div>`).join('')}
-          </td>
-        </tr>
-      `;
+        if (p.num === 'コーチ' || p.num === 'A.コーチ') return;
+        let fList = playerFouls[p.id] || [];
+        leftHtml += `
+          <tr>
+            <td>${p.num}</td>
+            <td style="text-align:left;">${p.name}</td>
+            <td>
+              ${[0,1,2,3,4].map(i => `<div class="foul-box">${fList[i] || ''}</div>`).join('')}
+            </td>
+          </tr>
+        `;
+      });
     }
 
     let coach = g[tm] && g[tm].players ? g[tm].players.find(p => p.num === 'コーチ') : null;

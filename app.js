@@ -390,8 +390,14 @@ function setupTabs() {
         showAlert('試合中はセットアップや履歴、チーム登録画面には移動できません。');
         return;
       }
-      if (!appState.isGameActive && (target === 'score' || target === 'plays' || target === 'fouls' || target === 'timeouts')) {
+      if (!appState.isGameActive && (target === 'score' || target === 'plays' || target === 'fouls' || target === 'timeouts' || target === 'scoresheet')) {
         showAlert('試合が開始されていません。');
+        return;
+      }
+
+      if (target === 'scoresheet') {
+        if (typeof saveActiveMatchState === 'function') saveActiveMatchState();
+        window.open('scoresheet.html', '_blank');
         return;
       }
 

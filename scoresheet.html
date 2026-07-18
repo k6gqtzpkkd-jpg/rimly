@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>OFFICIAL SCORESHEET - Rimly</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { background: white; padding: 20px; overflow: auto; color: black; }
+    .print-btn-container { text-align: center; margin-top: 20px; }
+    @media print { 
+      .hide-on-print { display: none !important; } 
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align: center; font-family: 'Times New Roman', serif; margin-bottom: 20px;">OFFICIAL SCORESHEET</h2>
+  <div id="scoresheet-container" class="scoresheet-container"></div>
+  <div class="print-btn-container hide-on-print">
+    <button class="btn btn-primary" onclick="window.print()" style="padding:10px 20px; font-size:16px;">印刷 (Print)</button>
+  </div>
+
+  <script>
+    // Mock appState for official-scoresheet.js to read
+    let appState = { game: null };
+    try {
+      const data = localStorage.getItem('rimly_v4_active_match');
+      if (data) {
+        const parsed = JSON.parse(data);
+        appState.game = parsed.game;
+      }
+    } catch(e) {
+      console.error('Failed to load match state:', e);
+    }
+  </script>
+  <script src="official-scoresheet.js"></script>
+  <script>
+    if (appState.game) {
+      generateOfficialScoresheet();
+    } else {
+      document.getElementById('scoresheet-container').innerHTML = '<p style="text-align:center;">試合データが見つかりません。</p>';
+    }
+  </script>
+</body>
+</html>
