@@ -25,15 +25,18 @@ function generateOfficialScoresheet() {
       }
     });
 
+    const toFirst = g.timeouts && g.timeouts[tm] ? (g.timeouts[tm].first || g.timeouts[tm].h1 || 0) : 0;
+    const toSecond = g.timeouts && g.timeouts[tm] ? (g.timeouts[tm].second || g.timeouts[tm].h2 || 0) : 0;
+
     leftHtml += `
       <div class="ss-header-box">
-        <div class="ss-team-name">チーム${isA ? 'A' : 'B'}: ${teamName}</div>
+        <div class="ss-team-name">チーム${isA ? 'A' : 'B'}: ${teamName || ''}</div>
         
         <div style="display:flex; justify-content:space-between; margin-top:10px;">
           <div>
             <strong>タイムアウト</strong><br>
-            前半: <div class="foul-box">${g.timeouts[tm].first >= 1 ? 'X' : ''}</div> <div class="foul-box">${g.timeouts[tm].first >= 2 ? 'X' : ''}</div><br>
-            後半: <div class="foul-box">${g.timeouts[tm].second >= 1 ? 'X' : ''}</div> <div class="foul-box">${g.timeouts[tm].second >= 2 ? 'X' : ''}</div> <div class="foul-box">${g.timeouts[tm].second >= 3 ? 'X' : ''}</div>
+            前半: <div class="foul-box">${toFirst >= 1 ? 'X' : ''}</div> <div class="foul-box">${toFirst >= 2 ? 'X' : ''}</div><br>
+            後半: <div class="foul-box">${toSecond >= 1 ? 'X' : ''}</div> <div class="foul-box">${toSecond >= 2 ? 'X' : ''}</div> <div class="foul-box">${toSecond >= 3 ? 'X' : ''}</div>
           </div>
           <div>
             <strong>チームファウル</strong><br>
@@ -54,14 +57,20 @@ function generateOfficialScoresheet() {
 
     // Process player fouls from logs to get exact types
     let playerFouls = {};
-    g[tm].players.forEach(p => playerFouls[p.id] = []);
-    [...g.logs].reverse().forEach(l => {
-      if (l.type === 'FOUL' && l.team === tm && playerFouls[l.pid]) {
-        playerFouls[l.pid].push(l.fType || 'P');
-      }
-    });
+    if (g[tm] && g[tm].players) {
+      g[tm].players.forEach(p => playerFouls[p.id] = []);
+    }
+    
+    if (g.logs) {
+      [...g.logs].reverse().forEach(l => {
+        if (l.type === 'FOUL' && l.team === tm && playerFouls[l.pid]) {
+          playerFouls[l.pid].push(l.fType || 'P');
+        }
+      });
+    }
 
-    g[tm].players.forEach(p => {
+    if (g[tm] && g[tm].players) {
+      g[tm].players.forEach(p => {
       if (p.num === 'コーチ' || p.num === 'A.コーチ') return;
       let fList = playerFouls[p.id] || [];
       leftHtml += `
@@ -73,10 +82,10 @@ function generateOfficialScoresheet() {
           </td>
         </tr>
       `;
-    });
+    }
 
-    let coach = g[tm].players.find(p => p.num === 'コーチ');
-    let acoach = g[tm].players.find(p => p.num === 'A.コーチ');
+    let coach = g[tm] && g[tm].players ? g[tm].players.find(p => p.num === 'コーチ') : null;
+    let acoach = g[tm] && g[tm].players ? g[tm].players.find(p => p.num === 'A.コーチ') : null;
     
     leftHtml += `
           <tr>
@@ -101,24 +110,27 @@ function generateOfficialScoresheet() {
   let curH = 0;
   let curA = 0;
 
-  const logsOldestFirst = [...g.logs].reverse();
-  logsOldestFirst.forEach(l => {
-    if (l.type === 'SCORE') {
-      const p = l.pid !== 'TO' ? g[l.team].players.find(x => x.id === l.pid) : null;
-      const pnum = p ? p.num : '';
-      if (l.team === 'home') {
-        for(let i=1; i<=l.val; i++){
-          curH++;
-          if (i === l.val) marksH[curH] = { pnum, type: l.val, qStr: l.qStr };
-        }
-      } else {
-        for(let i=1; i<=l.val; i++){
-          curA++;
-          if (i === l.val) marksA[curA] = { pnum, type: l.val, qStr: l.qStr };
+  if (g.logs) {
+    const logsOldestFirst = [...g.logs].reverse();
+    logsOldestFirst.forEach(l => {
+      if (l.type === 'SCORE') {
+        const p = l.pid !== 'TO' && g[l.team] && g[l.team].players ? g[l.team].players.find(x => x.id === l.pid) : null;
+        const pnum = p ? p.num : '';
+        const val = parseInt(l.val, 10) || 0;
+        if (l.team === 'home') {
+          for(let i=1; i<=val; i++){
+            curH++;
+            if (i === val) marksH[curH] = { pnum, type: val, qStr: l.qStr };
+          }
+        } else {
+          for(let i=1; i<=val; i++){
+            curA++;
+            if (i === val) marksA[curA] = { pnum, type: val, qStr: l.qStr };
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   let qMaxH = { 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0, 'OT': 0 };
   let qMaxA = { 'Q1': 0, 'Q2': 0, 'Q3': 0, 'Q4': 0, 'OT': 0 };
