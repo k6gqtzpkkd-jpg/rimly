@@ -1529,7 +1529,7 @@ function renderLogs() {
 
   const g = appState.game;
 
-  g.logs.forEach(l => {
+  [...g.logs].reverse().forEach(l => {
     const isS = l.type === 'SCORE' || l.type === 'TO';
     const isF = l.type === 'FOUL';
     if (appState.activeTab === 'plays' && !isS) return;
