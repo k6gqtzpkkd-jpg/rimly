@@ -1,9 +1,10 @@
-const CACHE_NAME = 'rimly-v22-cache';
+const CACHE_NAME = 'rimly-v23-cache';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './official-scoresheet.js',
   './logo.png',
   './manifest.json'
 ];

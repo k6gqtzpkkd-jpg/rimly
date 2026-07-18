@@ -3686,3 +3686,66 @@ button,
   font-size: 13px;
   font-weight: 600;
 }
+/* OFFICIAL SCORESHEET STYLES */
+.scoresheet-container {
+  display: flex;
+  gap: 20px;
+  background: white;
+  color: black;
+  padding: 10px;
+  font-family: 'Times New Roman', serif;
+  font-size: 12px;
+}
+.ss-left { flex: 1.5; display: flex; flex-direction: column; gap: 15px; }
+.ss-right { flex: 1; display: flex; gap: 5px; }
+
+.ss-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ss-table th, .ss-table td {
+  border: 1px solid #000;
+  padding: 2px;
+  text-align: center;
+}
+
+/* Running Score */
+.rs-col { width: 25%; border-collapse: collapse; }
+.rs-col th, .rs-col td { border: 1px solid #000; padding: 2px 0; text-align: center; height: 16px;}
+.rs-a, .rs-b { width: 30%; }
+.rs-num { width: 40%; font-weight: bold; background: #eee; position: relative; }
+
+/* Visual Marks */
+.rs-fg { position: relative; }
+.rs-fg::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to top right, transparent 45%, #000 48%, #000 52%, transparent 55%);
+}
+.rs-ft { position: relative; }
+.rs-ft::after {
+  content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 8px; height: 8px; border-radius: 50%; background: #000;
+}
+.rs-qend-circle {
+  border: 2px solid #000; border-radius: 50%; display: inline-block; width: 14px; height: 14px; line-height: 14px; font-weight: bold;
+}
+.rs-qend-line { border-bottom: 3px solid #000; }
+.rs-game-end { border-bottom: 4px solid #000; }
+
+.pt3-circle {
+  border: 1px solid #000; border-radius: 50%; display: inline-block; width: 14px; height: 14px; line-height: 14px; font-size: 10px;
+}
+
+.ss-header-box { border: 1px solid #000; padding: 5px; margin-bottom: 10px; }
+.ss-team-name { font-size: 16px; font-weight: bold; margin-bottom: 5px;}
+
+.foul-box { width: 16px; height: 16px; border: 1px solid #000; display: inline-block; text-align: center; line-height: 16px; font-size: 10px; margin-right: 2px;}
+.foul-x { background: linear-gradient(to top right, transparent 45%, #000 48%, #000 52%, transparent 55%), linear-gradient(to top left, transparent 45%, #000 48%, #000 52%, transparent 55%); }
+
+@media print {
+  .hide-on-print { display: none !important; }
+  .modal.open { position: static; background: none; }
+  .modal-content { box-shadow: none; max-width: 100%; width: 100%; height: auto; overflow: visible; padding: 0; }
+  body { background: white; }
+  .scoresheet-container { padding: 0; gap: 10px;}
+}
