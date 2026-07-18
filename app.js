@@ -729,8 +729,11 @@ window.useTimeout = function (t) {
   const hf = getQHalf(g.quarter, g.isOT);
   if (g.timeouts[t][hf] >= TO_LIMS[hf]) { showAlert('このハーフ(延長)でのタイムアウト上限です。'); return; }
 
+  const timeStr = prompt('経過時間を入力してください (例: 5:34)');
+  if (timeStr === null) return; // User cancelled
+
   g.timeouts[t][hf]++;
-  g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: 'TIMEOUT', val: 0 });
+  g.logs.unshift({ id: Date.now(), tstamp: Date.now(), qStr: getQStr(), team: t, pid: 'TO', type: 'TO', detail: `TIMEOUT (${timeStr})`, val: 0 });
 
   showPop('TIMEOUT!');
   renderScore();
@@ -1519,21 +1522,27 @@ function renderLogs() {
   if (document.getElementById('log-away-title-s')) document.getElementById('log-away-title-s').textContent = appState.game.away.name;
   if (document.getElementById('log-home-title-f')) document.getElementById('log-home-title-f').textContent = appState.game.home.name;
   if (document.getElementById('log-away-title-f')) document.getElementById('log-away-title-f').textContent = appState.game.away.name;
+  if (document.getElementById('log-home-title-to')) document.getElementById('log-home-title-to').textContent = appState.game.home.name;
+  if (document.getElementById('log-away-title-to')) document.getElementById('log-away-title-to').textContent = appState.game.away.name;
 
   const sH = document.getElementById('score-home-list');
   const sA = document.getElementById('score-away-list');
   const fH = document.getElementById('foul-home-list');
   const fA = document.getElementById('foul-away-list');
-  if (!sH || !sA || !fH || !fA) return;
-  sH.innerHTML = ''; sA.innerHTML = ''; fH.innerHTML = ''; fA.innerHTML = '';
+  const toH = document.getElementById('to-home-list');
+  const toA = document.getElementById('to-away-list');
+  if (!sH || !sA || !fH || !fA || !toH || !toA) return;
+  sH.innerHTML = ''; sA.innerHTML = ''; fH.innerHTML = ''; fA.innerHTML = ''; toH.innerHTML = ''; toA.innerHTML = '';
 
   const g = appState.game;
 
   [...g.logs].reverse().forEach(l => {
     const isS = l.type === 'SCORE' || l.type === 'TO';
     const isF = l.type === 'FOUL';
+    const isTO = l.type === 'TO';
     if (appState.activeTab === 'plays' && !isS) return;
     if (appState.activeTab === 'fouls' && !isF) return;
+    if (appState.activeTab === 'timeouts' && !isTO) return;
 
     const p = l.pid !== 'TO' ? g[l.team].players.find(x => x.id === l.pid) : null;
     const pName = p ? `#${p.num} ${p.name}` : '(TEAM)';
@@ -1543,6 +1552,7 @@ function renderLogs() {
     let valStr = l.type === 'SCORE' ? `<span class="tl-val text-orange">+${l.val}</span>` : `<span class="tl-val text-secondary" style="font-size:24px;">-</span>`;
     if (l.type === 'FOUL') valStr = `<span class="tl-val text-red">F</span>`;
     if (l.type === 'STAT') valStr = `<span class="tl-val text-green" style="color:#00e676;">+1</span>`;
+    if (l.type === 'TO') valStr = `<span class="tl-val text-secondary" style="font-size:20px;">TO</span>`;
 
     // Make detail text span blue if away for visual identity
     const metaClass = l.team === 'home' ? 'text-orange' : 'text-blue';
@@ -1573,6 +1583,9 @@ function renderLogs() {
     }
     if (isF && appState.activeTab === 'fouls') {
       if (l.team === 'home') fH.appendChild(el); else fA.appendChild(el);
+    }
+    if (isTO && appState.activeTab === 'timeouts') {
+      if (l.team === 'home') toH.appendChild(el); else toA.appendChild(el);
     }
   });
 }
