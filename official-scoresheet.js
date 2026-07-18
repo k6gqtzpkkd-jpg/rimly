@@ -31,7 +31,7 @@ function generateOfficialScoresheet() {
 
   // TEAM NAMES
   addDiv(50, 140, 200, 30, `<b>${g.home.name}</b>`, 'left-align'); // Team A Name
-  addDiv(50, 560, 200, 30, `<b>${g.away.name}</b>`, 'left-align'); // Team B Name
+  addDiv(50, 580, 200, 30, `<b>${g.away.name}</b>`, 'left-align'); // Team B Name
 
   // 2. TIMEOUTS (Using 8 - remaining_minutes rule)
   // Find timeouts in g.logs
@@ -98,8 +98,8 @@ function generateOfficialScoresheet() {
     for(let i=0; i<Math.min(q3, 4); i++) addCross(360 + i*25, startY, 20, 20);
     for(let i=0; i<Math.min(q4, 4); i++) addCross(360 + i*25, startY + 25, 20, 20);
   }
-  drawTeamFouls('home', 200);
-  drawTeamFouls('away', 610);
+  drawTeamFouls('home', 190);
+  drawTeamFouls('away', 640);
 
 
   // 4. PLAYERS
@@ -132,7 +132,7 @@ function generateOfficialScoresheet() {
   }
 
   drawPlayers('home', 240); // Team A players start at Y=240
-  drawPlayers('away', 654); // Team B players start at Y=654
+  drawPlayers('away', 702); // Team B players start at Y=702
 
 
   // 5. RUNNING SCORE
@@ -148,8 +148,8 @@ function generateOfficialScoresheet() {
     { aN: 837, aS: 857, bS: 878, bN: 898 } // Extended artificially
   ];
 
-  const startYRunning = 236; // Exact start Y for row 1
-  const rowH = 16; // Exact row height
+  const startYRunning = 145; // Exact start Y for row 1
+  const rowH = 23.6; // Exact row height
 
   // We need to trace the score progression to write the player number next to the scored point.
   // Sort score logs
