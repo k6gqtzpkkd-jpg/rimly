@@ -45,27 +45,15 @@ exports.handler = async function (event, context) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    await p.query(`
-      CREATE TABLE IF NOT EXISTS rimly_auth_sessions (
-        session_id VARCHAR(50) PRIMARY KEY,
-        is_unlocked BOOLEAN DEFAULT false,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
 
     const req = JSON.parse(event.body || '{}');
 
     if (req.action === 'save') {
-      const limitedHistory = Array.isArray(req.history)
-        ? req.history.slice(-100)
-        : req.history;
-
       await p.query(
         `INSERT INTO rimly_users (user_key, teams, history, updated_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_key) DO UPDATE SET teams = EXCLUDED.teams, history = EXCLUDED.history, updated_at = NOW()`,
-        [req.user_key, JSON.stringify(req.teams), JSON.stringify(limitedHistory)]
+        [req.user_key, JSON.stringify(req.teams), JSON.stringify(req.history)]
       );
-      await p.query(`DELETE FROM rimly_shares WHERE created_at < NOW() - INTERVAL '7 days'`);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
 
@@ -83,27 +71,6 @@ exports.handler = async function (event, context) {
     if (req.action === 'get_share') {
       const res = await p.query(`SELECT type, data FROM rimly_shares WHERE share_id = $1`, [req.shareId]);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: res.rows[0] || null }) };
-    }
-
-    if (req.action === 'set_auth') {
-      await p.query(
-        `INSERT INTO rimly_auth_sessions (session_id, is_unlocked, updated_at) VALUES ($1, $2, NOW())
-         ON CONFLICT (session_id) DO UPDATE SET is_unlocked = EXCLUDED.is_unlocked, updated_at = NOW()`,
-        [req.session_id || 'global_admin', req.is_unlocked]
-      );
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
-    }
-
-    if (req.action === 'get_auth') {
-      const res = await p.query(
-        `SELECT is_unlocked FROM rimly_auth_sessions
-         WHERE session_id = $1 AND updated_at >= NOW() - INTERVAL '2 minutes'`,
-        [req.session_id || 'global_admin']
-      );
-      if (res.rows[0] && res.rows[0].is_unlocked) {
-        await p.query(`UPDATE rimly_auth_sessions SET is_unlocked = false WHERE session_id = $1`, [req.session_id || 'global_admin']);
-      }
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, is_unlocked: res.rows[0]?.is_unlocked || false }) };
     }
 
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown action' }) };

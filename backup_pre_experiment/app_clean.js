@@ -2,54 +2,6 @@
    RIMLY v4 CLASSIC GLOW - Logic & State Handling
    ========================================================== */
 
-// ================================================================
-// ★ プライベートアクセス制御 - URLで開く場合はトークン認証が必要
-// ================================================================
-(function initPrivateAccessControl() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('private');
-  
-  if (token) {
-    // トークンがある場合は、それを sessionStorage に保存
-    const validToken = localStorage.getItem('rimly_private_token');
-    if (!validToken || token !== validToken) {
-      // トークンが無効または不正な場合はアクセス拒否
-      document.body.innerHTML = `
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          background: #f5f5f5;
-          flex-direction: column;
-          gap: 20px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        ">
-          <div style="text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; color: #333;">🔒 アクセスが拒否されました</h1>
-            <p style="color: #666; margin-top: 10px;">正しいトークンを使用してアクセスしてください。</p>
-          </div>
-        </div>
-      `;
-      document.body.style.cssText = 'margin: 0; padding: 0;';
-      throw new Error('Invalid private access token');
-    }
-    
-    // トークンが有効な場合は sessionStorage に記録
-    sessionStorage.setItem('rimly_private_session', 'true');
-    // URL から ?private=... を削除してクリーン
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-  
-  // 定期的に sessionStorage をチェック（プライベートセッションが切れたか確認）
-  setInterval(() => {
-    if (sessionStorage.getItem('rimly_private_session') === null) {
-      // セッションが切れた場合は警告
-      // (再度ログインが必要な場合はここで処理)
-    }
-  }, 5000);
-})();
-
 let pwInput = '';
 
 let appState = {
@@ -427,45 +379,6 @@ function renderSettings() {
 
   const authKeyEl = document.getElementById('setting-auth-key');
   if (authKeyEl) authKeyEl.value = appState.settings.authKey || '';
-
-  // ================================================================
-  // ★ プライベートアクセストークン生成機能
-  // ================================================================
-  const btnGenerateToken = document.getElementById('btn-generate-token');
-  const privateTokenInput = document.getElementById('setting-private-token');
-  const privateUrlInput = document.getElementById('private-access-url');
-  const btnCopyUrl = document.getElementById('btn-copy-private-url');
-
-  // 既存トークンを読み込む
-  const existingToken = localStorage.getItem('rimly_private_token');
-  if (existingToken) {
-    privateTokenInput.value = existingToken;
-    privateUrlInput.value = `${window.location.origin}${window.location.pathname}?private=${existingToken}`;
-    btnCopyUrl.style.display = 'block';
-  }
-
-  if (btnGenerateToken) {
-    btnGenerateToken.onclick = () => {
-      // ランダムトークンを生成（32文字の英数字）
-      const token = 'rimly_' + Math.random().toString(36).substr(2) + '_' + Date.now().toString(36);
-      localStorage.setItem('rimly_private_token', token);
-      
-      privateTokenInput.value = token;
-      privateUrlInput.value = `${window.location.origin}${window.location.pathname}?private=${token}`;
-      btnCopyUrl.style.display = 'block';
-      
-      showAlert('✅ トークンを生成しました！\n\nこのURLをシェアすると、URLを知ってる人だけがアクセスできます。');
-    };
-  }
-
-  if (btnCopyUrl) {
-    btnCopyUrl.onclick = () => {
-      privateUrlInput.select();
-      document.execCommand('copy');
-      btnCopyUrl.textContent = 'コピー済み！';
-      setTimeout(() => { btnCopyUrl.textContent = 'コピー'; }, 2000);
-    };
-  }
 
   const btnPw = document.getElementById('btn-save-pw');
   if (btnPw) {
@@ -1979,15 +1892,7 @@ async function openAI(h) {
       body: JSON.stringify({ matchData: h })
     });
 
-    const contentType = res.headers.get('content-type');
-    let data;
-    if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      throw new Error(res.ok ? 'JSONフォーマットではありません' : 'サーバーエラー (タイムアウト等) が発生しました。もう一度お試しください。');
-    }
-
+    const data = await res.json();
     const resultBox = document.getElementById('gemini-analysis-result');
     if (!resultBox) return; // モーダルが閉じられた場合
 
@@ -2871,190 +2776,218 @@ window.flipRosterView = function (tm) {
 };
 
 // ================================================================
-// 🔐 FACE AUTH UI – Dynamic Island スタイル
+// 🔐 FACE AUTH UI INTEGRATION
+// 顔認証のUIイベント接続・画面遷移制御
 // ================================================================
 (function setupFaceAuthUI() {
 
-  const btnFaceAuth = document.getElementById('btn-face-auth');
-  const faceVideo = document.getElementById('face-video');
-  const faceCanvas = document.getElementById('face-canvas');
-  const faceManageLink = document.getElementById('face-manage-link');
+  // --- 要素取得 ---
+  const btnFaceAuth      = document.getElementById('btn-face-auth');
+  const faceOverlay      = document.getElementById('face-auth-overlay');
+  const btnFaceBack      = document.getElementById('btn-face-back');
+  const faceVideo        = document.getElementById('face-video');
+  const faceCanvas       = document.getElementById('face-canvas');
+  const faceStatus       = document.getElementById('face-status');
+  const progressFill     = document.getElementById('face-progress-fill');
+  const faceManageLink   = document.getElementById('face-manage-link');
+  const pwContainer      = document.querySelector('.pw-container');
 
   // 登録モーダル
-  const registerOverlay = document.getElementById('face-register-overlay');
-  const registerVideo = document.getElementById('face-register-video');
-  const registerName = document.getElementById('face-register-name');
-  const btnDoRegister = document.getElementById('btn-do-register-face');
+  const registerOverlay  = document.getElementById('face-register-overlay');
+  const registerVideo    = document.getElementById('face-register-video');
+  const registerName     = document.getElementById('face-register-name');
+  const btnDoRegister    = document.getElementById('btn-do-register-face');
   const btnCloseRegister = document.getElementById('btn-close-face-register');
-  const registerStatus = document.getElementById('face-register-status');
+  const registerStatus   = document.getElementById('face-register-status');
 
   // 設定タブ内
-  const btnRegSettings = document.getElementById('btn-register-face-settings');
-  const faceUserList = document.getElementById('face-user-list');
+  const btnRegSettings   = document.getElementById('btn-register-face-settings');
+  const faceUserList     = document.getElementById('face-user-list');
 
   // ロック画面の顔管理ボタン
-  const btnFaceManagePw = document.getElementById('btn-face-manage-pw');
+  const btnFaceManagePw  = document.getElementById('btn-face-manage-pw');
 
-  if (!btnFaceAuth) return;
+  if (!btnFaceAuth || !faceOverlay) return; // 要素がなければ何もしない
 
-  let faceUnlockRunning = false;
-  let faceIslandOpenTimer = null;
-
-  // --- Dynamic Island 状態管理 ---
-  function setFaceIslandState(state, label) {
-    const island = document.getElementById('face-dynamic-island');
-    if (!island) return;
-    const wasIdle = !island.classList.contains('is-visible') || island.dataset.state === 'idle';
-    clearTimeout(faceIslandOpenTimer);
-    island.dataset.state = state;
-    island.classList.toggle('is-visible', state !== 'idle');
-    island.classList.toggle('is-opening', state !== 'idle' && state !== 'closing' && wasIdle);
-    island.classList.toggle('is-loading', state === 'loading');
-    island.classList.toggle('is-scanning', state === 'scanning');
-    island.classList.toggle('is-success', state === 'success');
-    island.classList.toggle('is-error', state === 'error');
-    island.classList.toggle('is-closing', state === 'closing');
-    if (state !== 'idle' && state !== 'closing' && wasIdle) {
-      faceIslandOpenTimer = setTimeout(() => island.classList.remove('is-opening'), 720);
-    }
-    const statusEl = document.getElementById('face-inline-status');
-    if (statusEl) statusEl.textContent = state === 'idle' ? '' : (label || '');
-  }
-
-  function setPasswordFaceMessage(message, isError) {
-    const errorEl = document.getElementById('pw-error');
-    if (!errorEl) return;
-    errorEl.textContent = message || '';
-    if (message) errorEl.style.color = isError ? '#EF4444' : '#00e676';
-  }
-
-  // --- 失敗プロンプト ---
-  function closeFaceFailPrompt() {
-    const existing = document.getElementById('face-fail-prompt');
-    if (existing) existing.remove();
-  }
-
-  function showFaceFailPrompt(message, count) {
-    closeFaceFailPrompt();
-    const passwordScreen = document.getElementById('password-screen');
-    if (!passwordScreen) return;
-    const prompt = document.createElement('div');
-    prompt.id = 'face-fail-prompt';
-    prompt.className = 'face-fail-prompt';
-    const primaryLabel = count >= 2 ? 'パスコードで試す' : '再度試す';
-    prompt.innerHTML = `
-      <div class="face-fail-card">
-        <div class="face-fail-title">${message || '顔を認証できませんでした'}</div>
-        <button class="btn-primary" id="face-fail-primary" type="button">${primaryLabel}</button>
-        <button class="btn-secondary" id="face-fail-cancel" type="button">キャンセル</button>
-      </div>
-    `;
-    passwordScreen.appendChild(prompt);
-    document.getElementById('face-fail-cancel').addEventListener('click', () => {
-      closeFaceFailPrompt();
-      setFaceIslandState('idle', 'Face ID');
-    });
-    document.getElementById('face-fail-primary').addEventListener('click', () => {
-      closeFaceFailPrompt();
-      if (count >= 2) {
-        setFaceIslandState('idle', 'Face ID');
-        setPasswordFaceMessage('パスコードで解除してください', true);
-      } else {
-        setTimeout(openFaceUnlock, 120);
-      }
-    });
-  }
+  let registerStream = null; // 登録用カメラストリーム
 
   // --- 顔認証エンジン初期化 ---
   rimlyFaceAuth.init().then(() => {
+    // 登録済みの顔がある場合、管理リンクを表示
     if (rimlyFaceAuth.hasRegisteredFaces()) {
       if (faceManageLink) faceManageLink.style.display = 'block';
-      // 自動で顔認証を起動（登録済みの顔がある場合のみ）
+      // ✅ 自動で顔認証を起動（登録済みの顔がある場合のみ）
       setTimeout(() => {
         if (document.getElementById('password-screen').classList.contains('active')) {
-          openFaceUnlock();
+          btnFaceAuth.click();
         }
       }, 800);
     }
+    // 設定画面のリスト描画
     renderFaceUserList();
   }).catch(e => console.error('Face auth init error:', e));
 
-  // --- Face ID ボタン → Dynamic Island → カメラ → 認証 ---
-  btnFaceAuth.addEventListener('click', () => {
+  // =========================================================
+  // 顔認証ボタン → カメラ起動 → 認証開始
+  // =========================================================
+  btnFaceAuth.addEventListener('click', async () => {
     if (!rimlyFaceAuth.hasRegisteredFaces()) {
+      // 登録がなければ登録モーダルを開く
       if (typeof showAlert === 'function') {
-        showAlert('顔が登録されていません。\n先に顔を登録してください。').then(() => openFaceRegisterModal());
-      } else {
-        openFaceRegisterModal();
+        await showAlert('顔が登録されていません。\n先に顔を登録してください。');
       }
+      openFaceRegisterModal();
       return;
     }
-    openFaceUnlock();
+
+    // PINパッドを隠して顔認証オーバーレイを表示
+    if (pwContainer) pwContainer.style.display = 'none';
+    faceOverlay.classList.add('active');
+    faceOverlay.classList.add('scanning');
+    faceOverlay.classList.remove('matched', 'liveness-mode');
+    updateFailDots();
+
+    // ステータス
+    faceStatus.textContent = 'カメラを起動中...';
+    if (progressFill) progressFill.style.width = '10%';
+
+    // カメラ起動
+    rimlyFaceAuth.canvasEl = faceCanvas;
+    const cameraOk = await rimlyFaceAuth.startCamera(faceVideo);
+    if (!cameraOk) {
+      faceStatus.textContent = '❌ カメラの起動に失敗しました';
+      if (progressFill) progressFill.style.width = '0%';
+      return;
+    }
+
+    if (progressFill) progressFill.style.width = '30%';
+
+    // 認証開始
+    rimlyFaceAuth.authenticate(
+      // onStatus
+      (msg) => {
+        faceStatus.textContent = msg;
+        if (msg.includes('認識しました')) {
+          faceOverlay.classList.remove('scanning');
+          faceOverlay.classList.add('matched');
+          if (progressFill) progressFill.style.width = '70%';
+        }
+        if (msg.includes('モデル')) {
+          if (progressFill) progressFill.style.width = '20%';
+        }
+        if (msg.includes('認識しています')) {
+          if (progressFill) progressFill.style.width = '50%';
+        }
+      },
+      // onSuccess
+      (matchedUser) => {
+        if (progressFill) progressFill.style.width = '100%';
+        faceOverlay.classList.remove('scanning');
+        faceOverlay.classList.add('matched');
+        faceStatus.textContent = '✅ ロック解除！';
+
+        // 成功エフェクト表示
+        showFaceUnlockSuccess(matchedUser);
+      },
+      // onFail
+      (failCount, reason) => {
+        faceOverlay.classList.remove('scanning', 'matched');
+        faceStatus.textContent = `❌ ${reason} (${failCount}/${rimlyFaceAuth.MAX_FAILS})`;
+        if (progressFill) progressFill.style.width = '0%';
+        updateFailDots();
+
+        // 再試行
+        setTimeout(() => {
+          faceOverlay.classList.add('scanning');
+          rimlyFaceAuth.authenticate(
+            (msg) => { faceStatus.textContent = msg; },
+            (user) => {
+              if (progressFill) progressFill.style.width = '100%';
+              showFaceUnlockSuccess(user);
+            },
+            (fc, r) => {
+              faceStatus.textContent = `❌ ${r} (${fc}/${rimlyFaceAuth.MAX_FAILS})`;
+              updateFailDots();
+              if (fc >= rimlyFaceAuth.MAX_FAILS) forcePINFallback();
+            },
+            () => forcePINFallback()
+          );
+        }, 1500);
+      },
+      // onForcePIN
+      () => forcePINFallback()
+    );
   });
 
-  async function openFaceUnlock() {
-    const passwordScreen = document.getElementById('password-screen');
-    if (!passwordScreen || !passwordScreen.classList.contains('active') || faceUnlockRunning) return;
+  // =========================================================
+  // PINに戻るボタン
+  // =========================================================
+  btnFaceBack.addEventListener('click', () => {
+    closeFaceAuth();
+  });
 
-    closeFaceFailPrompt();
-    faceUnlockRunning = true;
-    setPasswordFaceMessage('');
-    setFaceIslandState('loading', '準備中');
+  function closeFaceAuth() {
+    rimlyFaceAuth.stopCamera();
+    faceOverlay.classList.remove('active', 'scanning', 'matched');
+    if (pwContainer) pwContainer.style.display = '';
+    if (progressFill) progressFill.style.width = '0%';
+  }
 
-    try {
-      rimlyFaceAuth.canvasEl = faceCanvas;
-      setFaceIslandState('loading', 'カメラ確認');
-      const ok = await rimlyFaceAuth.startCamera(faceVideo);
-      if (!ok) throw new Error('カメラを開始できませんでした');
-
-      setFaceIslandState('scanning', 'Face ID');
-      rimlyFaceAuth.authenticate(
-        // onStatus
-        (msg) => {
-          if (msg.includes('モデル')) setFaceIslandState('loading', '準備中');
-          else if (msg.includes('見つかりません') || msg.includes('カメラを見て')) {
-            setFaceIslandState('loading', 'Face ID');
-          } else if (msg.includes('注視') || msg.includes('スキャン') || msg.includes('認識')) {
-            setFaceIslandState('scanning', 'Face ID');
-          }
-        },
-        // onSuccess
-        (matchedUser) => {
-          faceUnlockRunning = false;
-          rimlyFaceAuth.stopCamera();
-          setFaceIslandState('success', 'Unlocked');
-          setTimeout(() => {
-            setFaceIslandState('closing', '');
-          }, 560);
-          setTimeout(() => {
-            document.getElementById('password-screen').classList.remove('active');
-            document.getElementById('app-screen').classList.add('active');
-            setFaceIslandState('idle', 'Face ID');
-          }, 1160);
-        },
-        // onFail
-        (failCount, reason) => {
-          faceUnlockRunning = false;
-          setFaceIslandState('error', 'もう一度');
-          setPasswordFaceMessage('', true);
-          showFaceFailPrompt('顔を認証できませんでした', failCount);
-        },
-        // onForcePIN
-        () => {
-          faceUnlockRunning = false;
-          rimlyFaceAuth.stopCamera();
-          setFaceIslandState('error', '失敗');
-          setPasswordFaceMessage('', true);
-          showFaceFailPrompt('顔を認証できませんでした', 2);
-        }
-      );
-    } catch (e) {
-      faceUnlockRunning = false;
-      rimlyFaceAuth.stopCamera();
-      setFaceIslandState('error', '失敗');
-      setPasswordFaceMessage(e.message || '顔認証を開始できませんでした', true);
-      setTimeout(() => setFaceIslandState('idle', 'Face ID'), 1600);
+  // =========================================================
+  // PIN強制フォールバック
+  // =========================================================
+  function forcePINFallback() {
+    closeFaceAuth();
+    rimlyFaceAuth.resetFailCount();
+    updateFailDots();
+    const pwError = document.getElementById('pw-error');
+    if (pwError) {
+      pwError.style.color = '#EF4444';
+      pwError.textContent = '顔認証に3回失敗しました。PINを入力してください。';
+      setTimeout(() => { pwError.textContent = ''; }, 5000);
     }
+  }
+
+  // =========================================================
+  // 失敗ドットの更新
+  // =========================================================
+  function updateFailDots() {
+    for (let i = 0; i < 3; i++) {
+      const dot = document.getElementById(`fail-dot-${i}`);
+      if (dot) {
+        if (i < rimlyFaceAuth.failCount) dot.classList.add('failed');
+        else dot.classList.remove('failed');
+      }
+    }
+  }
+
+  // =========================================================
+  // ロック解除成功エフェクト
+  // =========================================================
+  function showFaceUnlockSuccess(matchedUser) {
+    rimlyFaceAuth.stopCamera();
+
+    // 成功オーバーレイを作成
+    const successDiv = document.createElement('div');
+    successDiv.className = 'face-unlock-success';
+    successDiv.innerHTML = `
+      <div class="face-unlock-icon">🔓</div>
+      <div class="face-unlock-text">UNLOCKED</div>
+      <div class="face-unlock-user">ようこそ、${matchedUser.name} さん</div>
+    `;
+    faceOverlay.appendChild(successDiv);
+
+    // 0.25秒後にメイン画面へ遷移（ネイティブFace ID並みの速度にするため短縮）
+    setTimeout(() => {
+      faceOverlay.classList.remove('active', 'scanning', 'matched');
+      successDiv.remove();
+      if (pwContainer) pwContainer.style.display = '';
+      rimlyFaceAuth.resetFailCount();
+      
+      // ロック解除！
+      document.getElementById('password-screen').classList.remove('active');
+      document.getElementById('app-screen').classList.add('active');
+    }, 250);
   }
 
   // =========================================================
@@ -3070,6 +3003,7 @@ window.flipRosterView = function (tm) {
     rimlyFaceAuth.canvasEl = document.getElementById('face-register-canvas');
     rimlyFaceAuth.startCamera(registerVideo).then(ok => {
       if (ok) {
+        // 顔スキャン枠を常にプレビュー表示するループを開始
         rimlyFaceAuth.startPreviewLoop();
       } else {
         if (registerStatus) registerStatus.textContent = '❌ カメラの起動に失敗しました';
@@ -3095,6 +3029,7 @@ window.flipRosterView = function (tm) {
       btnDoRegister.textContent = '登録中...';
 
       try {
+        // プレビューループを停止して登録処理へ
         rimlyFaceAuth.stopDetectionLoop();
         
         const record = await rimlyFaceAuth.registerFace(name, (msg) => {
@@ -3122,12 +3057,16 @@ window.flipRosterView = function (tm) {
 
   // 設定タブの登録ボタン
   if (btnRegSettings) {
-    btnRegSettings.addEventListener('click', () => openFaceRegisterModal());
+    btnRegSettings.addEventListener('click', () => {
+      openFaceRegisterModal();
+    });
   }
 
-  // ロック画面の管理ボタン
+  // ロック画面の管理ボタン（PINを先に解除しないと触れない）
   if (btnFaceManagePw) {
-    btnFaceManagePw.addEventListener('click', () => openFaceRegisterModal());
+    btnFaceManagePw.addEventListener('click', () => {
+      openFaceRegisterModal();
+    });
   }
 
   // =========================================================
@@ -3187,6 +3126,7 @@ window.flipRosterView = function (tm) {
       _origRS.apply(this, arguments);
       renderFaceUserList();
     };
+    // グローバル参照も更新
     if (typeof renderSettings !== 'undefined') {
       renderSettings = window.renderSettings;
     }
@@ -3251,7 +3191,7 @@ function drawCourt(canvas) {
   const W = canvas.width, H = canvas.height;
 
   // 背景（ウッドっぽいグラデーション）
-  const bg = ctx.createLinearGradient(0, 0, W, 0);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#2a1a0a');
   bg.addColorStop(1, '#1a0f05');
   ctx.fillStyle = bg;
@@ -3263,82 +3203,66 @@ function drawCourt(canvas) {
   ctx.lineCap = 'round';
 
   const m = 20; // マージン
-  const cw = W - m * 2;
-  const ch = H - m * 2;
 
   // 外枠
-  ctx.strokeRect(m, m, cw, ch);
+  ctx.strokeRect(m, m, W - m * 2, H - m * 2);
 
-  // センターライン（縦）
-  const cx = W / 2;
-  ctx.beginPath(); ctx.moveTo(cx, m); ctx.lineTo(cx, H - m); ctx.stroke();
+  // センターライン（横）
+  const cy = H / 2;
+  ctx.beginPath(); ctx.moveTo(m, cy); ctx.lineTo(W - m, cy); ctx.stroke();
 
   // センターサークル
-  const cr = Math.min(cw, ch) * 0.15;
-  ctx.beginPath(); ctx.arc(cx, H / 2, cr, 0, Math.PI * 2); ctx.stroke();
+  const cr = Math.min(W, H) * 0.1;
+  ctx.beginPath(); ctx.arc(W / 2, cy, cr, 0, Math.PI * 2); ctx.stroke();
 
-  // ゴールのサイズ (横向き)
-  const paintW = cw * 0.2;
-  const paintH = ch * 0.38;
-  const threeR = Math.min(cw, ch) * 0.45;
+  // ゴールのサイズ
+  const paintW = W * 0.38;
+  const paintH = H * 0.22;
+  const threeR = W * 0.38;
 
-  const centerY = H / 2;
-
-  // ---- 左のゴール（HOME）----
-  const leftX = m;
+  // ---- 上のゴール（HOME）----
+  const topY = m;
   // ペイントエリア
-  ctx.strokeRect(leftX, centerY - paintH / 2, paintW, paintH);
-  // フリースローラインの半円（右側に出る）
+  ctx.strokeRect(W / 2 - paintW / 2, topY, paintW, paintH);
+  // フリースローライン
   ctx.beginPath();
-  ctx.arc(leftX + paintW, centerY, paintH / 2, -Math.PI / 2, Math.PI / 2);
+  ctx.moveTo(W / 2 - paintW / 2, topY + paintH);
+  ctx.lineTo(W / 2 + paintW / 2, topY + paintH);
   ctx.stroke();
   // 3ポイントライン
   ctx.beginPath();
-  ctx.arc(leftX, centerY, threeR, -Math.PI * 0.35, Math.PI * 0.35);
+  ctx.arc(W / 2, topY, threeR, 0.1 * Math.PI, 0.9 * Math.PI);
   ctx.stroke();
   // ゴール点
   ctx.beginPath();
-  ctx.arc(leftX + cw * 0.04, centerY, 5, 0, Math.PI * 2);
+  ctx.arc(W / 2, topY + H * 0.03, 5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,200,130,0.7)';
   ctx.fill();
 
-  // ---- 右のゴール（AWAY）----
-  const rightX = W - m;
+  // ---- 下のゴール（AWAY）----
+  const botY = H - m;
   ctx.strokeStyle = 'rgba(255,200,130,0.55)';
-  // ペイントエリア
-  ctx.strokeRect(rightX - paintW, centerY - paintH / 2, paintW, paintH);
-  // フリースローラインの半円（左側に出る）
+  ctx.strokeRect(W / 2 - paintW / 2, botY - paintH, paintW, paintH);
   ctx.beginPath();
-  ctx.arc(rightX - paintW, centerY, paintH / 2, Math.PI / 2, Math.PI * 1.5);
+  ctx.moveTo(W / 2 - paintW / 2, botY - paintH);
+  ctx.lineTo(W / 2 + paintW / 2, botY - paintH);
   ctx.stroke();
-  // 3ポイントライン
   ctx.beginPath();
-  ctx.arc(rightX, centerY, threeR, Math.PI * 0.65, Math.PI * 1.35);
+  ctx.arc(W / 2, botY, threeR, 1.1 * Math.PI, 1.9 * Math.PI);
   ctx.stroke();
-  // ゴール点
   ctx.beginPath();
-  ctx.arc(rightX - cw * 0.04, centerY, 5, 0, Math.PI * 2);
+  ctx.arc(W / 2, botY - H * 0.03, 5, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,200,130,0.7)';
   ctx.fill();
 
   // HOME / AWAY ラベル
   ctx.fillStyle = 'rgba(255,107,0,0.4)';
-  ctx.font = `bold ${Math.max(12, ch * 0.06)}px "Inter"`;
+  ctx.font = `bold ${Math.max(11, W * 0.03)}px "Inter"`;
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  ctx.save();
-  ctx.translate(leftX + paintW + cw * 0.05, centerY);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillText('HOME', 0, 0);
-  ctx.restore();
+  ctx.fillText('HOME', W / 2, topY + paintH + H * 0.07);
 
   ctx.fillStyle = 'rgba(59,130,246,0.4)';
-  ctx.save();
-  ctx.translate(rightX - paintW - cw * 0.05, centerY);
-  ctx.rotate(Math.PI / 2);
-  ctx.fillText('AWAY', 0, 0);
-  ctx.restore();
+  ctx.fillText('AWAY', W / 2, botY - paintH - H * 0.03);
 }
 
 /* --- チーム選択 --- */
@@ -3372,8 +3296,8 @@ function renderTacticsPalette() {
   if (appState.isGameActive && g[team] && g[team].players.length > 0) {
     players = g[team].players;
   } else {
-    // 試合前でもデモ用に番号コマを表示する (1番〜18番)
-    for (let i = 1; i <= 18; i++) {
+    // 試合前でもデモ用に番号コマを表示する
+    for (let i = 1; i <= 10; i++) {
       players.push({ id: `demo_${team}_${i}`, num: i, name: '' });
     }
   }
@@ -3390,27 +3314,13 @@ function renderTacticsPalette() {
 
     if (!isOnCourt) {
       el.addEventListener('click', () => addPlayerToCourt(p.id, p.num, p.name || '', team));
+      el.addEventListener('touchend', e => {
+        e.preventDefault();
+        addPlayerToCourt(p.id, p.num, p.name || '', team);
+      }, { passive: false });
     }
     list.appendChild(el);
   });
-
-  // カスタム追加ボタン
-  const customEl = document.createElement('div');
-  customEl.className = `tact-palette-item tact-custom ${team}`;
-  customEl.textContent = '+';
-  customEl.title = 'カスタム番号を追加';
-  
-  const handleCustomAdd = (e) => {
-    if (e) e.preventDefault();
-    const numStr = prompt('追加したい背番号や文字を入力してください (例: 99, ボール, コーチ など)');
-    if (numStr !== null && numStr.trim() !== '') {
-      const customId = `custom_${team}_${Date.now()}`;
-      addPlayerToCourt(customId, numStr.trim(), '', team);
-    }
-  };
-
-  customEl.addEventListener('click', handleCustomAdd);
-  list.appendChild(customEl);
 }
 
 /* --- コートに選手を追加 --- */
@@ -3418,26 +3328,17 @@ function addPlayerToCourt(id, num, name, team) {
   const wrap = document.getElementById('tactics-court-wrap');
   const rect = wrap.getBoundingClientRect();
 
-  // スタートポジション（横向きコートなので、左がHOME・右がAWAY）
-  const startY = rect.height * 0.3 + Math.random() * rect.height * 0.4;
-  const startX = team === 'home'
-    ? rect.width * 0.15 + Math.random() * rect.width * 0.2
-    : rect.width * 0.65 + Math.random() * rect.width * 0.2;
+  // スタートポジション（コート中央付近にランダム配置）
+  const startX = rect.width * 0.3 + Math.random() * rect.width * 0.4;
+  const startY = team === 'home'
+    ? rect.height * 0.2 + Math.random() * rect.height * 0.2
+    : rect.height * 0.6 + Math.random() * rect.height * 0.2;
 
   const playerEl = document.createElement('div');
   playerEl.className = `tact-player ${team}`;
   playerEl.style.left = `${startX}px`;
   playerEl.style.top = `${startY}px`;
-  
-  // 文字数によってフォントサイズを調整（長い文字も入るように）
-  const numStr = String(num);
-  let fontSize = '20px';
-  if (numStr.length > 2) fontSize = '14px';
-  if (numStr.length > 3) fontSize = '11px';
-  if (numStr.length > 4) fontSize = '9px';
-
-  playerEl.style.fontSize = fontSize;
-  playerEl.innerHTML = `${numStr}<span class="tact-player-name">${name}</span>`;
+  playerEl.innerHTML = `${num}<span class="tact-player-name">${name}</span>`;
 
   // 削除ボタン
   const delBtn = document.createElement('div');
@@ -3612,178 +3513,13 @@ function clearTacticsBoard() {
   renderTacticsPalette();
 }
 // ================================================================
-// ★ クイックスコアフロー - 直感的な得点入力
-// ================================================================
-function quickScoreFlow(type) {
-  // チーム選択モーダルを表示
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-  `;
-
-  const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 300px;
-    width: 90vw;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  `;
-
-  let title = '';
-  if (type === '2p') title = '2点を記録 - チーム選択';
-  else if (type === '3p') title = '3点を記録 - チーム選択';
-  else if (type === 'foul') title = 'ファウルを記録 - チーム選択';
-
-  dialog.innerHTML = `
-    <div style="margin-bottom: 20px;">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-primary);">${title}</h3>
-      <p style="margin: 0; font-size: 13px; color: var(--text-muted);">チームを選択してください</p>
-    </div>
-    <div style="display: grid; gap: 10px;">
-      <button class="team-select-btn btn-home" data-team="home" style="padding: 14px; border: 2px solid #FF6B00; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #FF6B00;">
-        <span id="home-team-name-qs">HOME TEAM</span>
-      </button>
-      <button class="team-select-btn btn-away" data-team="away" style="padding: 14px; border: 2px solid #0066CC; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #0066CC;">
-        <span id="away-team-name-qs">AWAY TEAM</span>
-      </button>
-    </div>
-  `;
-
-  modal.appendChild(dialog);
-  document.body.appendChild(modal);
-
-  // チーム選択ハンドラー
-  dialog.querySelectorAll('.team-select-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const team = btn.dataset.team;
-      modal.remove();
-      selectPlayerForQuickScore(team, type);
-    });
-  });
-
-  // 背景クリックで閉じる
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
-  });
-}
-
-function selectPlayerForQuickScore(team, scoreType) {
-  // 選手一覧を取得
-  const rosterTable = team === 'home' ? document.getElementById('roster-home-table') : document.getElementById('roster-away-table');
-  const players = Array.from(rosterTable.querySelectorAll('tbody tr')).map(tr => ({
-    num: tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '?',
-    name: tr.querySelector('.td-name')?.textContent?.trim() || '不明'
-  })).filter(p => p.num !== '?');
-
-  // 選手選択モーダルを表示
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-    overflow-y: auto;
-    padding: 20px 0;
-  `;
-
-  const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 320px;
-    width: 90vw;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  `;
-
-  const teamName = team === 'home' ? (document.getElementById('disp-home-name')?.textContent || 'HOME') : (document.getElementById('disp-away-name')?.textContent || 'AWAY');
-  const title = scoreType === '2p' ? '2点を記録 - 選手選択' : scoreType === '3p' ? '3点を記録 - 選手選択' : 'ファウルを記録 - 選手選択';
-
-  dialog.innerHTML = `
-    <div style="margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 16px; color: var(--text-primary);">${title}</h3>
-      <p style="margin: 0; font-size: 13px; color: var(--text-muted);">${teamName}</p>
-    </div>
-    <div style="display: grid; gap: 8px; max-height: 60vh; overflow-y: auto;">
-      ${players.map(p => `
-        <button class="player-select-btn" data-num="${p.num}" style="
-          padding: 12px;
-          border: 2px solid ${team === 'home' ? '#FF6B00' : '#0066CC'};
-          background: white;
-          border-radius: 8px;
-          font-weight: 600;
-          cursor: pointer;
-          color: ${team === 'home' ? '#FF6B00' : '#0066CC'};
-          text-align: left;
-        ">
-          #${p.num} ${p.name}
-        </button>
-      `).join('')}
-    </div>
-  `;
-
-  modal.appendChild(dialog);
-  document.body.appendChild(modal);
-
-  // 選手選択ハンドラー
-  dialog.querySelectorAll('.player-select-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const playerNum = btn.dataset.num;
-      modal.remove();
-      
-      // スコアを記録
-      if (scoreType === '2p') {
-        addScore(team, playerNum, 2, '2P');
-      } else if (scoreType === '3p') {
-        addScore(team, playerNum, 3, '3P');
-      } else if (scoreType === 'foul') {
-        const foulType = prompt('ファウルの種類を選択してください:\n1. Personal\n2. Technical\n3. Flagrant', '1');
-        if (foulType === '1' || foulType === null) {
-          useFoul(team, playerNum, 'Personal');
-        } else if (foulType === '2') {
-          useFoul(team, playerNum, 'Technical');
-        } else if (foulType === '3') {
-          useFoul(team, playerNum, 'Flagrant');
-        }
-      }
-    });
-  });
-
-  // 背景クリックで閉じる
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.remove();
-  });
-}
-
-// ================================================================
 // AI GAME VISION – カメラ自動入力ロジック
-// ================================================================
-// ================================================================
-// AI GAME VISION – リアルタイムカメラ自動入力ロジック
 // ================================================================
 function initGameVision() {
   const openBtn = document.getElementById('btn-open-game-vision');
   const modal = document.getElementById('overlay-game-vision');
   const closeBtn = document.getElementById('btn-close-game-vision');
-  const captureBtn = document.getElementById('btn-game-vision-start');
-  const stopBtn = document.getElementById('btn-game-vision-capture');
+  const captureBtn = document.getElementById('btn-game-vision-capture');
   const fileInput = document.getElementById('game-vision-file-input');
   const video = document.getElementById('game-vision-video');
   const canvas = document.getElementById('game-vision-canvas');
@@ -3804,54 +3540,175 @@ function initGameVision() {
 
   function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 
-  // =========================================================
-  // リアルタイム記録開始
-  // =========================================================
-  async function startRecording() {
-    console.log('Starting realtime recording...');
-    captureBtn.style.display = 'none';
-    stopBtn.style.display = 'block';
-    resultDiv.style.display = 'block';
-    descriptionEl.textContent = '🔴 ライブ記録中...';
-    eventsList.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">イベントを検出しています...</div>';
-
-    // ★ 重要：モーダルをすぐに閉じて、バックグラウンドで処理を続ける
-    setTimeout(() => {
-      modal.classList.remove('open');
-    }, 300);
-
-    // game-vision-realtime.js から関数を呼び出し（バックグラウンドで継続）
-    // await は使わない（非ブロッキング）
-    startRealtimeRecording(video, canvas).catch(e => {
-      console.error('Recording error:', e);
-    });
+  function captureFrame() {
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL('image/jpeg');
   }
 
-  // =========================================================
-  // リアルタイム記録停止
-  // =========================================================
-  async function stopRecording() {
-    console.log('Stopping realtime recording...');
-    stopBtn.style.display = 'none';
-    captureBtn.style.display = 'block';
-    descriptionEl.textContent = '✅ 記録停止。ホーム画面に戻ります...';
+  async function sendToVision(imageData) {
+    // Build player lists from current rosters
+    const homePlayers = Array.from(document.querySelectorAll('#roster-home-table tbody tr')).map(tr => {
+      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
+      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
+      return { num, name };
+    });
+    const awayPlayers = Array.from(document.querySelectorAll('#roster-away-table tbody tr')).map(tr => {
+      const num = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '') || '';
+      const name = tr.querySelector('.td-name')?.textContent?.trim() || '';
+      return { num, name };
+    });
+    const payload = {
+      image: imageData,
+      homePlayers,
+      awayPlayers,
+      homeName: document.getElementById('disp-home-name')?.textContent?.trim(),
+      awayName: document.getElementById('disp-away-name')?.textContent?.trim(),
+      quarter: document.getElementById('period-info')?.textContent?.trim(),
+      homeScore: document.getElementById('home-score')?.textContent?.trim(),
+      awayScore: document.getElementById('away-score')?.textContent?.trim()
+    };
+    const resp = await fetch('/api/game-vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'AI解析失敗');
+    }
+    return await resp.json();
+  }
 
-    await stopRealtimeRecording();
+  function renderEvents(data) {
+    currentAnalysis = data;
+    descriptionEl.textContent = data.description || '';
+    eventsList.innerHTML = '';
+    (data.events || []).forEach((ev, idx) => {
+      const card = document.createElement('div');
+      card.className = 'gv-event-card';
+      const icon = document.createElement('div');
+      icon.className = `gv-event-icon ${ev.type === 'SCORE' ? 'score-icon' : 'foul-icon'}`;
+      icon.textContent = ev.type === 'SCORE' ? '🏀' : '🚩';
+      const info = document.createElement('div');
+      info.className = 'gv-event-info';
+      const title = document.createElement('div');
+      title.className = 'gv-event-title';
+      title.textContent = ev.type === 'SCORE'
+        ? `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.scoreType || ''}`
+        : `${ev.team === 'home' ? 'HOME' : 'AWAY'} #${ev.playerNum || '-'} ${ev.foulType || ''}`;
+      const sub = document.createElement('div');
+      sub.className = 'gv-event-sub';
+      sub.textContent = `確信度: ${(ev.confidence * 100).toFixed(0)}%`;
+      const badge = document.createElement('div');
+      badge.className = `gv-event-badge ${ev.type === 'SCORE' ? 'gv-badge-score' : 'gv-badge-foul'}`;
+      badge.textContent = ev.type === 'SCORE' ? ev.scoreType : ev.foulType;
+      const confidenceBar = document.createElement('div');
+      confidenceBar.className = 'gv-confidence-bar';
+      const fill = document.createElement('div');
+      fill.className = `gv-confidence-fill ${ev.confidence >= 0.8 ? 'high' : ev.confidence >= 0.5 ? 'mid' : 'low'}`;
+      fill.style.width = `${ev.confidence * 100}%`;
+      confidenceBar.appendChild(fill);
+      info.appendChild(title);
+      info.appendChild(sub);
+      info.appendChild(badge);
+      info.appendChild(confidenceBar);
+      const toggle = document.createElement('button');
+      toggle.className = 'gv-toggle-btn on';
+      toggle.textContent = '✔';
+      toggle.onclick = () => {
+        const sel = card.classList.toggle('selected');
+        toggle.classList.toggle('on', sel);
+        toggle.textContent = sel ? '✔' : '✖';
+      };
+      // If player number unknown, add a "選手選択" button
+      if (!ev.playerNum) {
+        const assignBtn = document.createElement('button');
+        assignBtn.className = 'gv-toggle-btn';
+        assignBtn.textContent = '選手選択';
+        assignBtn.onclick = async () => {
+          const num = prompt('背番号を入力してください（数字）');
+          if (!num) return;
+          // Search both rosters for matching jersey number
+          const allRows = document.querySelectorAll('#roster-home-table tbody tr, #roster-away-table tbody tr');
+          let pid = null;
+          let teamSide = null;
+          allRows.forEach(tr => {
+            const tn = tr.querySelector('.td-num')?.textContent?.trim()?.replace('#', '');
+            if (tn === num) {
+              pid = tr.dataset.pid || null;
+              teamSide = tr.closest('table').id.includes('home') ? 'home' : 'away';
+            }
+          });
+          if (!pid) {
+            alert('入力した背番号の選手が見つかりません。');
+            return;
+          }
+          // Update event data
+          ev.playerNum = num;
+          // Apply score immediately if selected
+          if (ev.type === 'SCORE') {
+            const points = ev.scoreType === '3P' ? 3 : ev.scoreType === '2P' ? 2 : 1;
+            addScore(teamSide, num, points, ev.scoreType);
+          } else if (ev.type === 'FOUL') {
+            if (typeof useFoul === 'function') useFoul(teamSide, num, ev.foulType);
+            else if (typeof addFoul === 'function') addFoul(teamSide, num, ev.foulType);
+          }
+          // Mark card as resolved
+          card.classList.add('selected');
+          toggle.classList.add('on');
+          assignBtn.disabled = true;
+        };
+        card.appendChild(assignBtn);
+      }
+      card.appendChild(icon);
+      card.appendChild(info);
+      card.appendChild(toggle);
+      eventsList.appendChild(card);
+    });
+    applyBtn.disabled = false;
+  }
 
-    // 1秒後にホーム画面に戻る
-    setTimeout(() => {
-      modal.classList.remove('open');
-      stopCamera();
-      // ホーム画面タブをアクティブにする
-      document.querySelector('[data-tab="score"]')?.click();
-    }, 1500);
+  async function startProcess() {
+    try {
+      resultDiv.style.display = 'none';
+      descriptionEl.textContent = '';
+      eventsList.innerHTML = '';
+      applyBtn.disabled = true;
+      const img = captureFrame();
+      resultDiv.style.display = 'block';
+      descriptionEl.textContent = '解析中...';
+      document.getElementById('game-vision-scan-overlay').style.display = 'block';
+      const data = await sendToVision(img);
+      document.getElementById('game-vision-scan-overlay').style.display = 'none';
+      renderEvents(data);
+    } catch (e) {
+      alert('AI解析エラー: ' + e.message);
+    }
   }
 
   // Event listeners
   openBtn?.addEventListener('click', () => { modal.classList.add('open'); startCamera(); });
   closeBtn?.addEventListener('click', () => { modal.classList.remove('open'); stopCamera(); });
-  captureBtn?.addEventListener('click', startRecording);
-  stopBtn?.addEventListener('click', stopRecording);
+  captureBtn?.addEventListener('click', startProcess);
+  retryBtn?.addEventListener('click', startProcess);
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const data = await sendToVision(ev.target.result);
+        renderEvents(data);
+        resultDiv.style.display = 'block';
+      } catch (err) {
+        alert('AI解析エラー: ' + err.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
 
   
 }

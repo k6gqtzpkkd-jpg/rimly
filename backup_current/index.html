@@ -26,56 +26,6 @@
       <div class="pw-subtitle">Professional Score Manager</div>
     </div>
 
-    <!-- 顔認証ボタン (Dynamic Island トリガー) -->
-    <div class="face-auth-entry" id="face-auth-entry">
-      <button class="face-id-trigger" id="btn-face-auth" type="button" aria-label="Face IDでロック解除">
-        <svg class="face-id-mark" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
-          <path class="face-id-bracket face-id-bracket-tl" d="M14 5H9a4 4 0 0 0-4 4v5" />
-          <path class="face-id-bracket face-id-bracket-tr" d="M28 5h5a4 4 0 0 1 4 4v5" />
-          <path class="face-id-bracket face-id-bracket-bl" d="M5 28v5a4 4 0 0 0 4 4h5" />
-          <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
-          <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
-          <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
-          <path class="face-id-face-line face-id-nose" d="M21 18v8" />
-          <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
-          <g class="face-id-scan-orbits">
-            <ellipse class="face-id-scan-loop scan-loop-a" cx="21" cy="21" rx="12.3" ry="7.2" />
-            <ellipse class="face-id-scan-loop scan-loop-b" cx="21" cy="21" rx="7.2" ry="12.3" />
-          </g>
-          <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
-          <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
-        </svg>
-        <span class="face-id-label">Face ID</span>
-      </button>
-      <div class="face-inline-status" id="face-inline-status" aria-live="polite"></div>
-    </div>
-
-    <!-- Dynamic Island (顔認証アニメーション) -->
-    <div class="face-id-island" id="face-dynamic-island" aria-hidden="true">
-      <svg class="face-id-mark" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
-        <path class="face-id-bracket face-id-bracket-tl" d="M14 5H9a4 4 0 0 0-4 4v5" />
-        <path class="face-id-bracket face-id-bracket-tr" d="M28 5h5a4 4 0 0 1 4 4v5" />
-        <path class="face-id-bracket face-id-bracket-bl" d="M5 28v5a4 4 0 0 0 4 4h5" />
-        <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
-        <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
-        <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
-        <path class="face-id-face-line face-id-nose" d="M21 18v8" />
-        <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
-        <g class="face-id-scan-orbits">
-          <ellipse class="face-id-scan-loop scan-loop-a" cx="21" cy="21" rx="12.3" ry="7.2" />
-          <ellipse class="face-id-scan-loop scan-loop-b" cx="21" cy="21" rx="7.2" ry="12.3" />
-        </g>
-        <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
-        <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
-      </svg>
-    </div>
-
-    <!-- 非表示カメラ要素 (顔認証エンジン用) -->
-    <div class="face-hidden-media">
-      <video id="face-video" autoplay playsinline muted></video>
-      <canvas id="face-canvas"></canvas>
-    </div>
-
     <div class="pw-dots">
       <div class="dot" id="dot-0"></div><div class="dot" id="dot-1"></div><div class="dot" id="dot-2"></div>
       <div class="dot" id="dot-3"></div><div class="dot" id="dot-4"></div><div class="dot" id="dot-5"></div>
@@ -88,10 +38,6 @@
       <div></div><button class="num-btn" data-n="0">0</button><button class="num-btn num-clear" id="pw-clear">C</button>
     </div>
 
-    <!-- 顔登録管理リンク -->
-    <div class="face-manage-link" id="face-manage-link" style="display:none;">
-      <button class="btn-face-manage" id="btn-face-manage-pw">⚙️ 顔の登録 / 管理</button>
-    </div>
   </div>
 
 </div>
@@ -127,7 +73,7 @@
       </button>
       <button class="tab-btn" data-tab="history">
         <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-        <span>履歴/AI</span>
+        <span>履歴</span>
       </button>
       <button class="tab-btn" data-tab="tactics">
         <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
@@ -209,10 +155,6 @@
           <button class="q-btn" id="q-next">▶</button>
           
           <div class="qbar-actions">
-            <button class="ctrl-btn btn-game-vision" id="btn-open-game-vision" title="AIカメラ自動入力">
-              <span style="font-size:18px;">📷</span>
-              <span class="gv-btn-label">AI入力</span>
-            </button>
             <button class="ctrl-btn btn-danger" id="btn-end-match">試合終了 / 保存</button>
           </div>
         </div>
@@ -378,7 +320,7 @@
     <div id="tab-content-history" class="tab-content">
       <div class="history-container">
         <div class="history-header">
-          <h1 class="glow-title">MATCH HISTORY & AI</h1>
+          <h1 class="glow-title">MATCH HISTORY</h1>
           <button class="ctrl-btn btn-danger" id="btn-clear-history">全履歴を削除</button>
         </div>
         <div class="history-list" id="history-list"></div>
@@ -439,27 +381,7 @@
         </div>
         
         <div class="team-setup-card border-orange" style="max-width:600px; margin:0 auto; padding:30px;">
-          <h2 class="card-glow-title text-orange">データの保存先</h2>
-          <div class="setup-form-group">
-            <select id="setting-storage-mode" class="glow-input" style="width:100%;">
-              <option value="local">完全本体ストレージ保存 (クラウドを使わない)</option>
-              <option value="db">完全DB保存 (Neon DBを使ったクラウドのみ)</option>
-              <option value="hybrid">ハイブリッド保存 (本体＋自動クラウドバックアップ)</option>
-            </select>
-            <p style="font-size:13px; color:var(--text-secondary); margin-top:8px;">Neon DBと連携し、データ破損時に備えたり別端末と同期させることができます。設定した「クラウド同期キー」と同じキーを入れた端末同士でデータが同期されます。</p>
-          </div>
-          
           <div class="setup-form-group mt-4">
-            <label>クラウド同期キー (Device Key)</label>
-            <div style="display:flex; gap:10px;">
-              <input type="text" id="setting-db-key" class="glow-input" placeholder="例: my_school_id_123" />
-              <button class="ctrl-btn btn-save" id="btn-save-settings" style="white-space:nowrap;">適用 / クラウド同期</button>
-            </div>
-            <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="settings-status-msg"></p>
-            <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">※Netlify環境変数「DATABASE_URL」または「NETLIFY_DATABASE_URL」が設定されデプロイされている必要があります。</p>
-          </div>
-          
-          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
             <label style="color:var(--text-primary); font-weight:800;">スタッツ記録モード</label>
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">詳細モードにすると、アシストやリバウンド等の記録カラムが追加されます。</p>
             <select id="setting-stats-mode" class="glow-input" style="width:100%;">
@@ -504,20 +426,8 @@
           </div>
 
           <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
-            <label style="color:var(--text-primary); font-weight:800;">📱 リモート連携キー (Rimly Key専用)</label>
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">iPhone版に表示されている「同期IDキー」を入力してください。<br/>※複数端末を使う場合は <code>KEY_1, KEY_2</code> のようにカンマ区切りで入力可能です。</p>
-            <div style="display:flex; gap:10px;">
-              <input type="text" id="setting-auth-key" class="glow-input" placeholder="例: KEY_XXXXXX" />
-              <button class="ctrl-btn btn-outline-glow" id="btn-save-auth-key" style="white-space:nowrap;">適 用</button>
-            </div>
-            <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="auth-key-status-msg"></p>
-          </div>
-
-          <div class="setup-form-group mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:20px;">
-            <label style="color:var(--text-primary); font-weight:800;">🔐 顔認証の管理</label>
-            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">顔データはこの端末にのみ保存され、外部に送信されません。複数ユーザーの顔を登録できます。</p>
-            <div id="face-user-list" style="margin-bottom:12px;"></div>
-            <button class="ctrl-btn btn-outline-glow" id="btn-register-face-settings" style="width:100%; border-color:#00e676; color:#00e676;">＋ 新しい顔を登録</button>
+            <button class="ctrl-btn btn-save" id="btn-save-settings" style="width:100%;">設定を保存</button>
+            <p style="font-size:13px; color:var(--orange); margin-top:8px;" id="settings-status-msg"></p>
           </div>
         </div>
       </div>
@@ -597,10 +507,6 @@
   <div class="modal-box" id="modal-manage-players">
     <div class="modal-header">
       <h3 class="modal-title" id="mmp-title" style="flex:1;">選手管理</h3>
-      <button class="ctrl-btn btn-outline-glow" id="btn-camera-ocr" style="border-color:#00e676; color:#00e676; padding:6px 10px; font-size:12px; display:flex; align-items:center; gap:4px; margin-right:15px; box-shadow: 0 0 10px rgba(0,230,118,0.2);">
-        <span style="font-size:16px;">📷</span> 写真で自動追加
-      </button>
-      <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none;" />
       <button class="modal-close">✕</button>
     </div>
     <div class="modal-body">
@@ -656,10 +562,6 @@
   <div class="modal-box modal-lg" id="modal-team-editor">
     <div class="modal-header">
       <h3 class="modal-title" style="flex:1;">チーム(学校) 編集</h3>
-      <button class="ctrl-btn btn-outline-glow" id="btn-camera-ocr-edit" style="border-color:#00e676; color:#00e676; padding:6px 10px; font-size:12px; display:flex; align-items:center; gap:4px; margin-right:15px; box-shadow: 0 0 10px rgba(0,230,118,0.2);">
-        <span style="font-size:16px;">📷</span> 写真で自動追加
-      </button>
-      <input type="file" id="ocr-file-input-edit" accept="image/*" capture="environment" style="display:none;" />
       <button class="modal-close">✕</button>
     </div>
     <div class="modal-body">
@@ -732,104 +634,11 @@
   </div>
 </div>
 
-<!-- 顔登録モーダル (body直下 - ロック画面・設定画面の両方からアクセス可能) -->
-<div class="face-register-overlay" id="face-register-overlay">
-  <div class="face-register-modal">
-    <div class="face-register-header">
-      <h3>🔐 顔の登録</h3>
-      <button class="modal-close" id="btn-close-face-register">✕</button>
-    </div>
-    <div class="face-register-body">
-      <div class="face-register-camera">
-        <video id="face-register-video" autoplay playsinline muted></video>
-        <canvas id="face-register-canvas"></canvas>
-        <div class="face-guide-ring"></div>
-        <div class="scan-line-horizontal"></div>
-        <div class="scan-line-vertical"></div>
-      </div>
-      <div class="face-register-form">
-        <input type="text" id="face-register-name" class="glow-input" placeholder="ユーザー名を入力" />
-        <button class="ctrl-btn btn-save" id="btn-do-register-face" style="width:100%;">📸 この顔を登録する</button>
-      </div>
-      <div class="face-register-status" id="face-register-status"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ================================================================ AI GAME VISION MODAL -->
-<div class="modal-overlay" id="overlay-game-vision" style="z-index: 99990;">
-  <div class="modal-box modal-lg" id="modal-game-vision" style="max-width:520px;">
-    <div class="modal-header">
-      <h3 class="modal-title" style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:22px;">📷</span>
-        <span>AI カメラ自動入力</span>
-      </h3>
-      <button class="modal-close" id="btn-close-game-vision">✕</button>
-    </div>
-    <div class="modal-body" style="padding-bottom:0;">
-
-      <!-- カメラ表示エリア -->
-      <div id="game-vision-camera-wrap" style="position:relative; border-radius:12px; overflow:hidden; background:#000; margin-bottom:14px;">
-        <video id="game-vision-video" autoplay playsinline muted style="width:100%; display:block; border-radius:12px;"></video>
-        <canvas id="game-vision-canvas" style="display:none;"></canvas>
-
-        <!-- スキャン枠オーバーレイ -->
-        <div id="game-vision-scan-overlay" style="position:absolute;inset:0;pointer-events:none;display:none;">
-          <div style="position:absolute;inset:0;border:3px solid var(--orange);border-radius:12px;animation:visionPulse 1.5s ease-in-out infinite;"></div>
-          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--orange);font-size:13px;font-weight:800;text-shadow:0 0 10px rgba(255,100,0,0.8);letter-spacing:1px;">AI 解析中...</div>
-        </div>
-      </div>
-
-      <!-- ボタン行 -->
-      <div style="display:flex;gap:10px;margin-bottom:14px;">
-        <button class="ctrl-btn btn-mega-glow" id="btn-game-vision-capture" style="flex:1;font-size:16px;padding:14px;background:linear-gradient(135deg, #FF6B35, #FF9500);display:none;">
-          ⏹️ 記録停止
-        </button>
-        <button class="ctrl-btn btn-mega-glow" id="btn-game-vision-start" style="flex:1;font-size:16px;padding:14px;">
-          🔴 記録開始
-        </button>
-        <label class="ctrl-btn btn-outline-glow" style="flex:0 0 auto;padding:14px 16px;cursor:pointer;font-size:13px;text-align:center;line-height:1.3;display:none;" id="game-vision-file-label">
-          🖼️<br>写真
-          <input type="file" id="game-vision-file-input" accept="image/*" capture="environment" style="display:none;" />
-        </label>
-      </div>
-
-      <!-- AI解析結果エリア -->
-      <div id="game-vision-result" style="display:none;">
-        <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:14px;margin-bottom:14px;">
-          <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:700;">🤖 AI の解析結果</div>
-          <div id="game-vision-description" style="font-size:14px;color:var(--text-primary);background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.2);border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.5;"></div>
-
-          <div id="game-vision-events-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-        </div>
-
-        <div style="display:flex;gap:10px;padding-bottom:16px;">
-          <button class="ctrl-btn btn-outline-glow" id="btn-game-vision-retry" style="flex:1;">
-            🔄 撮り直す
-          </button>
-          <button class="ctrl-btn btn-mega-glow" id="btn-game-vision-apply" style="flex:2;font-size:15px;" disabled>
-            ✅ 記録を適用する
-          </button>
-        </div>
-      </div>
-
-      <!-- ヒントテキスト -->
-      <div id="game-vision-hint" style="color:var(--text-muted);font-size:12px;text-align:center;padding-bottom:16px;line-height:1.6;">
-        💡 得点やファウルの瞬間を撮影してください。<br>
-        背番号が見えると精度が上がります。
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Pop Toast for +2, +3 etc -->
 <div class="score-pop" id="score-pop"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="face-auth.js"></script>
-<script src="game-vision-realtime.js"></script>
 <script src="app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

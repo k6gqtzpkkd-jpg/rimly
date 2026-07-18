@@ -26,54 +26,12 @@
       <div class="pw-subtitle">Professional Score Manager</div>
     </div>
 
-    <!-- 顔認証ボタン (Dynamic Island トリガー) -->
+    <!-- 顔認証ボタン -->
     <div class="face-auth-entry" id="face-auth-entry">
-      <button class="face-id-trigger" id="btn-face-auth" type="button" aria-label="Face IDでロック解除">
-        <svg class="face-id-mark" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
-          <path class="face-id-bracket face-id-bracket-tl" d="M14 5H9a4 4 0 0 0-4 4v5" />
-          <path class="face-id-bracket face-id-bracket-tr" d="M28 5h5a4 4 0 0 1 4 4v5" />
-          <path class="face-id-bracket face-id-bracket-bl" d="M5 28v5a4 4 0 0 0 4 4h5" />
-          <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
-          <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
-          <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
-          <path class="face-id-face-line face-id-nose" d="M21 18v8" />
-          <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
-          <g class="face-id-scan-orbits">
-            <ellipse class="face-id-scan-loop scan-loop-a" cx="21" cy="21" rx="12.3" ry="7.2" />
-            <ellipse class="face-id-scan-loop scan-loop-b" cx="21" cy="21" rx="7.2" ry="12.3" />
-          </g>
-          <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
-          <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
-        </svg>
-        <span class="face-id-label">Face ID</span>
+      <button class="btn-face-auth" id="btn-face-auth">
+        <span class="face-auth-icon">😊</span>
+        <span>顔認証でロック解除</span>
       </button>
-      <div class="face-inline-status" id="face-inline-status" aria-live="polite"></div>
-    </div>
-
-    <!-- Dynamic Island (顔認証アニメーション) -->
-    <div class="face-id-island" id="face-dynamic-island" aria-hidden="true">
-      <svg class="face-id-mark" viewBox="0 0 42 42" aria-hidden="true" focusable="false">
-        <path class="face-id-bracket face-id-bracket-tl" d="M14 5H9a4 4 0 0 0-4 4v5" />
-        <path class="face-id-bracket face-id-bracket-tr" d="M28 5h5a4 4 0 0 1 4 4v5" />
-        <path class="face-id-bracket face-id-bracket-bl" d="M5 28v5a4 4 0 0 0 4 4h5" />
-        <path class="face-id-bracket face-id-bracket-br" d="M37 28v5a4 4 0 0 1-4 4h-5" />
-        <path class="face-id-face-line face-id-eye-left" d="M15 17v2" />
-        <path class="face-id-face-line face-id-eye-right" d="M27 17v2" />
-        <path class="face-id-face-line face-id-nose" d="M21 18v8" />
-        <path class="face-id-face-line face-id-smile" d="M15.5 27.5c2.8 2.4 8.2 2.4 11 0" />
-        <g class="face-id-scan-orbits">
-          <ellipse class="face-id-scan-loop scan-loop-a" cx="21" cy="21" rx="12.3" ry="7.2" />
-          <ellipse class="face-id-scan-loop scan-loop-b" cx="21" cy="21" rx="7.2" ry="12.3" />
-        </g>
-        <circle class="face-id-check-ring" cx="21" cy="21" r="13.5" />
-        <path class="face-id-check" d="M14.5 21.8l4.4 4.6 9.1-11" />
-      </svg>
-    </div>
-
-    <!-- 非表示カメラ要素 (顔認証エンジン用) -->
-    <div class="face-hidden-media">
-      <video id="face-video" autoplay playsinline muted></video>
-      <canvas id="face-canvas"></canvas>
     </div>
 
     <div class="pw-dots">
@@ -91,6 +49,29 @@
     <!-- 顔登録管理リンク -->
     <div class="face-manage-link" id="face-manage-link" style="display:none;">
       <button class="btn-face-manage" id="btn-face-manage-pw">⚙️ 顔の登録 / 管理</button>
+    </div>
+  </div>
+
+  <!-- 顔認証オーバーレイ -->
+  <div class="face-auth-overlay" id="face-auth-overlay">
+    <div class="face-auth-header">
+      <button class="face-back-btn" id="btn-face-back">← PINに戻る</button>
+      <div class="face-fail-dots" id="face-fail-dots">
+        <span class="fail-dot" id="fail-dot-0"></span>
+        <span class="fail-dot" id="fail-dot-1"></span>
+        <span class="fail-dot" id="fail-dot-2"></span>
+      </div>
+    </div>
+    <div class="camera-container" id="camera-container">
+      <video id="face-video" autoplay playsinline muted></video>
+      <canvas id="face-canvas"></canvas>
+      <div class="face-guide-ring" id="face-guide-ring"></div>
+      <div class="scan-line-horizontal"></div>
+      <div class="scan-line-vertical"></div>
+    </div>
+    <div class="face-status" id="face-status">準備中...</div>
+    <div class="face-progress-bar" id="face-progress-bar">
+      <div class="face-progress-fill" id="face-progress-fill"></div>
     </div>
   </div>
 

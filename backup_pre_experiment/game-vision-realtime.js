@@ -20,7 +20,7 @@ async function startRealtimeRecording(video, canvas) {
   gameVisionState.lastEventTime = {};
   gameVisionState.sessionEvents = [];
 
-  // 4秒ごとにフレームをキャプチャして送信（無料枠15RPM制限を回避）
+  // 1秒ごとにフレームをキャプチャして送信
   gameVisionState.captureTimer = setInterval(async () => {
     if (!gameVisionState.isRecording) return;
 
@@ -35,7 +35,7 @@ async function startRealtimeRecording(video, canvas) {
     } catch (e) {
       console.error('Frame capture error:', e);
     }
-  }, 4000); // 4秒ごと
+  }, 1000); // 1秒ごと
 }
 
 async function stopRealtimeRecording() {
@@ -246,14 +246,6 @@ async function analyzeFrameAI(frameData) {
     if (!resp.ok) {
       const errText = await resp.text();
       console.error('API error:', resp.status, errText);
-      const descEl = document.getElementById('game-vision-description');
-      if (descEl) {
-        if (resp.status === 429 || errText.includes('Too Many Requests') || errText.includes('429')) {
-          descEl.textContent = '⚠️ エラー: AIの利用制限(リクエスト過多)です。数分待ってからお試しください。';
-        } else {
-          descEl.textContent = '⚠️ APIエラー: サーバー設定またはAPIキーを確認してください。';
-        }
-      }
       return null;
     }
 

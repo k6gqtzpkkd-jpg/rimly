@@ -32,7 +32,6 @@ const apiRoutes = {
   '/api/ocr': './api/ocr.js',
   '/api/analyze': './api/analyze.js',
   '/api/ai-status': './api/ai-status.js',
-  '/api/db': './api/db.js',
   '/api/game-vision': './api/game-vision.js'
 };
 
@@ -57,7 +56,6 @@ server.listen(port, host, () => {
   console.log(process.env.OPENAI_API_KEY
     ? `OPENAI_API_KEY: set (${process.env.RIMLY_OPENAI_API_KEY_SOURCE || 'environment'})`
     : 'OPENAI_API_KEY: not set');
-  console.log(process.env.DATABASE_URL ? 'DATABASE_URL: set' : 'DATABASE_URL: not set');
 });
 
 function loadLocalEnv() {
