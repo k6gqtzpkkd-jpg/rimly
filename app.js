@@ -390,7 +390,7 @@ function setupTabs() {
         showAlert('試合中はセットアップや履歴、チーム登録画面には移動できません。');
         return;
       }
-      if (!appState.isGameActive && (target === 'score' || target === 'plays' || target === 'fouls')) {
+      if (!appState.isGameActive && (target === 'score' || target === 'plays' || target === 'fouls' || target === 'timeouts')) {
         showAlert('試合が開始されていません。');
         return;
       }
@@ -411,7 +411,7 @@ function switchTab(t) {
   if (t === 'score') renderScore();
   if (t === 'history') renderHistory();
   if (t === 'teams') renderTeamsTab();
-  if (t === 'plays' || t === 'fouls') renderLogs();
+  if (t === 'plays' || t === 'fouls' || t === 'timeouts') renderLogs();
   if (t === 'settings') renderSettings();
   if (t === 'tactics') initTacticsBoard();
 
