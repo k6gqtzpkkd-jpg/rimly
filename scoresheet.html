@@ -3,42 +3,78 @@
 <head>
   <meta charset="UTF-8">
   <title>OFFICIAL SCORESHEET - Rimly</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
-    body { background: white; padding: 20px; overflow: auto; color: black; }
-    .print-btn-container { text-align: center; margin-top: 20px; }
+    body { 
+      background: #555; 
+      margin: 0; 
+      padding: 20px; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+    }
+    .print-btn-container { margin-bottom: 20px; text-align: center; }
+    
+    .sheet-wrapper {
+      position: relative;
+      width: 859px;
+      height: 1103px;
+      background-image: url('scoresheet_bg.jpg');
+      background-size: 859px 1103px;
+      background-repeat: no-repeat;
+      background-position: top left;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      font-family: sans-serif;
+      color: black;
+      overflow: hidden;
+    }
+
+    /* Print styles */
     @media print { 
       .hide-on-print { display: none !important; } 
-      body { padding: 0; }
+      body { padding: 0; background: white; }
+      .sheet-wrapper { box-shadow: none; }
+      /* Force print background images */
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     }
+
+    /* Common absolute positioning utility classes */
+    .abs {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .left-align { justify-content: flex-start; padding-left: 4px; }
+    .cross { font-size: 24px; font-weight: normal; color: black; }
   </style>
 </head>
 <body>
-  <h2 style="text-align: center; font-family: 'Times New Roman', serif; margin-bottom: 20px;">OFFICIAL SCORESHEET</h2>
-  <div id="scoresheet-container" class="scoresheet-container"></div>
   <div class="print-btn-container hide-on-print">
-    <button class="btn btn-primary" onclick="window.print()" style="padding:10px 20px; font-size:16px;">印刷 (Print)</button>
+    <button onclick="window.print()" style="padding:10px 20px; font-size:16px; cursor:pointer;">印刷 (Print)</button>
+  </div>
+
+  <div id="sheet" class="sheet-wrapper">
+    <!-- Overlay elements will be added by JS here -->
   </div>
 
   <script>
-    // Mock appState for official-scoresheet.js to read
+    // Load state
     let appState = { game: null };
     try {
       const data = localStorage.getItem('rimly_v4_active_match');
       if (data) {
-        const parsed = JSON.parse(data);
-        appState.game = parsed.game;
+        appState.game = JSON.parse(data).game;
       }
-    } catch(e) {
-      console.error('Failed to load match state:', e);
-    }
+    } catch(e) { console.error('Failed to load match state:', e); }
   </script>
   <script src="official-scoresheet.js"></script>
   <script>
     if (appState.game) {
       generateOfficialScoresheet();
     } else {
-      document.getElementById('scoresheet-container').innerHTML = '<p style="text-align:center;">試合データが見つかりません。</p>';
+      document.getElementById('sheet').innerHTML = '<div style="margin-top:200px; text-align:center; font-size:24px; color:red;">試合データが見つかりません。</div>';
     }
   </script>
 </body>
